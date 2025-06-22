@@ -313,3 +313,141 @@ html {
   }
 }
 
+/* React Image Crop Styles */
+.ReactCrop {
+  display: inline-block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  touch-action: none;
+}
+
+.ReactCrop * {
+  box-sizing: border-box;
+}
+
+.ReactCrop__image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.ReactCrop__crop-selection {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate3d(0, 0, 0);
+  box-sizing: border-box;
+  cursor: move;
+  box-shadow: 0 0 0 9999em rgba(0, 0, 0, 0.6);
+  border: 2px solid #2563eb;
+  touch-action: none;
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: -4px;
+}
+
+.ReactCrop__drag-handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: #2563eb;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-sizing: border-box;
+  outline: 1px solid transparent;
+}
+
+.ReactCrop__drag-handle::after {
+  position: absolute;
+  content: '';
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  cursor: inherit;
+}
+
+.ReactCrop__drag-handle--ne {
+  top: -5px;
+  right: -5px;
+  cursor: ne-resize;
+}
+
+.ReactCrop__drag-handle--e {
+  top: 50%;
+  right: -5px;
+  margin-top: -5px;
+  cursor: e-resize;
+}
+
+.ReactCrop__drag-handle--se {
+  bottom: -5px;
+  right: -5px;
+  cursor: se-resize;
+}
+
+.ReactCrop__drag-handle--s {
+  bottom: -5px;
+  left: 50%;
+  margin-left: -5px;
+  cursor: s-resize;
+}
+
+.ReactCrop__drag-handle--sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: sw-resize;
+}
+
+.ReactCrop__drag-handle--w {
+  top: 50%;
+  left: -5px;
+  margin-top: -5px;
+  cursor: w-resize;
+}
+
+.ReactCrop__drag-handle--nw {
+  top: -5px;
+  left: -5px;
+  cursor: nw-resize;
+}
+
+.ReactCrop__drag-handle--n {
+  top: -5px;
+  left: 50%;
+  margin-left: -5px;
+  cursor: n-resize;
+}
+
+.ReactCrop--disabled .ReactCrop__drag-handle {
+  cursor: inherit;
+}
+
+.ReactCrop--circular-crop .ReactCrop__crop-selection {
+  border-radius: 50%;
+}
+
+.ReactCrop--rule-of-thirds .ReactCrop__crop-selection::before,
+.ReactCrop--rule-of-thirds .ReactCrop__crop-selection::after {
+  content: '';
+  position: absolute;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0 solid rgba(255, 255, 255, 0.4);
+}
+
+.ReactCrop--rule-of-thirds .ReactCrop__crop-selection::before {
+  border-left-width: 1px;
+  border-right-width: 1px;
+  left: 33.333%;
+  width: 33.333%;
+}
+
+.ReactCrop--rule-of-thirds .ReactCrop__crop-selection::after {
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  top: 33.333%;
+  height: 33.333%;
+}
+

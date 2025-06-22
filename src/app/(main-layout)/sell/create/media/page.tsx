@@ -5,8 +5,9 @@ import { createClient } from '@/utils/supabase/client';
 import { useToast } from '@/src/components/ui/Toast';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
 import Spinner from '@/src/components/ui/Spinner';
-import { Upload, Image as ImageIcon, Trash2, RotateCcw, CheckCircle, AlertCircle, Eye } from 'lucide-react';
+import { Upload, Image as ImageIcon, Trash2, RotateCcw, CheckCircle, AlertCircle, Eye, Edit3 } from 'lucide-react';
 import ImageLightbox from '@/src/components/ui/ImageLightbox';
+import ImageEditor from '@/src/components/ImageEditor';
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -66,6 +67,9 @@ export default function MediaPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingFile, setEditingFile] = useState<File | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Local drag state for image re-ordering
   const dragItemIndex = useRef<number | null>(null);
@@ -180,17 +184,21 @@ export default function MediaPage() {
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
     if (imageFiles.length > 0) {
-      handleFileUpload(imageFiles);
+      handleFilesForEditing(imageFiles);
     }
   };
 
   const uploadFile = async (file: File, bucketName: string, folder: string): Promise<{ publicUrl: string; s3Key: string } | null> => {
     try {
+      console.log('Starting upload:', { fileName: file.name, bucketName, folder, fileSize: file.size });
+      
       const supabase = createClient();
       const fileExt = file.name.split('.').pop();
       const fileName = `${folder}/${propertyId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-      const { error } = await supabase.storage
+      console.log('Uploading to path:', fileName);
+
+      const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file, {
           cacheControl: '3600',
@@ -198,17 +206,54 @@ export default function MediaPage() {
         });
 
       if (error) {
-        throw error;
+        console.error('Supabase storage error:', {
+          message: error.message,
+          error: error
+        });
+        
+        // Try a simpler path structure if nested folders fail
+        const simpleFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        console.log('Retrying with simple path:', simpleFileName);
+        
+        const { data: retryData, error: retryError } = await supabase.storage
+          .from(bucketName)
+          .upload(simpleFileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+          
+        if (retryError) {
+          console.error('Retry also failed:', retryError);
+          throw new Error(`Storage upload failed: ${error.message}. Retry failed: ${retryError.message}`);
+        }
+        
+        console.log('Retry successful:', retryData);
+        
+        // Get public URL for simple path
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(simpleFileName);
+          
+        return { publicUrl, s3Key: simpleFileName };
       }
+
+      console.log('Upload successful, data:', data);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from(bucketName)
         .getPublicUrl(fileName);
 
+      console.log('Generated public URL:', publicUrl);
+
       return { publicUrl, s3Key: fileName };
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Upload error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error,
+        fileName: file.name,
+        bucketName: bucketName
+      });
       throw error;
     }
   };
@@ -275,7 +320,7 @@ export default function MediaPage() {
     });
 
     try {
-      // Step 1: Compression (5-15%)
+      // Step 1: Improved Compression with progress (5-20%)
       let processedFiles: File[] = files;
       
       try {
@@ -287,18 +332,23 @@ export default function MediaPage() {
         processedFiles = await Promise.all(
           files.map(async (file, index) => {
             const compressed = await imageCompression(file, {
-              maxSizeMB: 1,
+              maxSizeMB: 0.8, // Reduced for better performance
               maxWidthOrHeight: 1920,
               useWebWorker: true,
+              onProgress: (progress) => {
+                // Convert compression progress to upload progress (5-20%)
+                const uploadProgress = 5 + (progress * 0.15);
+                updatePhotoProgress(uploadItems[index].id, Math.round(uploadProgress));
+              }
             });
             
-            updatePhotoProgress(uploadItems[index].id, 15);
+            updatePhotoProgress(uploadItems[index].id, 20);
             return compressed;
           })
         );
       } catch (compressionErr) {
         console.warn('Image compression skipped:', compressionErr);
-        uploadItems.forEach(item => updatePhotoProgress(item.id, 15));
+        uploadItems.forEach(item => updatePhotoProgress(item.id, 20));
       }
 
       // Step 2: Upload files with proper concurrency (15-90%)
@@ -345,12 +395,15 @@ export default function MediaPage() {
           .map(({ result, index, photoId }) => {
             if (result.status === 'fulfilled' && result.value) {
               updatePhotoProgress(photoId, 95);
+              const originalFile = processedFiles[index];
+              const customTitle = (originalFile as any).customTitle;
+              
               return {
                 property_id: propertyId,
                 s3_key: result.value.s3Key,
                 image_order: startOrder + index,
                 is_primary: startOrder === 0 && index === 0,
-                alt_text: `Property photo ${startOrder + index + 1}`,
+                alt_text: customTitle || `Property photo ${startOrder + index + 1}`,
               };
             }
             return null;
@@ -428,6 +481,57 @@ export default function MediaPage() {
     }
   };
 
+  // Handle files for editing flow
+  const handleFilesForEditing = (files: File[]) => {
+    if (files.length === 0) return;
+    
+    setPendingFiles(files);
+    setEditingFile(files[0]); // Start with first file
+    setEditorOpen(true);
+  };
+
+  // Handle edited file save
+  const handleEditedFileSave = (editedFile: File, title: string) => {
+    // Update the file with title in alt_text or similar field
+    const fileWithTitle = new File([editedFile], editedFile.name, {
+      type: editedFile.type,
+      lastModified: editedFile.lastModified,
+    });
+    
+    // Store title as a custom property (we'll handle this in upload)
+    (fileWithTitle as any).customTitle = title;
+    
+    // Remove current file from pending and process next or upload
+    const remainingFiles = pendingFiles.slice(1);
+    setPendingFiles(remainingFiles);
+    
+    // Upload the edited file
+    handleFileUpload([fileWithTitle]);
+    
+    if (remainingFiles.length > 0) {
+      // Edit next file
+      setEditingFile(remainingFiles[0]);
+    } else {
+      // Close editor, all files processed
+      setEditorOpen(false);
+      setEditingFile(null);
+    }
+  };
+
+  // Handle editor cancel
+  const handleEditedFileCancel = () => {
+    // Process next file or close
+    const remainingFiles = pendingFiles.slice(1);
+    setPendingFiles(remainingFiles);
+    
+    if (remainingFiles.length > 0) {
+      setEditingFile(remainingFiles[0]);
+    } else {
+      setEditorOpen(false);
+      setEditingFile(null);
+    }
+  };
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !propertyId) return;
     
@@ -436,8 +540,8 @@ export default function MediaPage() {
     // Clear the input immediately for better UX
     e.target.value = '';
     
-    // Start upload process
-    await handleFileUpload(files);
+    // Start editing flow instead of direct upload
+    handleFilesForEditing(files);
   };
 
   // Helper to refresh existing images list (used by multiple places)
@@ -647,17 +751,46 @@ export default function MediaPage() {
               ) : (
                 <div className="text-center">
                   <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <label
-                    htmlFor="photos"
-                    className={`inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all cursor-pointer ${
-                      uploading 
-                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg'
-                    }`}
-                  >
-                    <Upload className="w-5 h-5 mr-2" />
-                    {uploading ? 'Uploading...' : 'Upload Photos'}
-                  </label>
+                  <div className="space-y-3">
+                    <label
+                      htmlFor="photos"
+                      className={`inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all cursor-pointer ${
+                        uploading 
+                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg'
+                      }`}
+                    >
+                      <Upload className="w-5 h-5 mr-2" />
+                      {uploading ? 'Uploading...' : 'Upload & Edit Photos'}
+                    </label>
+                    
+                    <input
+                      type="file"
+                      id="photos-direct"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={async (e) => {
+                        if (!e.target.files || !propertyId) return;
+                        const files = Array.from(e.target.files);
+                        e.target.value = '';
+                        await handleFileUpload(files);
+                      }}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                    
+                    <label
+                      htmlFor="photos-direct"
+                      className={`inline-flex items-center px-4 py-2 text-sm rounded-lg font-medium transition-all cursor-pointer border ${
+                        uploading 
+                          ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed' 
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Skip Edit & Upload Directly
+                    </label>
+                  </div>
                   <p className="text-sm text-gray-500 mt-3">
                     or drag and drop images here
                   </p>
@@ -684,6 +817,29 @@ export default function MediaPage() {
                 <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
                 <p className="text-sm font-medium text-gray-600">No images uploaded yet</p>
                 <p className="text-xs text-gray-500 mt-1">Upload some photos to showcase your property</p>
+                <button
+                  onClick={async () => {
+                    console.log('Manually initializing storage...');
+                    try {
+                      const response = await fetch('/api/storage/init', {
+                        method: 'POST',
+                      });
+                      const result = await response.json();
+                      console.log('Storage init result:', result);
+                      if (result.success) {
+                        success('Storage initialized successfully!');
+                      } else {
+                        showError('Storage initialization failed', JSON.stringify(result));
+                      }
+                    } catch (error) {
+                      console.error('Storage init error:', error);
+                      showError('Storage initialization error', error instanceof Error ? error.message : 'Unknown error');
+                    }
+                  }}
+                  className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Initialize Storage
+                </button>
               </div>
             )}
 
@@ -736,6 +892,25 @@ export default function MediaPage() {
                             </div>
                           )}
                           
+                          {/* Edit Button */}
+                          <button
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              // Convert image URL to File for editing
+                              fetch(image.url)
+                                .then(res => res.blob())
+                                .then(blob => {
+                                  const file = new File([blob], `${image.alt_text || 'image'}.jpg`, { type: blob.type });
+                                  setEditingFile(file);
+                                  setEditorOpen(true);
+                                });
+                            }}
+                            className="absolute top-3 left-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                            title="Edit image"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
                           {/* Delete Button */}
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteExistingImage(image.id, image.s3_key); }}
@@ -771,6 +946,23 @@ export default function MediaPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pending Files for Editing */}
+            {pendingFiles.length > 0 && (
+              <div className="space-y-3 mb-6">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Files Waiting for Edit ({pendingFiles.length} remaining)
+                </h3>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-700">
+                    📝 Currently editing: <strong>{editingFile?.name}</strong>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {pendingFiles.length - 1} more files in queue
+                  </p>
                 </div>
               </div>
             )}
@@ -932,6 +1124,16 @@ export default function MediaPage() {
           images={lightboxImages}
           startIndex={lightboxIndex}
           onClose={() => setLightboxOpen(false)}
+        />
+      )}
+
+      {/* Image Editor Modal */}
+      {editingFile && (
+        <ImageEditor
+          imageFile={editingFile}
+          onSave={handleEditedFileSave}
+          onCancel={handleEditedFileCancel}
+          isOpen={editorOpen}
         />
       )}
     </main>
