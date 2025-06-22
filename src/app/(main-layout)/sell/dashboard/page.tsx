@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import Spinner from '@/src/components/ui/Spinner';
+import Spinner, { LoadingOverlay } from '@/src/components/ui/Spinner';
 
 interface PropertyListing {
   id: string;
@@ -340,12 +340,13 @@ export default function PropertyDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Spinner size={48} className="mx-auto text-blue-600" />
-          <p className="mt-4 text-gray-600">Loading your properties...</p>
-        </div>
-      </div>
+      <LoadingOverlay
+        show={true}
+        message="Loading your properties..."
+        subtitle="Please wait while we fetch your listings"
+        size={48}
+        opacity="heavy"
+      />
     );
   }
 
@@ -491,7 +492,7 @@ export default function PropertyDashboard() {
                           </p>
                           <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
                             {clickingPropertyId === property.id && (
-                              <Spinner size={12} colorClass="text-blue-600" />
+                              <Spinner size={12} variant="primary" />
                             )}
                             {clickingPropertyId === property.id ? 'Loading...' : getActionText(property)}
                           </p>
@@ -596,7 +597,7 @@ export default function PropertyDashboard() {
                   >
                     {deletingPropertyId === showDeleteConfirm ? (
                       <>
-                        <Spinner size={16} colorClass="text-white" className="mr-2" />
+                        <Spinner size={16} variant="white" className="mr-2" />
                         Deleting...
                       </>
                     ) : (

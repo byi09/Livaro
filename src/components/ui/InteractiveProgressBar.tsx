@@ -138,12 +138,7 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
 
   return (
     <div className="mb-12 relative sticky top-16 z-20 bg-white/80 backdrop-blur">
-      {/* Debug info - remove in production */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mb-4 p-2 bg-yellow-100 text-xs">
-          Debug: currentStep={currentStep}, furthestStep={furthestStep}, propertyId={propertyId}
-        </div>
-      )}
+
       
       {/* Progress Bar Background - positioned to go through circle centers */}
       <div className="absolute left-0 right-0 top-[10px] sm:top-[12px] h-0.5 bg-blue-100">
