@@ -148,9 +148,8 @@ export const landlords = pgTable('landlords', {
 
 export const properties = pgTable('properties', {
     id: uuid('id').defaultRandom().primaryKey(),
-    landlordId: uuid('landlord_id')
-        .notNull()
-        .references(() => landlords.id),
+    landlordId: uuid('landlord_id').references(() => landlords.id),
+    buildingId: uuid('building_id').references(() => apartmentBuildings.id, { onDelete: 'cascade' }),
 
     // Address
     addressLine1: varchar('address_line_1', { length: 255 }).notNull(),
