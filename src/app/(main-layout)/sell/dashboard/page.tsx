@@ -228,24 +228,63 @@ export default function PropertyDashboard() {
                 return `/sell/create?property_id=${property.id}`;
             }
 
-            // If basic property info is complete, check for listing data
-            if (!property.listing_status) {
-                return `/sell/create/rent-details?property_id=${property.id}`;
+            // Check progress tracking from localStorage
+            let furthestStep = 0;
+            if (typeof window !== 'undefined') {
+                const propertyKey = `furthestStep_${property.id}`;
+                const defaultKey = 'furthestStep_default';
+                
+                // Check property-specific progress first
+                const storedProperty = window.localStorage.getItem(propertyKey);
+                const storedDefault = window.localStorage.getItem(defaultKey);
+                
+                const propertyStep = storedProperty ? parseInt(storedProperty, 10) : 0;
+                const defaultStep = storedDefault ? parseInt(storedDefault, 10) : 0;
+                
+                furthestStep = Math.max(propertyStep, defaultStep);
             }
 
-            // For properties with listings, do minimal checks to avoid API errors
-            // If listing is active, go to publish page to view/manage
+            // Define the step paths to match InteractiveProgressBar
+            const stepPaths = [
+                `/sell/create?property_id=${property.id}`, // 0 - Property Info
+                `/sell/create/rent-details?property_id=${property.id}`, // 1 - Rent Details
+                `/sell/create/media?property_id=${property.id}`, // 2 - Media
+                `/sell/create/amenities?property_id=${property.id}`, // 3 - Amenities
+                `/sell/create/screening?property_id=${property.id}`, // 4 - Screening
+                `/sell/create/costs-and-fees?property_id=${property.id}`, // 5 - Costs and Fees
+                `/sell/create/final-details?property_id=${property.id}`, // 6 - Final Details
+                `/sell/create/review?property_id=${property.id}`, // 7 - Review
+                `/sell/create/publish?property_id=${property.id}` // 8 - Publish
+            ];
+
+            // For properties with listings, check status to determine behavior
             if (property.listing_status === "active") {
-                return `/sell/create/publish?property_id=${property.id}`;
+                // Active listings always go to publish page to manage
+                return stepPaths[8];
             }
 
-            // If listing is pending/draft, go to review page
+            // For pending/draft listings, check if they reached the review step
             if (property.listing_status === "pending") {
-                return `/sell/create/review?property_id=${property.id}`;
+                // If they reached the review step or beyond, go to review
+                if (furthestStep >= 7) {
+                    return stepPaths[7];
+                }
+                // Otherwise, go to their furthest step
+                return stepPaths[Math.max(furthestStep, 1)];
             }
 
-            // Default to rent details for any other case
-            return `/sell/create/rent-details?property_id=${property.id}`;
+            // For properties without listings, check progress
+            if (!property.listing_status) {
+                // If they have progress tracked, go to their furthest step
+                if (furthestStep > 0) {
+                    return stepPaths[Math.min(furthestStep, stepPaths.length - 1)];
+                }
+                // Otherwise, go to rent details (step 1)
+                return stepPaths[1];
+            }
+
+            // Default fallback
+            return stepPaths[Math.max(furthestStep, 1)];
         } catch (error) {
             console.error("Error determining next step:", error);
             // Always default to the first page on error
@@ -552,6 +591,7 @@ export default function PropertyDashboard() {
                     </div>
                 </div>
 
+
                 {/* Properties List */}
                 <div className="bg-white shadow overflow-hidden sm:rounded-md mb-8">
                     <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -618,66 +658,183 @@ export default function PropertyDashboard() {
                         </div>
                     </div>
 
-          {properties.length === 0 ? (
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v20c0 4.418 7.163 8 16 8 1.381 0 2.721-.087 4-.252M8 14c0 4.418 7.163 8 16 8s16-3.582 16-8M8 14c0-4.418 7.163-8 16-8s16 3.582 16 8m0 0v14m-16-4c0 4.418 7.163 8 16 8 1.381 0 2.721-.087 4-.252" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No properties yet</h3>
-              <p className="mt-1 text-sm text-gray-500">Get started by creating your first property listing.</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {properties.map((property) => (
-                <li 
-                  key={property.id} 
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                    clickingPropertyId === property.id ? 'bg-blue-50' : ''
-                  }`} 
-                  onClick={() => handlePropertyClick(property)}
-                >
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                            <span className="text-blue-600 font-semibold text-sm">
-                              {property.bedrooms}BR
-                            </span>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <div className="flex items-center">
-                            <p className="text-sm font-medium text-gray-900">
-                              {property.listing_title || formatAddress(property)}
+                    {properties.length === 0 ? (
+                        <div className="text-center py-12">
+                            <svg
+                                className="mx-auto h-12 w-12 text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 48 48"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 14v20c0 4.418 7.163 8 16 8 1.381 0 2.721-.087 4-.252M8 14c0 4.418 7.163 8 16 8s16-3.582 16-8M8 14c0-4.418 7.163-8 16-8s16 3.582 16 8m0 0v14m-16-4c0 4.418 7.163 8 16 8 1.381 0 2.721-.087 4-.252"
+                                />
+                            </svg>
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">
+                                No properties yet
+                            </h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Get started by creating your first property
+                                listing.
                             </p>
-                            <div className="ml-2">
-                              {getStatusBadge(property.listing_status)}
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            {formatAddress(property)} • {property.bedrooms} bed, {property.bathrooms} bath
-                            {property.square_footage && ` • ${property.square_footage} sq ft`}
-                          </p>
-                          <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
-                            {clickingPropertyId === property.id && (
-                              <Spinner size={12} variant="primary" />
-                            )}
-                            {clickingPropertyId === property.id ? 'Loading...' : getActionText(property)}
-                          </p>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900">
-                            {formatPrice(property.monthly_rent)}/month
-                          </p>
-                          {property.listing_created && (
-                            <p className="text-sm text-gray-500">
-                              Listed {new Date(property.listing_created).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
+    <<<<<<<<< Temporary merge branch 1
+                    ) : viewMode === "list" ? (
+                        <ul className="divide-y divide-gray-200">
+                            {properties.map((property) => (
+                                <li
+                                    key={property.id}
+                                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                                        clickingPropertyId === property.id
+                                            ? "bg-blue-50"
+                                            : ""
+                                    }`}
+                                    onClick={() =>
+                                        handlePropertyClick(property)
+                                    }
+                                >
+                                    <div className="px-4 py-4 sm:px-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0">
+                                                    <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                                        <span className="text-blue-600 font-semibold text-sm">
+                                                            {property.bedrooms}
+                                                            BR
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="ml-4">
+                                                    <div className="flex items-center">
+                                                        <p className="text-sm font-medium text-gray-900">
+                                                            {property.listing_title ||
+                                                                formatAddress(
+                                                                    property
+                                                                )}
+                                                        </p>
+                                                        <div className="ml-2">
+                                                            {getStatusBadge(
+                                                                property.listing_status
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-sm text-gray-500">
+                                                        {formatAddress(
+                                                            property
+                                                        )}{" "}
+                                                        • {property.bedrooms}{" "}
+                                                        bed,{" "}
+                                                        {property.bathrooms}{" "}
+                                                        bath
+                                                        {property.square_footage &&
+                                                            ` • ${property.square_footage} sq ft`}
+                                                    </p>
+                                                    <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
+                                                        {clickingPropertyId ===
+                                                            property.id && (
+                                                            <Spinner
+                                                                size={12}
+                                                                colorClass="text-blue-600"
+                                                            />
+                                                        )}
+                                                        {clickingPropertyId ===
+                                                        property.id
+                                                            ? "Loading..."
+                                                            : getActionText(
+                                                                  property
+                                                              )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <div className="text-right">
+                                                    <p className="text-sm font-medium text-gray-900">
+                                                        {formatPrice(
+                                                            property.monthly_rent
+                                                        )}
+                                                        /month
+                                                    </p>
+                                                    {property.listing_created && (
+                                                        <p className="text-sm text-gray-500">
+                                                            Listed{" "}
+                                                            {new Date(
+                                                                property.listing_created
+                                                            ).toLocaleDateString()}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowDeleteConfirm(
+                                                            property.id
+                                                        );
+                                                    }}
+                                                    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                                                    title="Delete property"
+                                                >
+                                                    <svg
+                                                        className="h-4 w-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                                {/* Edit Property Button */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.push(
+                                                            `/sell/create?property_id=${property.id}`
+                                                        );
+                                                    }}
+                                                    className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                                                    title="Edit property details"
+                                                >
+                                                    <svg
+                                                        className="h-4 w-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                                <svg
+                                                    className="h-5 w-5 text-gray-400"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M9 5l7 7-7 7"
+                                                    />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+=========
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -714,6 +871,93 @@ export default function PropertyDashboard() {
             </ul>
           )}
         </div>
+
+        {/* Create New Listing Button */}
+        <div className="text-center">
+          <button
+            onClick={() => router.push('/sell/create')}
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create New Property Listing
+          </button>
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              {/* Background overlay */}
+              <div 
+                className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                onClick={() => setShowDeleteConfirm(null)}
+              />
+              
+              {/* Modal panel */}
+              <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Delete Property
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Are you sure you want to delete this property? This action cannot be undone and will permanently remove the property and its listing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProperty(showDeleteConfirm)}
+                    disabled={deletingPropertyId === showDeleteConfirm}
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deletingPropertyId === showDeleteConfirm ? (
+                      <>
+                        <Spinner size={16} variant="white" className="mr-2" />
+                        Deleting...
+                      </>
+>>>>>>>>> Temporary merge branch 2
+                    ) : (
+                        <div className="p-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {properties.map((property) => (
+                                    <ListingCard
+                                        key={property.id}
+                                        property={property}
+                                        onPropertyClick={handlePropertyClick}
+                                        onEditClick={(e) => {
+                                            e.stopPropagation();
+                                            router.push(
+                                                `/sell/create?property_id=${property.id}`
+                                            );
+                                        }}
+                                        onDeleteClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowDeleteConfirm(property.id);
+                                        }}
+                                        isLoading={
+                                            clickingPropertyId === property.id
+                                        }
+                                        formatAddress={formatAddress}
+                                        formatPrice={formatPrice}
+                                        getStatusBadge={getStatusBadge}
+                                        getActionText={getActionText}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 {/* Create New Listing Button */}
                 <div className="text-center">
