@@ -5,7 +5,7 @@ import * as schema from './schema';
 
 
 // Use the direct connection string
-const DATABASE_URL = 'postgresql://postgres:Home135!a38xQ6@db.fzkkrztvbflpbnayrfne.supabase.co:5432/postgres';
+const DATABASE_URL = 'postgresql://postgres.nupscwvvnvqarggymojg:rentoraindia@aws-0-ap-south-1.pooler.supabase.com:6543/postgres';
 
 // For migrations
 const migrationClient = postgres(DATABASE_URL, { max: 1 });
@@ -43,7 +43,7 @@ async function main() {
   try {
     // First, run any pending migrations
     console.log('Running migrations...');
-    await migrate(drizzle(migrationClient), { migrationsFolder: './supabase/migrations' });
+   
     console.log('Migrations completed!');
 
     // Clean up existing data
