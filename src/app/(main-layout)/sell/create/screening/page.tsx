@@ -114,7 +114,7 @@ export default function ScreeningPage() {
     } catch (err) {
       console.error('Error saving before exit:', err);
     } finally {
-      router.push('/');
+      router.push('/sell/dashboard');
     }
   };
 

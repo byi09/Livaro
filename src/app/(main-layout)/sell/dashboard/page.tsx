@@ -228,24 +228,63 @@ export default function PropertyDashboard() {
                 return `/sell/create?property_id=${property.id}`;
             }
 
-            // If basic property info is complete, check for listing data
-            if (!property.listing_status) {
-                return `/sell/create/rent-details?property_id=${property.id}`;
+            // Check progress tracking from localStorage
+            let furthestStep = 0;
+            if (typeof window !== 'undefined') {
+                const propertyKey = `furthestStep_${property.id}`;
+                const defaultKey = 'furthestStep_default';
+                
+                // Check property-specific progress first
+                const storedProperty = window.localStorage.getItem(propertyKey);
+                const storedDefault = window.localStorage.getItem(defaultKey);
+                
+                const propertyStep = storedProperty ? parseInt(storedProperty, 10) : 0;
+                const defaultStep = storedDefault ? parseInt(storedDefault, 10) : 0;
+                
+                furthestStep = Math.max(propertyStep, defaultStep);
             }
 
-            // For properties with listings, do minimal checks to avoid API errors
-            // If listing is active, go to publish page to view/manage
+            // Define the step paths to match InteractiveProgressBar
+            const stepPaths = [
+                `/sell/create?property_id=${property.id}`, // 0 - Property Info
+                `/sell/create/rent-details?property_id=${property.id}`, // 1 - Rent Details
+                `/sell/create/media?property_id=${property.id}`, // 2 - Media
+                `/sell/create/amenities?property_id=${property.id}`, // 3 - Amenities
+                `/sell/create/screening?property_id=${property.id}`, // 4 - Screening
+                `/sell/create/costs-and-fees?property_id=${property.id}`, // 5 - Costs and Fees
+                `/sell/create/final-details?property_id=${property.id}`, // 6 - Final Details
+                `/sell/create/review?property_id=${property.id}`, // 7 - Review
+                `/sell/create/publish?property_id=${property.id}` // 8 - Publish
+            ];
+
+            // For properties with listings, check status to determine behavior
             if (property.listing_status === "active") {
-                return `/sell/create/publish?property_id=${property.id}`;
+                // Active listings always go to publish page to manage
+                return stepPaths[8];
             }
 
-            // If listing is pending/draft, go to review page
+            // For pending/draft listings, check if they reached the review step
             if (property.listing_status === "pending") {
-                return `/sell/create/review?property_id=${property.id}`;
+                // If they reached the review step or beyond, go to review
+                if (furthestStep >= 7) {
+                    return stepPaths[7];
+                }
+                // Otherwise, go to their furthest step
+                return stepPaths[Math.max(furthestStep, 1)];
             }
 
-            // Default to rent details for any other case
-            return `/sell/create/rent-details?property_id=${property.id}`;
+            // For properties without listings, check progress
+            if (!property.listing_status) {
+                // If they have progress tracked, go to their furthest step
+                if (furthestStep > 0) {
+                    return stepPaths[Math.min(furthestStep, stepPaths.length - 1)];
+                }
+                // Otherwise, go to rent details (step 1)
+                return stepPaths[1];
+            }
+
+            // Default fallback
+            return stepPaths[Math.max(furthestStep, 1)];
         } catch (error) {
             console.error("Error determining next step:", error);
             // Always default to the first page on error
