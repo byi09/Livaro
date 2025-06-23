@@ -592,6 +592,7 @@ export default function PropertyDashboard() {
                     </div>
                 </div>
 
+
                 {/* Properties List */}
                 <div className="bg-white shadow overflow-hidden sm:rounded-md mb-8">
                     <div className="px-4 py-5 sm:px-6 border-b border-gray-200">

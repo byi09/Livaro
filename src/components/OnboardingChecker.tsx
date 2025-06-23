@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingFlow from './onboarding/OnboardingFlow';
-import Spinner from './ui/Spinner';
+import { LoadingOverlay } from './ui/Spinner';
 
 const OnboardingChecker: React.FC = () => {
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
@@ -71,14 +71,13 @@ const OnboardingChecker: React.FC = () => {
 
   if (loading || refreshing) {
     return (
-      <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Spinner size={40} />
-          <p className="text-gray-600">
-            {refreshing ? 'Loading your dashboard...' : 'Setting up your dashboard...'}
-          </p>
-        </div>
-      </div>
+      <LoadingOverlay
+        show={true}
+        message={refreshing ? 'Loading your dashboard...' : 'Setting up your dashboard...'}
+        subtitle="This may take a few moments"
+        size={40}
+        opacity="heavy"
+      />
     );
   }
 
@@ -88,12 +87,13 @@ const OnboardingChecker: React.FC = () => {
 
   // If we reach here, something went wrong - show loading
   return (
-    <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <Spinner size={40} />
-        <p className="text-gray-600">Loading...</p>
-      </div>
-    </div>
+    <LoadingOverlay
+      show={true}
+      message="Loading..."
+      subtitle="Please wait while we set things up"
+      size={40}
+      opacity="heavy"
+    />
   );
 };
 

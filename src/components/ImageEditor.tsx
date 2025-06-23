@@ -4,8 +4,8 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import { RotateCw, Check, X, Crop as CropIcon, Type, Move, ZoomIn, ZoomOut } from 'lucide-react';
 import 'react-image-crop/dist/ReactCrop.css';
-import { ImageIcon } from 'lucide-react';
 
+import { ImageIcon } from 'lucide-react';
 interface ImageEditorProps {
   imageFile: File;
   onSave: (editedFile: File, title: string) => void;
@@ -529,7 +529,7 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
               >
                 {processing ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    <Spinner size={16} variant="white" className="mr-2" />
                     Processing...
                   </>
                 ) : (
