@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import { RotateCw, Check, X, Crop as CropIcon, Type, Move, ZoomIn, ZoomOut } from 'lucide-react';
 import 'react-image-crop/dist/ReactCrop.css';
+import { ImageIcon } from 'lucide-react';
 
 interface ImageEditorProps {
   imageFile: File;
@@ -21,7 +22,7 @@ function centerAspectCrop(
     makeAspectCrop(
       {
         unit: '%',
-        width: 90,
+        width: 80,
       },
       aspect,
       mediaWidth,
@@ -75,14 +76,14 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
-    // Set a default crop that's visible and properly sized
+    // Set a centered default crop that's properly sized and visible
     const crop = centerAspectCrop(width, height, 16 / 9);
     setCrop(crop);
-    // Convert to pixel crop for completion
+    // Convert to pixel crop for completion - ensure it's centered
     const pixelCrop: PixelCrop = {
       unit: 'px',
       x: (crop.x / 100) * width,
-      y: (crop.y / 100) * height,
+      y: (crop.y / 100) * height, // This ensures it's centered vertically
       width: (crop.width / 100) * width,
       height: (crop.height / 100) * height,
     };
@@ -253,45 +254,77 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
         {/* Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Image Preview */}
-          <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
-            <div className="max-w-full max-h-full relative">
-              {activeTab === 'crop' && imageSrc && (
-                <ReactCrop
-                  crop={crop}
-                  onChange={(_, percentCrop) => setCrop(percentCrop)}
-                  onComplete={(c) => setCompletedCrop(c)}
-                  aspect={undefined}
-                  className="max-w-full max-h-full"
-                >
-                  <img
-                    ref={imgRef}
-                    src={imageSrc}
-                    alt="Crop preview"
-                    onLoad={onImageLoad}
-                    className="max-w-full max-h-full"
-                    style={{
-                      transform: `rotate(${rotation}deg) scale(${scale})`,
-                    }}
-                  />
-                </ReactCrop>
-              )}
+          <div className="flex-1 flex items-center justify-center p-6 bg-gray-50 min-h-0">
+            <div className="relative flex items-center justify-center w-full h-full max-w-4xl max-h-[70vh]">
+              {imageSrc ? (
+                <>
+                  {activeTab === 'crop' && (
+                    <div className="relative inline-block max-w-full max-h-full">
+                      <ReactCrop
+                        crop={crop}
+                        onChange={(_, percentCrop) => setCrop(percentCrop)}
+                        onComplete={(c) => setCompletedCrop(c)}
+                        aspect={undefined}
+                        className="max-w-full max-h-full"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '100%',
+                        }}
+                        ruleOfThirds={true}
+                        keepSelection={true}
+                        minWidth={50}
+                        minHeight={50}
+                      >
+                        <img
+                          ref={imgRef}
+                          src={imageSrc}
+                          alt="Crop preview"
+                          onLoad={onImageLoad}
+                          className="max-w-full max-h-full object-contain block"
+                          style={{
+                            transform: `rotate(${rotation}deg) scale(${scale})`,
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            height: 'auto',
+                            width: 'auto',
+                            display: 'block',
+                          }}
+                        />
+                      </ReactCrop>
+                    </div>
+                  )}
 
-              {activeTab !== 'crop' && imageSrc && (
-                <img
-                  ref={imgRef}
-                  src={imageSrc}
-                  alt="Edit preview"
-                  className="max-w-full max-h-full"
-                  style={{
-                    transform: `rotate(${rotation}deg) scale(${scale})`,
-                  }}
-                />
+                  {activeTab !== 'crop' && (
+                    <img
+                      ref={imgRef}
+                      src={imageSrc}
+                      alt="Edit preview"
+                      className="max-w-full max-h-full object-contain"
+                      style={{
+                        transform: `rotate(${rotation}deg) scale(${scale})`,
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        height: 'auto',
+                        width: 'auto',
+                      }}
+                    />
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                      <ImageIcon className="w-8 h-8" />
+                    </div>
+                    <p className="text-sm">Loading image...</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
 
           {/* Controls Panel */}
-          <div className="w-80 border-l border-gray-200 p-6 space-y-6">
+          <div className="w-80 border-l border-gray-200 p-6 space-y-6 bg-white">
             {activeTab === 'crop' && (
               <div className="space-y-4">
                 <h3 className="font-semibold text-gray-800">Crop Settings</h3>
@@ -322,7 +355,7 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
                         setCompletedCrop(pixelCrop);
                       }
                     }}
-                    className="w-full px-3 py-2 text-sm border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 font-medium"
+                    className="w-full px-4 py-3 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
                   >
                     Free Crop
                   </button>
@@ -342,7 +375,7 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
                         setCompletedCrop(pixelCrop);
                       }
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="w-full px-4 py-3 text-sm bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 font-medium transition-colors"
                   >
                     16:9 Aspect Ratio
                   </button>
@@ -362,7 +395,7 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
                         setCompletedCrop(pixelCrop);
                       }
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="w-full px-4 py-3 text-sm bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 font-medium transition-colors"
                   >
                     Square (1:1)
                   </button>
@@ -382,7 +415,7 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
                         setCompletedCrop(pixelCrop);
                       }
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="w-full px-4 py-3 text-sm bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 font-medium transition-colors"
                   >
                     4:3 Aspect Ratio
                   </button>
@@ -391,7 +424,7 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
                       setCrop(undefined);
                       setCompletedCrop(undefined);
                     }}
-                    className="w-full px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+                    className="w-full px-4 py-3 text-sm bg-white border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-400 font-medium transition-colors"
                   >
                     Reset Crop
                   </button>

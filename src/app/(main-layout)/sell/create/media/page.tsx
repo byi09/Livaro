@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useToast } from '@/src/components/ui/Toast';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
 import Spinner from '@/src/components/ui/Spinner';
-import { Upload, Image as ImageIcon, Trash2, RotateCcw, CheckCircle, AlertCircle, Eye, Edit3 } from 'lucide-react';
+import { Upload, Image as ImageIcon, Trash2, RotateCcw, CheckCircle, AlertCircle, Eye, Edit3, X } from 'lucide-react';
 import ImageLightbox from '@/src/components/ui/ImageLightbox';
 import ImageEditor from '@/src/components/ImageEditor';
 
@@ -751,18 +751,29 @@ export default function MediaPage() {
               ) : (
                 <div className="text-center">
                   <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <div className="space-y-3">
-                    <label
-                      htmlFor="photos"
-                      className={`inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all cursor-pointer ${
-                        uploading 
-                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
-                          : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg'
-                      }`}
-                    >
-                      <Upload className="w-5 h-5 mr-2" />
-                      {uploading ? 'Uploading...' : 'Upload & Edit Photos'}
-                    </label>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="photos"
+                        className={`inline-flex items-center px-8 py-4 rounded-lg font-medium text-lg transition-all cursor-pointer ${
+                          uploading 
+                            ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg transform hover:scale-105'
+                        }`}
+                      >
+                        <Upload className="w-5 h-5 mr-3" />
+                        {uploading ? 'Uploading...' : 'Upload & Edit Photos'}
+                      </label>
+                      <p className="text-sm text-gray-600 font-medium">
+                        Recommended: Edit photos for the best results
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-1 h-px bg-gray-300"></div>
+                      <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">or</span>
+                      <div className="flex-1 h-px bg-gray-300"></div>
+                    </div>
                     
                     <input
                       type="file"
@@ -781,65 +792,58 @@ export default function MediaPage() {
                     
                     <label
                       htmlFor="photos-direct"
-                      className={`inline-flex items-center px-4 py-2 text-sm rounded-lg font-medium transition-all cursor-pointer border ${
+                      className={`inline-flex items-center px-6 py-3 text-sm rounded-lg font-medium transition-all cursor-pointer border ${
                         uploading 
                           ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed' 
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow-sm'
                       }`}
                     >
                       <Upload className="w-4 h-4 mr-2" />
-                      Skip Edit & Upload Directly
+                      Quick Upload (No Editing)
                     </label>
                   </div>
-                  <p className="text-sm text-gray-500 mt-3">
-                    or drag and drop images here
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Supports JPEG, PNG, WebP (max 5MB each)
-                  </p>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-500">
+                      Drag and drop images here or click to browse
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Supports JPEG, PNG, WebP • Max 5MB each • Up to 20 photos
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Loading State */}
             {loading && (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <Spinner size={24} className="text-blue-600 mx-auto mb-3" />
-                  <p className="text-sm text-gray-600">Loading your images...</p>
+                  <div className="relative">
+                    <Spinner size={32} className="text-blue-600 mx-auto mb-4" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <ImageIcon className="w-4 h-4 text-blue-400" />
+                    </div>
+                  </div>
+                  <p className="text-base font-medium text-gray-700 mb-1">Loading your images...</p>
+                  <p className="text-sm text-gray-500">This may take a moment</p>
                 </div>
               </div>
             )}
 
             {/* Empty State */}
             {!loading && existingImages.length === 0 && photos.length === 0 && (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-                <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                <p className="text-sm font-medium text-gray-600">No images uploaded yet</p>
-                <p className="text-xs text-gray-500 mt-1">Upload some photos to showcase your property</p>
-                <button
-                  onClick={async () => {
-                    console.log('Manually initializing storage...');
-                    try {
-                      const response = await fetch('/api/storage/init', {
-                        method: 'POST',
-                      });
-                      const result = await response.json();
-                      console.log('Storage init result:', result);
-                      if (result.success) {
-                        success('Storage initialized successfully!');
-                      } else {
-                        showError('Storage initialization failed', JSON.stringify(result));
-                      }
-                    } catch (error) {
-                      console.error('Storage init error:', error);
-                      showError('Storage initialization error', error instanceof Error ? error.message : 'Unknown error');
-                    }
-                  }}
-                  className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Initialize Storage
-                </button>
+              <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <div className="relative">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <ImageIcon className="w-10 h-10 text-blue-500" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <Upload className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Ready to add photos?</h3>
+                <p className="text-sm text-gray-600 mb-1">Great photos help attract more interested renters</p>
+                <p className="text-xs text-gray-500">Use the upload area above to get started</p>
               </div>
             )}
 
@@ -886,13 +890,13 @@ export default function MediaPage() {
                           
                           {/* Primary Badge */}
                           {image.is_primary && (
-                            <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                            <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center z-10">
                               <CheckCircle className="w-3 h-3 mr-1" />
                               Primary
                             </div>
                           )}
                           
-                          {/* Edit Button */}
+                          {/* Edit Button - positioned on bottom left when hovering */}
                           <button
                             onClick={(e) => { 
                               e.stopPropagation(); 
@@ -903,19 +907,23 @@ export default function MediaPage() {
                                   const file = new File([blob], `${image.alt_text || 'image'}.jpg`, { type: blob.type });
                                   setEditingFile(file);
                                   setEditorOpen(true);
+                                })
+                                .catch(error => {
+                                  console.error('Error fetching image for editing:', error);
+                                  showError('Failed to load image for editing', 'Please try again');
                                 });
                             }}
-                            className="absolute top-3 left-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                            className="absolute bottom-3 left-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-lg z-20"
                             title="Edit image"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
 
-                          {/* Delete Button */}
+                          {/* Delete Button - positioned on bottom right when hovering */}
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteExistingImage(image.id, image.s3_key); }}
                             disabled={deleting === image.id}
-                            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:bg-gray-400"
+                            className="absolute bottom-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:bg-gray-400 shadow-lg z-20"
                             title="Delete image"
                           >
                             {deleting === image.id ? (
@@ -969,52 +977,77 @@ export default function MediaPage() {
 
             {/* Currently Uploading Photos */}
             {photos.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-gray-800">Currently Uploading ({photos.length})</h3>
-                <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-gray-800">Processing Photos</h3>
+                  <div className="flex items-center space-x-2 text-sm text-blue-600">
+                    <Spinner size={16} className="text-blue-600" />
+                    <span className="font-medium">{photos.length} remaining</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
                   {photos.map((photo) => (
-                    <div key={photo.id} className="relative border border-gray-200 rounded-xl p-4 bg-white">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-700 truncate flex-1">
-                          {photo.file.name}
-                        </span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); removePhoto(photo.id); }}
-                          className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full hover:bg-red-50 transition-colors"
-                          disabled={photo.uploading}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                    <div key={photo.id} className="relative border border-blue-200 rounded-xl p-4 bg-gradient-to-r from-blue-50 to-white shadow-sm">
+                      <div className="flex items-start space-x-4">
+                        {/* Preview Thumbnail */}
+                        <div className="flex-shrink-0">
+                          {photo.url ? (
+                            <img src={photo.url} alt="preview" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                              <ImageIcon className="w-6 h-6 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-medium text-gray-900 truncate">
+                              {photo.file.name}
+                            </h4>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removePhoto(photo.id); }}
+                              className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                              disabled={photo.uploading}
+                              title="Cancel upload"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          
+                          {photo.uploading && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-blue-700">
+                                  {photo.progress && photo.progress > 90 ? 'Finalizing...' : `Uploading ${photo.progress || 0}%`}
+                                </span>
+                                <div className="flex items-center space-x-2">
+                                  <Spinner size={14} className="text-blue-600" />
+                                  <CheckCircle className={`w-4 h-4 transition-all duration-300 ${photo.progress === 100 ? 'text-green-500 scale-110' : 'text-gray-300'}`} />
+                                </div>
+                              </div>
+                              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-green-500 transition-all duration-500 ease-out rounded-full"
+                                  style={{ width: `${photo.progress || 0}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-gray-600">
+                                {Math.round((photo.file.size / 1024 / 1024) * 100) / 100} MB • {photo.file.type.split('/')[1].toUpperCase()}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {photo.error && (
+                            <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-2 rounded-lg">
+                              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                              <p className="text-sm font-medium">{photo.error}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      
-                      {/* Preview */}
-                      {photo.url && (
-                        <img src={photo.url} alt="preview" className="w-full h-32 object-cover mb-3 rounded-lg" />
-                      )}
-
-                      {photo.uploading && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-blue-700">
-                              Uploading {photo.progress || 0}%
-                            </span>
-                            <Spinner size={16} className="text-blue-600" />
-                          </div>
-                          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-blue-500 to-blue-700 transition-all duration-300 ease-out"
-                              style={{ width: `${photo.progress || 0}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      
-                      {photo.error && (
-                        <div className="flex items-center text-red-600">
-                          <AlertCircle className="w-4 h-4 mr-2" />
-                          <p className="text-xs">{photo.error}</p>
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
