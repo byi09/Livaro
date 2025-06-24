@@ -11,7 +11,8 @@ import {
   propertyFeatures,
   propertyListings,
   customers,
-  userPreferences
+  userPreferences,
+  landlords
 } from "./schema";
 import type { FilterOptions, PropertyListing, SortOption } from "@/lib/types";
 import { createClient } from "@/utils/supabase/server";
@@ -533,3 +534,36 @@ export const getNotificationPreferences = async () => {
     };
   }
 };
+
+/**
+ * Get landlord information for a property
+ */
+export async function getPropertyLandlord(propertyId: string) {
+  try {
+    const result = await db
+      .select({
+        landlordId: landlords.id,
+        customerId: landlords.customerId,
+        businessName: landlords.businessName,
+        businessPhone: landlords.businessPhone,
+        businessEmail: landlords.businessEmail,
+        userId: customers.userId,
+        firstName: customers.firstName,
+        lastName: customers.lastName,
+        phoneNumber: customers.phoneNumber,
+        userEmail: users.email,
+        username: users.username,
+      })
+      .from(properties)
+      .innerJoin(landlords, eq(properties.landlordId, landlords.id))
+      .innerJoin(customers, eq(landlords.customerId, customers.id))
+      .innerJoin(users, eq(customers.userId, users.id))
+      .where(eq(properties.id, propertyId))
+      .limit(1);
+
+    return result[0] || null;
+  } catch (error) {
+    console.error('Error fetching property landlord:', error);
+    return null;
+  }
+}
