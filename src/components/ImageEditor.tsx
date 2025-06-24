@@ -18,19 +18,33 @@ function centerAspectCrop(
   mediaHeight: number,
   aspect: number,
 ) {
+  const mediaAspect = mediaWidth / mediaHeight;
+  
+  let cropWidth, cropHeight;
+  
+  if (mediaAspect > aspect) {
+    // Image is wider than desired aspect ratio
+    cropHeight = 80; // Use 80% of height
+    cropWidth = (cropHeight * aspect * mediaHeight) / mediaWidth;
+  } else {
+    // Image is taller than or equal to desired aspect ratio
+    cropWidth = 80; // Use 80% of width
+    cropHeight = (cropWidth * mediaWidth) / (aspect * mediaHeight);
+  }
+  
+  // Ensure crop doesn't exceed 90% in either dimension
+  cropWidth = Math.min(cropWidth, 90);
+  cropHeight = Math.min(cropHeight, 90);
+  
   return centerCrop(
-    makeAspectCrop(
-      {
-        unit: '%',
-        width: 80,
-      },
-      aspect,
-      mediaWidth,
-      mediaHeight,
-    ),
+    {
+      unit: '%',
+      width: cropWidth,
+      height: cropHeight,
+    },
     mediaWidth,
     mediaHeight,
-  )
+  );
 }
 
 export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: ImageEditorProps) {
@@ -76,14 +90,16 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
+    
     // Set a centered default crop that's properly sized and visible
     const crop = centerAspectCrop(width, height, 16 / 9);
     setCrop(crop);
-    // Convert to pixel crop for completion - ensure it's centered
+    
+    // Convert to pixel crop for completion - ensure it's properly centered
     const pixelCrop: PixelCrop = {
       unit: 'px',
       x: (crop.x / 100) * width,
-      y: (crop.y / 100) * height, // This ensures it's centered vertically
+      y: (crop.y / 100) * height,
       width: (crop.width / 100) * width,
       height: (crop.height / 100) * height,
     };
@@ -103,60 +119,79 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    // Calculate dimensions
-    let { width: imageWidth, height: imageHeight } = image;
-    
-    // Apply rotation to dimensions
-    if (rotation === 90 || rotation === 270) {
-      [imageWidth, imageHeight] = [imageHeight, imageWidth];
-    }
+    // Clear canvas first
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Set canvas size
     if (completedCrop && completedCrop.width && completedCrop.height) {
-      // Crop mode
+      // Crop mode - use natural dimensions for accurate cropping
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
       
-      canvas.width = completedCrop.width;
-      canvas.height = completedCrop.height;
+      // Calculate actual crop dimensions in natural image coordinates
+      const cropX = completedCrop.x * scaleX;
+      const cropY = completedCrop.y * scaleY;
+      const cropWidth = completedCrop.width * scaleX;
+      const cropHeight = completedCrop.height * scaleY;
       
-      // Save context
+      // Set canvas to crop dimensions
+      canvas.width = cropWidth;
+      canvas.height = cropHeight;
+      
       ctx.save();
       
-      // Apply rotation around center of crop
-      ctx.translate(completedCrop.width / 2, completedCrop.height / 2);
-      ctx.rotate((rotation * Math.PI) / 180);
+      if (rotation !== 0) {
+        // Handle rotation
+        const centerX = cropWidth / 2;
+        const centerY = cropHeight / 2;
+        
+        ctx.translate(centerX, centerY);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.translate(-centerX, -centerY);
+      }
       
-      // Draw image
+      // Draw the cropped portion of the image
       ctx.drawImage(
         image,
-        completedCrop.x * scaleX,
-        completedCrop.y * scaleY,
-        completedCrop.width * scaleX,
-        completedCrop.height * scaleY,
-        -completedCrop.width / 2,
-        -completedCrop.height / 2,
-        completedCrop.width,
-        completedCrop.height
+        cropX,    // source x
+        cropY,    // source y
+        cropWidth,  // source width
+        cropHeight, // source height
+        0,        // destination x
+        0,        // destination y
+        cropWidth,  // destination width
+        cropHeight  // destination height
       );
       
       ctx.restore();
     } else {
       // No crop, just rotation and scale
-      canvas.width = imageWidth * scale;
-      canvas.height = imageHeight * scale;
+      const naturalWidth = image.naturalWidth;
+      const naturalHeight = image.naturalHeight;
+      
+      let canvasWidth, canvasHeight;
+      
+      if (rotation === 90 || rotation === 270) {
+        canvasWidth = naturalHeight * scale;
+        canvasHeight = naturalWidth * scale;
+      } else {
+        canvasWidth = naturalWidth * scale;
+        canvasHeight = naturalHeight * scale;
+      }
+      
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
       
       ctx.save();
-      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.translate(canvasWidth / 2, canvasHeight / 2);
       ctx.rotate((rotation * Math.PI) / 180);
       ctx.scale(scale, scale);
       
       ctx.drawImage(
         image,
-        -image.naturalWidth / 2,
-        -image.naturalHeight / 2,
-        image.naturalWidth,
-        image.naturalHeight
+        -naturalWidth / 2,
+        -naturalHeight / 2,
+        naturalWidth,
+        naturalHeight
       );
       
       ctx.restore();
@@ -255,21 +290,16 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
         <div className="flex-1 flex overflow-hidden">
           {/* Image Preview */}
           <div className="flex-1 flex items-center justify-center p-6 bg-gray-50 min-h-0">
-            <div className="relative flex items-center justify-center w-full h-full max-w-4xl max-h-[70vh]">
+            <div className="image-editor-container">
               {imageSrc ? (
                 <>
                   {activeTab === 'crop' && (
-                    <div className="relative inline-block max-w-full max-h-full">
+                    <div className="flex items-center justify-center">
                       <ReactCrop
                         crop={crop}
                         onChange={(_, percentCrop) => setCrop(percentCrop)}
                         onComplete={(c) => setCompletedCrop(c)}
                         aspect={undefined}
-                        className="max-w-full max-h-full"
-                        style={{
-                          maxWidth: '100%',
-                          maxHeight: '100%',
-                        }}
                         ruleOfThirds={true}
                         keepSelection={true}
                         minWidth={50}
@@ -280,14 +310,8 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
                           src={imageSrc}
                           alt="Crop preview"
                           onLoad={onImageLoad}
-                          className="max-w-full max-h-full object-contain block"
                           style={{
                             transform: `rotate(${rotation}deg) scale(${scale})`,
-                            maxWidth: '100%',
-                            maxHeight: '100%',
-                            height: 'auto',
-                            width: 'auto',
-                            display: 'block',
                           }}
                         />
                       </ReactCrop>
@@ -295,19 +319,21 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
                   )}
 
                   {activeTab !== 'crop' && (
-                    <img
-                      ref={imgRef}
-                      src={imageSrc}
-                      alt="Edit preview"
-                      className="max-w-full max-h-full object-contain"
-                      style={{
-                        transform: `rotate(${rotation}deg) scale(${scale})`,
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        height: 'auto',
-                        width: 'auto',
-                      }}
-                    />
+                    <div className="flex items-center justify-center">
+                      <img
+                        ref={imgRef}
+                        src={imageSrc}
+                        alt="Edit preview"
+                        style={{
+                          transform: `rotate(${rotation}deg) scale(${scale})`,
+                          maxWidth: '100%',
+                          maxHeight: '70vh',
+                          height: 'auto',
+                          width: 'auto',
+                          objectFit: 'contain',
+                        }}
+                      />
+                    </div>
                   )}
                 </>
               ) : (

@@ -459,3 +459,40 @@ html {
   height: 33.333%;
 }
 
+/* Image Editor Improvements */
+.image-editor-container {
+  @apply flex items-center justify-center w-full h-full min-h-0;
+  max-height: 70vh;
+}
+
+.image-editor-container img {
+  @apply max-w-full max-h-full;
+  object-fit: contain;
+  display: block;
+}
+
+.ReactCrop__image {
+  max-width: 100% !important;
+  max-height: 70vh !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+.ReactCrop {
+  display: inline-block !important;
+  position: relative !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+.ReactCrop--rule-of-thirds .ReactCrop__crop-selection::after {
+  content: '';
+  box-shadow: 
+    inset 33.33% 0 0 -1px rgba(255, 255, 255, 0.7),
+    inset 66.66% 0 0 -1px rgba(255, 255, 255, 0.7),
+    inset 0 33.33% 0 -1px rgba(255, 255, 255, 0.7),
+    inset 0 66.66% 0 -1px rgba(255, 255, 255, 0.7);
+}
+
