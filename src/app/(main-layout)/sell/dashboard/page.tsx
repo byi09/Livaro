@@ -428,23 +428,23 @@ export default function PropertyDashboard() {
     );
   }
 
-    if (error) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <p className="text-red-600">{error}</p>
-                    <button
-                        onClick={fetchProperties}
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                        Try Again
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
+  if (error) {
     return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={fetchProperties}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
         <main className="min-h-screen bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-8">
                 {/* Public Launch Notice Banner */}
