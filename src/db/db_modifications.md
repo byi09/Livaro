@@ -67,14 +67,3 @@
     created_at timestamp with time zone default now()
    );
    ```
-
-4. Modifying properties table to include a `buildingId` foreign key to refer to the corresponding entry in the apartmentBuildings table.
-
-   ```sql
-   ALTER TABLE public.properties
-    ALTER COLUMN landlord_id DROP NOT NULL,
-    ADD COLUMN buildingId uuid,
-    ADD CONSTRAINT properties_buildingId_apartment_buildings_id_fkey FOREIGN KEY (buildingId) REFERENCES public.apartment_buildings(id) ON DELETE CASCADE;
-
-    CREATE INDEX idx_properties_buildingId ON public.properties(buildingId);
-   ```

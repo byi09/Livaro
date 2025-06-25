@@ -11,6 +11,7 @@ export const employmentStatusEnum = pgEnum('employment_status', ['employed', 'se
 
 // Property enums
 export const propertyTypeEnum = pgEnum('property_type', ['apartment', 'house', 'condo', 'townhouse', 'studio', 'room', 'duplex']);
+export const buildingTypeEnum = pgEnum('building_type', ['high_rise', 'mid_rise', 'low_rise', 'garden_style']);
 export const propertyStatusEnum = pgEnum('property_status', ['available', 'rented', 'maintenance', 'off_market']);
 export const listingStatusEnum = pgEnum('listing_status', ['active', 'pending', 'rented', 'expired']);
 export const imageTypeEnum = pgEnum('image_type', ['exterior', 'interior', 'aerial', 'floorplan']);
