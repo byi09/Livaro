@@ -7,14 +7,26 @@ import {
 import Image from "next/image";
 import { useMapContext } from "@/src/contexts/MapContext";
 
-export default function PropertyCard({ item }: { item: PropertyListing }) {
-  const { setSelectedProperty, selectedProperty } = useMapContext();
+// Create a safe hook that won't throw error if context is not available
+const useSafeMapContext = () => {
+  try {
+    return useMapContext();
+  } catch {
+    return null;
+  }
+};
 
+export default function PropertyCard({ item }: { item: PropertyListing }) {
+  const mapContext = useSafeMapContext();
+  
   const handleClick = () => {
-    setSelectedProperty(item);
+    // Only use map context features if available
+    if (mapContext) {
+      mapContext.setSelectedProperty(item);
+    }
   };
 
-  const isSelected = selectedProperty?.properties.id === item.properties.id;
+  const isSelected = mapContext?.selectedProperty?.properties.id === item.properties.id;
 
   return (
     <div 

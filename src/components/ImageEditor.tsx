@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import { RotateCw, Check, X, Crop as CropIcon, Type, Move, ZoomIn, ZoomOut } from 'lucide-react';
 import 'react-image-crop/dist/ReactCrop.css';
+import Spinner from './ui/Spinner';
 
 import { ImageIcon } from 'lucide-react';
 interface ImageEditorProps {
@@ -119,9 +120,6 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    // Clear canvas first
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     if (completedCrop && completedCrop.width && completedCrop.height) {
       // Crop mode - use natural dimensions for accurate cropping
       const scaleX = image.naturalWidth / image.width;
@@ -133,14 +131,18 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
       const cropWidth = completedCrop.width * scaleX;
       const cropHeight = completedCrop.height * scaleY;
       
-      // Set canvas to crop dimensions
+      // Set canvas dimensions to the crop size (no rotation adjustment for canvas size)
       canvas.width = cropWidth;
       canvas.height = cropHeight;
       
+      // Clear canvas with white background to prevent black areas
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, cropWidth, cropHeight);
+      
       ctx.save();
       
+      // Apply rotation transformation if needed
       if (rotation !== 0) {
-        // Handle rotation
         const centerX = cropWidth / 2;
         const centerY = cropHeight / 2;
         
@@ -149,15 +151,15 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
         ctx.translate(-centerX, -centerY);
       }
       
-      // Draw the cropped portion of the image
+      // Draw the cropped portion of the image to fill the entire canvas
       ctx.drawImage(
         image,
-        cropX,    // source x
-        cropY,    // source y
+        cropX,      // source x
+        cropY,      // source y
         cropWidth,  // source width
         cropHeight, // source height
-        0,        // destination x
-        0,        // destination y
+        0,          // destination x
+        0,          // destination y
         cropWidth,  // destination width
         cropHeight  // destination height
       );
@@ -180,6 +182,10 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
       
       canvas.width = canvasWidth;
       canvas.height = canvasHeight;
+      
+      // Clear canvas with white background to prevent black areas
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
       
       ctx.save();
       ctx.translate(canvasWidth / 2, canvasHeight / 2);
@@ -210,21 +216,29 @@ export default function ImageEditor({ imageFile, onSave, onCancel, isOpen }: Ima
       if (!canvas) throw new Error('Failed to generate canvas');
 
       // Convert canvas to blob
+      // Use PNG format to preserve quality and avoid compression artifacts
       canvas.toBlob((blob) => {
         if (!blob) {
           setProcessing(false);
           return;
         }
 
+        // Determine file extension based on original file type or use jpg as default
+        const originalExtension = imageFile.name.split('.').pop()?.toLowerCase();
+        const useOriginalFormat = ['jpg', 'jpeg', 'png', 'webp'].includes(originalExtension || '');
+        const extension = useOriginalFormat ? originalExtension : 'jpg';
+        const mimeType = extension === 'png' ? 'image/png' : 
+                        extension === 'webp' ? 'image/webp' : 'image/jpeg';
+
         // Create new file with edited image
-        const editedFile = new File([blob], `${title}.jpg`, {
-          type: 'image/jpeg',
+        const editedFile = new File([blob], `${title}.${extension}`, {
+          type: mimeType,
           lastModified: Date.now(),
         });
 
         onSave(editedFile, title);
         setProcessing(false);
-      }, 'image/jpeg', 0.9);
+      }, 'image/png');
     } catch (error) {
       console.error('Error saving edited image:', error);
       setProcessing(false);
