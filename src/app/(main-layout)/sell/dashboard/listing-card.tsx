@@ -151,8 +151,7 @@ export default function ListingCard({
                     {isLoading && (
                         <Spinner
                             size={12}
-                            colorClass="text-blue-600"
-                            className="mr-2"
+                            className="text-blue-600 mr-2"
                         />
                     )}
                     {isLoading ? "Loading..." : getActionText(property)}
