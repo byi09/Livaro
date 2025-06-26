@@ -4,7 +4,46 @@ import { ENABLE_MAP } from "@/lib/config";
 import type { FilterOptions, PropertyListing, SortOption } from "@/lib/types";
 import { searchPropertiesWithFilter } from "@/src/db/queries";
 import { useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
+
+// Global Property Modal Context
+interface PropertyModalContextProps {
+  selectedProperty: PropertyListing | null;
+  setSelectedProperty: React.Dispatch<React.SetStateAction<PropertyListing | null>>;
+}
+
+const PropertyModalContext = createContext<PropertyModalContextProps | null>(null);
+
+export const usePropertyModal = () => {
+  const context = useContext(PropertyModalContext);
+  if (!context) {
+    // Return a fallback context for components that need to work without the provider
+    return {
+      selectedProperty: null,
+      setSelectedProperty: () => {},
+    };
+  }
+  return context;
+};
+
+export const PropertyModalProvider = ({
+  children
+}: {
+  children: React.ReactNode;
+}) => {
+  const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null);
+
+  return (
+    <PropertyModalContext.Provider
+      value={{
+        selectedProperty,
+        setSelectedProperty
+      }}
+    >
+      {children}
+    </PropertyModalContext.Provider>
+  );
+};
 
 interface MapContextProps {
   filterOptions: FilterOptions;
@@ -61,18 +100,28 @@ export const MapContextProvider = ({
     if (!ENABLE_MAP) return;
     // check that map is ready and loaded
     if (!ready) return;
-    setFetchingListings(true);
-    (async () => {
-      // JSON stringify + parse to avoid mutating the original filterOptions object
-      // and pass deep objects to server-side function
-      const optionsBundle = JSON.parse(JSON.stringify(filterOptions));
-      const properties = await searchPropertiesWithFilter(
-        optionsBundle,
-        sortOption
-      );
-      setCatalog(properties);
-      setFetchingListings(false);
-    })();
+    
+    const timeoutId = setTimeout(() => {
+      setFetchingListings(true);
+      (async () => {
+        try {
+          // JSON stringify + parse to avoid mutating the original filterOptions object
+          // and pass deep objects to server-side function
+          const optionsBundle = JSON.parse(JSON.stringify(filterOptions));
+          const properties = await searchPropertiesWithFilter(
+            optionsBundle,
+            sortOption
+          );
+          setCatalog(properties);
+        } catch (error) {
+          console.error('Error fetching properties:', error);
+        } finally {
+          setFetchingListings(false);
+        }
+      })();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [filterOptions, ready, sortOption]);
 
   useEffect(() => {
@@ -109,20 +158,20 @@ export const MapContextProvider = ({
     setParamsLoaded(true);
   }, [searchParams, paramsLoaded]);
 
+  const contextValue = useMemo(() => ({
+    filterOptions,
+    setFilterOptions,
+    fetchingListings,
+    setReady,
+    catalog,
+    sortOption,
+    setSortOption,
+    selectedProperty,
+    setSelectedProperty
+  }), [filterOptions, fetchingListings, catalog, sortOption, selectedProperty]);
+
   return (
-    <MapContext.Provider
-      value={{
-        filterOptions,
-        setFilterOptions,
-        fetchingListings,
-        setReady,
-        catalog,
-        sortOption,
-        setSortOption,
-        selectedProperty,
-        setSelectedProperty
-      }}
-    >
+    <MapContext.Provider value={contextValue}>
       {children}
     </MapContext.Provider>
   );

@@ -156,7 +156,11 @@ export default function PropertyDetailModal({
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Sq Ft</p>
-                  <p className="font-semibold text-gray-900">{property.properties.squareFootage}</p>
+                  <p className="font-semibold text-gray-900">
+                    {property.properties.squareFootage && property.properties.squareFootage > 0 
+                      ? property.properties.squareFootage 
+                      : 'N/A'}
+                  </p>
                 </div>
               </div>
               

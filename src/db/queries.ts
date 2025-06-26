@@ -167,7 +167,7 @@ export const searchPropertiesWithFilter = async (
       throw new Error(`Unknown sort option: ${sortOption}`);
   }
 
-  const q = qData.orderBy(sql.join(orderBy, sql.raw(", ")));
+  const q = qData.orderBy(sql.join(orderBy, sql.raw(", "))).limit(100); // Limit to 100 results for performance
 
   // uncomment to debug generated SQL
   // console.log(q.toSQL().sql);

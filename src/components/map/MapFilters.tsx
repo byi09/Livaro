@@ -138,7 +138,7 @@ export default function MapFilters() {
   }, [filterOptions.propertyTypes]);
 
   return (
-    <div className="flex gap-2 py-2 px-3 shadow-md z-20">
+    <div className="flex gap-1 py-3 px-4 shadow-md z-20 bg-white border-b border-gray-100">
       {defaultLocation !== null ? (
         <SearchInput
           placeholder="Address, neighborhood, city, zip code"

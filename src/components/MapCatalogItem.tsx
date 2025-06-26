@@ -6,6 +6,7 @@ import {
 } from "@/utils/formatters";
 import Image from "next/image";
 import { useMapContext } from "@/src/contexts/MapContext";
+import { usePropertyModal } from "@/src/contexts/MapContext";
 
 // Create a safe hook that won't throw error if context is not available
 const useSafeMapContext = () => {
@@ -18,9 +19,13 @@ const useSafeMapContext = () => {
 
 export default function PropertyCard({ item }: { item: PropertyListing }) {
   const mapContext = useSafeMapContext();
+  const { setSelectedProperty } = usePropertyModal();
   
   const handleClick = () => {
-    // Only use map context features if available
+    // Set the selected property in the global modal context
+    setSelectedProperty(item);
+    
+    // Also set it in map context if available (for backward compatibility)
     if (mapContext) {
       mapContext.setSelectedProperty(item);
     }
@@ -56,7 +61,9 @@ export default function PropertyCard({ item }: { item: PropertyListing }) {
               : "Studio"}
           </b>{" "}
           | <b>{trimZeros(item.properties.bathrooms)}</b>ba |{" "}
-          <b>{item.properties.squareFootage}</b>sqft -{" "}
+          <b>{item.properties.squareFootage && item.properties.squareFootage > 0 
+              ? item.properties.squareFootage 
+              : 'N/A'}</b>sqft -{" "}
           {capitalizeFirstLetter(item.properties.propertyType)} for rent
         </p>
         <p className="line-clamp-1 text-sm">
