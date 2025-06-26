@@ -144,7 +144,7 @@ function PropertySearch() {
           <Skeleton className="h-12 w-24 rounded-lg" />
         </div>
         <div className="flex justify-center py-8">
-          <Spinner size={48} />
+          <Spinner size={48} variant="primary" />
         </div>
       </div>
     );

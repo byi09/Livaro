@@ -5,10 +5,38 @@ import {
   trimZeros
 } from "@/utils/formatters";
 import Image from "next/image";
+import { useMapContext } from "@/src/contexts/MapContext";
+
+// Create a safe hook that won't throw error if context is not available
+const useSafeMapContext = () => {
+  try {
+    return useMapContext();
+  } catch {
+    return null;
+  }
+};
 
 export default function PropertyCard({ item }: { item: PropertyListing }) {
+  const mapContext = useSafeMapContext();
+  
+  const handleClick = () => {
+    // Only use map context features if available
+    if (mapContext) {
+      mapContext.setSelectedProperty(item);
+    }
+  };
+
+  const isSelected = mapContext?.selectedProperty?.properties.id === item.properties.id;
+
   return (
-    <div className="rounded-md shadow-md w-full overflow-hidden cursor-pointer hover:shadow-xl border border-gray-200 transition-shadow duration-200">
+    <div 
+      className={`rounded-md shadow-md w-full overflow-hidden cursor-pointer hover:shadow-xl border transition-all duration-200 ${
+        isSelected 
+          ? 'border-blue-500 ring-2 ring-blue-200 shadow-lg' 
+          : 'border-gray-200'
+      }`}
+      onClick={handleClick}
+    >
       {/* TODO: replace image with DB-pulled property image */}
       <Image
         src="/hero-bg.jpg"

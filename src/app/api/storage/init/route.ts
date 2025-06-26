@@ -29,19 +29,46 @@ export async function POST() {
       property3DTours: { exists: false, created: false, error: null as string | null }
     };
 
-    // Check if buckets exist (they should be pre-created)
+    // Create property-images bucket if it doesn't exist
     const propertyImagesBucket = buckets?.find(bucket => bucket.name === 'property-images');
     if (propertyImagesBucket) {
       results.propertyImages.exists = true;
     } else {
-      results.propertyImages.error = 'Property images bucket not found';
+      // Create the bucket
+      const { data: createdBucket, error: createError } = await adminSupabase.storage.createBucket('property-images', {
+        public: true,
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+        fileSizeLimit: 10485760 // 10MB
+      });
+
+      if (createError) {
+        console.error('Error creating property-images bucket:', createError);
+        results.propertyImages.error = createError.message;
+      } else {
+        results.propertyImages.created = true;
+        console.log('Created property-images bucket successfully');
+      }
     }
 
+    // Create property-3d-tours bucket if it doesn't exist
     const property3DToursBucket = buckets?.find(bucket => bucket.name === 'property-3d-tours');
     if (property3DToursBucket) {
       results.property3DTours.exists = true;
     } else {
-      results.property3DTours.error = 'Property 3D tours bucket not found';
+      // Create the bucket
+      const { data: createdBucket, error: createError } = await adminSupabase.storage.createBucket('property-3d-tours', {
+        public: true,
+        allowedMimeTypes: ['model/gltf-binary', 'model/gltf+json'],
+        fileSizeLimit: 52428800 // 50MB
+      });
+
+      if (createError) {
+        console.error('Error creating property-3d-tours bucket:', createError);
+        results.property3DTours.error = createError.message;
+      } else {
+        results.property3DTours.created = true;
+        console.log('Created property-3d-tours bucket successfully');
+      }
     }
 
     return NextResponse.json({ 
