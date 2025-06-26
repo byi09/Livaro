@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Spinner from '@/src/components/ui/Spinner'
 import ListingCard from './listing-card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import BuildingCard from './building-card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface PropertyListing {
   id: string
@@ -22,15 +23,30 @@ interface PropertyListing {
   square_footage?: number
 }
 
+interface ApartmentBuilding {
+  id: string
+  building_name: string
+  building_number?: string
+  address_line_1: string
+  address_line_2?: string
+  city: string
+  state: string
+  total_units: number
+}
+
 type ViewMode = 'list' | 'grid'
 type ContentType = 'properties' | 'apartments'
 
 export default function PropertyDashboard() {
   const router = useRouter()
   const [properties, setProperties] = useState<PropertyListing[]>([])
+  const [buildings, setBuildings] = useState<ApartmentBuilding[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [clickingPropertyId, setClickingPropertyId] = useState<string | null>(
+    null
+  )
+  const [clickingBuildingId, setClickingBuildingId] = useState<string | null>(
     null
   )
   const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(
@@ -44,7 +60,7 @@ export default function PropertyDashboard() {
 
   useEffect(() => {
     fetchProperties()
-  }, [contentType])
+  }, [contentType]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchProperties = async () => {
     try {
@@ -105,91 +121,123 @@ export default function PropertyDashboard() {
       if (!landlordId) {
         // No landlord profile – return early but keep UI (empty table)
         setProperties([])
+        setBuildings([])
         setIsLoading(false)
         return
       }
 
-      const { error } = await supabase
-        .from('properties')
-        .select(
+      if (contentType === 'apartments') {
+        // Fetch apartment buildings
+        const { data: buildingsData, error: buildingsError } = await supabase
+          .from('apartment_buildings')
+          .select(
+            `
+            id,
+            building_name,
+            building_number,
+            address_line_1,
+            address_line_2,
+            city,
+            state,
+            total_units
           `
-          id,
-          address_line_1,
-          address_line_2,
-          city,
-          state,
-          property_type,
-          bedrooms,
-          bathrooms,
-          square_footage,
-          property_listings!inner(
-            listing_title,
-            monthly_rent,
-            listing_status,
-            created_at
           )
-        `
-        )
-        .eq('landlord_id', landlordId)
-        .order('created_at', { ascending: false })
+          .eq('landlord_id', landlordId)
+          .order('created_at', { ascending: false })
 
-      if (error) {
-        setError('Failed to fetch properties')
-        console.error('Error fetching properties:', error)
-        return
-      }
+        if (buildingsError) {
+          setError('Failed to fetch apartment buildings')
+          console.error('Error fetching apartment buildings:', buildingsError)
+          return
+        }
 
-      // Also fetch properties without listings
-      const { data: allProperties, error: allError } = await supabase
-        .from('properties')
-        .select(
+        setBuildings(buildingsData || [])
+        setProperties([]) // Clear properties when viewing buildings
+      } else {
+        // Fetch properties (existing logic)
+        const { error } = await supabase
+          .from('properties')
+          .select(
+            `
+            id,
+            address_line_1,
+            address_line_2,
+            city,
+            state,
+            property_type,
+            bedrooms,
+            bathrooms,
+            square_footage,
+            property_listings!inner(
+              listing_title,
+              monthly_rent,
+              listing_status,
+              created_at
+            )
           `
-          id,
-          address_line_1,
-          address_line_2,
-          city,
-          state,
-          property_type,
-          bedrooms,
-          bathrooms,
-          square_footage,
-          created_at,
-          property_listings(
-            listing_title,
-            monthly_rent,
-            listing_status,
-            created_at
           )
-        `
-        )
-        .eq('landlord_id', landlordId)
-        .order('created_at', { ascending: false })
+          .eq('landlord_id', landlordId)
+          .order('created_at', { ascending: false })
 
-      if (allError) {
-        setError('Failed to fetch properties')
-        console.error('Error fetching all properties:', allError)
-        return
+        if (error) {
+          setError('Failed to fetch properties')
+          console.error('Error fetching properties:', error)
+          return
+        }
+
+        // Also fetch properties without listings
+        const { data: allProperties, error: allError } = await supabase
+          .from('properties')
+          .select(
+            `
+            id,
+            address_line_1,
+            address_line_2,
+            city,
+            state,
+            property_type,
+            bedrooms,
+            bathrooms,
+            square_footage,
+            created_at,
+            property_listings(
+              listing_title,
+              monthly_rent,
+              listing_status,
+              created_at
+            )
+          `
+          )
+          .eq('landlord_id', landlordId)
+          .order('created_at', { ascending: false })
+
+        if (allError) {
+          setError('Failed to fetch properties')
+          console.error('Error fetching all properties:', allError)
+          return
+        }
+
+        // Transform data to flat structure
+        const formattedProperties =
+          allProperties?.map(property => ({
+            id: property.id,
+            address_line_1: property.address_line_1,
+            address_line_2: property.address_line_2,
+            city: property.city,
+            state: property.state,
+            property_type: property.property_type,
+            bedrooms: property.bedrooms,
+            bathrooms: property.bathrooms,
+            square_footage: property.square_footage,
+            listing_title: property.property_listings?.[0]?.listing_title,
+            monthly_rent: property.property_listings?.[0]?.monthly_rent,
+            listing_status: property.property_listings?.[0]?.listing_status,
+            listing_created: property.property_listings?.[0]?.created_at,
+          })) || []
+
+        setProperties(formattedProperties)
+        setBuildings([]) // Clear buildings when viewing properties
       }
-
-      // Transform data to flat structure
-      const formattedProperties =
-        allProperties?.map(property => ({
-          id: property.id,
-          address_line_1: property.address_line_1,
-          address_line_2: property.address_line_2,
-          city: property.city,
-          state: property.state,
-          property_type: property.property_type,
-          bedrooms: property.bedrooms,
-          bathrooms: property.bathrooms,
-          square_footage: property.square_footage,
-          listing_title: property.property_listings?.[0]?.listing_title,
-          monthly_rent: property.property_listings?.[0]?.monthly_rent,
-          listing_status: property.property_listings?.[0]?.listing_status,
-          listing_created: property.property_listings?.[0]?.created_at,
-        })) || []
-
-      setProperties(formattedProperties)
     } catch (err) {
       setError('An unexpected error occurred')
       console.error('Unexpected error:', err)
@@ -202,6 +250,12 @@ export default function PropertyDashboard() {
     return `${property.address_line_1}${
       property.address_line_2 ? `, ${property.address_line_2}` : ''
     }, ${property.city}, ${property.state}`
+  }
+
+  const formatBuildingAddress = (building: ApartmentBuilding) => {
+    return `${building.address_line_1}${
+      building.address_line_2 ? `, ${building.address_line_2}` : ''
+    }, ${building.city}, ${building.state}`
   }
 
   const formatPrice = (price?: number) => {
@@ -269,6 +323,37 @@ export default function PropertyDashboard() {
     } finally {
       setClickingPropertyId(null)
     }
+  }
+
+  // Placeholder handlers for apartment buildings
+  const handleBuildingClick = async (building: ApartmentBuilding) => {
+    try {
+      setClickingBuildingId(building.id)
+      // TODO: Add building management navigation logic
+      console.log('Building clicked:', building)
+    } catch (error) {
+      console.error('Error navigating to building:', error)
+    } finally {
+      setClickingBuildingId(null)
+    }
+  }
+
+  const handleBuildingEdit = (
+    e: React.MouseEvent,
+    building: ApartmentBuilding
+  ) => {
+    e.stopPropagation()
+    // TODO: Add building edit navigation logic
+    console.log('Edit building:', building)
+  }
+
+  const handleBuildingDelete = (
+    e: React.MouseEvent,
+    building: ApartmentBuilding
+  ) => {
+    e.stopPropagation()
+    // TODO: Add building delete logic
+    console.log('Delete building:', building)
   }
 
   const getStatusBadge = (status?: string) => {
@@ -482,17 +567,24 @@ export default function PropertyDashboard() {
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-semibold">
-                      {properties.length}
+                      {contentType === 'properties'
+                        ? properties.length
+                        : buildings.length}
                     </span>
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Properties
+                      Total{' '}
+                      {contentType === 'properties'
+                        ? 'Properties'
+                        : 'Buildings'}
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {properties.length}
+                      {contentType === 'properties'
+                        ? properties.length
+                        : buildings.length}
                     </dd>
                   </dl>
                 </div>
@@ -507,8 +599,11 @@ export default function PropertyDashboard() {
                   <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-semibold">
                       {
-                        properties.filter(p => p.listing_status === 'active')
-                          .length
+                        contentType === 'properties'
+                          ? properties.filter(
+                              p => p.listing_status === 'active'
+                            ).length
+                          : buildings.length // All buildings are considered "active" for now
                       }
                     </span>
                   </div>
@@ -516,13 +611,18 @@ export default function PropertyDashboard() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Active Listings
+                      {contentType === 'properties'
+                        ? 'Active Listings'
+                        : 'Total Units'}
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {
-                        properties.filter(p => p.listing_status === 'active')
-                          .length
-                      }
+                      {contentType === 'properties'
+                        ? properties.filter(p => p.listing_status === 'active')
+                            .length
+                        : buildings.reduce(
+                            (total, building) => total + building.total_units,
+                            0
+                          )}
                     </dd>
                   </dl>
                 </div>
@@ -537,10 +637,13 @@ export default function PropertyDashboard() {
                   <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-semibold">
                       {
-                        properties.filter(
-                          p =>
-                            !p.listing_status || p.listing_status !== 'active'
-                        ).length
+                        contentType === 'properties'
+                          ? properties.filter(
+                              p =>
+                                !p.listing_status ||
+                                p.listing_status !== 'active'
+                            ).length
+                          : 0 // No "in progress" concept for buildings yet
                       }
                     </span>
                   </div>
@@ -548,15 +651,24 @@ export default function PropertyDashboard() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      In Progress
+                      {contentType === 'properties'
+                        ? 'In Progress'
+                        : 'Avg Units/Building'}
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {
-                        properties.filter(
-                          p =>
-                            !p.listing_status || p.listing_status !== 'active'
-                        ).length
-                      }
+                      {contentType === 'properties'
+                        ? properties.filter(
+                            p =>
+                              !p.listing_status || p.listing_status !== 'active'
+                          ).length
+                        : buildings.length > 0
+                        ? Math.round(
+                            buildings.reduce(
+                              (total, building) => total + building.total_units,
+                              0
+                            ) / buildings.length
+                          )
+                        : 0}
                     </dd>
                   </dl>
                 </div>
@@ -637,7 +749,11 @@ export default function PropertyDashboard() {
             </div>
           </div>
 
-          {properties.length === 0 ? (
+          {(
+            contentType === 'properties'
+              ? properties.length === 0
+              : buildings.length === 0
+          ) ? (
             <div className="text-center py-12">
               <svg
                 className="mx-auto h-12 w-12 text-gray-400"
@@ -821,8 +937,8 @@ export default function PropertyDashboard() {
                 </div>
               </div>
             )
-          ) : (
-            // Apartment buildings content (placeholder for now)
+          ) : // Apartment buildings content
+          buildings.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <svg
@@ -840,12 +956,133 @@ export default function PropertyDashboard() {
                 </svg>
               </div>
               <h3 className="mt-4 text-sm font-medium text-gray-900">
-                Apartment Buildings Coming Soon
+                No apartment buildings yet
               </h3>
               <p className="mt-2 text-sm text-gray-500">
-                Apartment building management features are currently in
-                development.
+                Get started by creating your first apartment building listing.
               </p>
+            </div>
+          ) : viewMode === 'list' ? (
+            <ul className="divide-y divide-gray-200">
+              {buildings.map(building => (
+                <li
+                  key={building.id}
+                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                    clickingBuildingId === building.id ? 'bg-blue-50' : ''
+                  }`}
+                  onClick={() => handleBuildingClick(building)}
+                >
+                  <div className="px-4 py-4 sm:px-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+                            <span className="text-green-600 font-semibold text-sm">
+                              {building.total_units}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="flex items-center">
+                            <p className="text-sm font-medium text-gray-900">
+                              {building.building_name}
+                              {building.building_number &&
+                                ` #${building.building_number}`}
+                            </p>
+                            <div className="ml-2">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                Building
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            {formatBuildingAddress(building)} •{' '}
+                            {building.total_units}{' '}
+                            {building.total_units === 1 ? 'unit' : 'units'}
+                          </p>
+                          <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
+                            {clickingBuildingId === building.id && (
+                              <Spinner size={12} colorClass="text-blue-600" />
+                            )}
+                            {clickingBuildingId === building.id
+                              ? 'Loading...'
+                              : 'Click to manage building'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={e => handleBuildingDelete(e, building)}
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                          title="Delete building"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={e => handleBuildingEdit(e, building)}
+                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                          title="Edit building details"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <svg
+                          className="h-5 w-5 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {buildings.map(building => (
+                  <BuildingCard
+                    key={building.id}
+                    building={building}
+                    onBuildingClick={handleBuildingClick}
+                    onEditClick={e => handleBuildingEdit(e, building)}
+                    onDeleteClick={e => handleBuildingDelete(e, building)}
+                    isLoading={clickingBuildingId === building.id}
+                    formatAddress={formatBuildingAddress}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
