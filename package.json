@@ -53,6 +53,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/react-map-gl": "^6.1.7",
     "autoprefixer": "^10.4.16",
     "drizzle-kit": "^0.31.1",
     "eslint": "^9",

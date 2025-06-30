@@ -5,11 +5,7 @@ import { useMapContext } from "../../contexts/MapContext"
 import { formatLargeNumber } from "@/utils/formatters";
 
 export default function MapMarkers() {
-  const { catalog, selectedProperty, setSelectedProperty } = useMapContext();
-
-  const handleMarkerClick = (property: any) => {
-    setSelectedProperty(property);
-  };
+  const { catalog } = useMapContext();
 
   return catalog.map(listing => {
     if (
@@ -22,7 +18,6 @@ export default function MapMarkers() {
     const lng = parseFloat(listing.properties.longitude);
     const lat = parseFloat(listing.properties.latitude);
     const price = parseFloat(listing.property_listings.monthlyRent);
-    const isSelected = selectedProperty?.properties.id === listing.properties.id;
 
     return (
       <Marker
@@ -30,14 +25,7 @@ export default function MapMarkers() {
         longitude={lng}
         latitude={lat}
       >
-        <div 
-          className={`px-2 text-white text-2xs rounded-full cursor-pointer transition-all duration-200 hover:scale-110 ${
-            isSelected 
-              ? 'bg-blue-900 shadow-lg scale-110' 
-              : 'bg-blue-800 hover:bg-blue-700'
-          }`}
-          onClick={() => handleMarkerClick(listing)}
-        >
+        <div className="px-2 text-white bg-blue-800 text-2xs rounded-full">
           {formatLargeNumber(price)}
         </div>
       </Marker>
