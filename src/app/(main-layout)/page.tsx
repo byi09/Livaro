@@ -213,7 +213,7 @@ export default async function Home() {
               Built for <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Success</span>
             </h2>
             <p className="text-base text-gray-600 max-w-3xl leading-relaxed mx-auto text-center">
-              Whether you&apos;re a property owner or student renter, Livaro streamlines the rental process for everyone.
+              Whether you&apos;re a landlord/property manager or student renter, Livaro streamlines the rental process for everyone.
             </p>
           </div>
 
@@ -227,7 +227,7 @@ export default async function Home() {
                     </svg>
                   </div>
 
-                  <h3 className="text-xl font-bold mb-2 text-gray-900">Property Owners</h3>
+                  <h3 className="text-xl font-bold mb-2 text-gray-900">Landlord/Property Manager</h3>
                   <p className="text-gray-600 leading-relaxed mb-4 text-sm">
                     Reduce vacancy time and find quality tenants with our comprehensive screening and management tools.
                   </p>

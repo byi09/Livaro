@@ -16,6 +16,8 @@ export default function RentDetailsPage() {
   const [applicationFee, setApplicationFee] = useState('');
   const [minLeaseTerm, setMinLeaseTerm] = useState('12');
   const [maxLeaseTerm, setMaxLeaseTerm] = useState('12');
+  const [customMinLeaseTerm, setCustomMinLeaseTerm] = useState('');
+  const [customMaxLeaseTerm, setCustomMaxLeaseTerm] = useState('');
   const [availableDate, setAvailableDate] = useState('');
   const [listingTitle, setListingTitle] = useState('');
   const [listingDescription, setListingDescription] = useState('');
@@ -39,8 +41,8 @@ export default function RentDetailsPage() {
       security_deposit: securityDeposit,
       pet_deposit: petDeposit,
       application_fee: applicationFee,
-      minimum_lease_term: minLeaseTerm,
-      maximum_lease_term: maxLeaseTerm,
+      minimum_lease_term: minLeaseTerm === 'other' ? customMinLeaseTerm : minLeaseTerm,
+      maximum_lease_term: maxLeaseTerm === 'other' ? customMaxLeaseTerm : maxLeaseTerm,
       available_date: availableDate,
       listing_title: listingTitle,
       listing_description: listingDescription,
@@ -112,8 +114,26 @@ export default function RentDetailsPage() {
           if (listing.security_deposit) setSecurityDeposit(listing.security_deposit.toString());
           if (listing.pet_deposit) setPetDeposit(listing.pet_deposit.toString());
           if (listing.application_fee) setApplicationFee(listing.application_fee.toString());
-          if (listing.minimum_lease_term) setMinLeaseTerm(listing.minimum_lease_term.toString());
-          if (listing.maximum_lease_term) setMaxLeaseTerm(listing.maximum_lease_term.toString());
+          if (listing.minimum_lease_term) {
+            const minTerm = listing.minimum_lease_term.toString();
+            // Check if it's a standard option, otherwise set as custom
+            if (['1', '3', '6', '9', '12', '24'].includes(minTerm)) {
+              setMinLeaseTerm(minTerm);
+            } else {
+              setMinLeaseTerm('other');
+              setCustomMinLeaseTerm(minTerm);
+            }
+          }
+          if (listing.maximum_lease_term) {
+            const maxTerm = listing.maximum_lease_term.toString();
+            // Check if it's a standard option, otherwise set as custom
+            if (['1', '3', '6', '9', '12', '24', '36'].includes(maxTerm)) {
+              setMaxLeaseTerm(maxTerm);
+            } else {
+              setMaxLeaseTerm('other');
+              setCustomMaxLeaseTerm(maxTerm);
+            }
+          }
           if (listing.available_date) setAvailableDate(listing.available_date);
           if (listing.listing_title) setListingTitle(listing.listing_title);
           if (listing.listing_description) setListingDescription(listing.listing_description);
@@ -157,8 +177,22 @@ export default function RentDetailsPage() {
         security_deposit: formData.get('security_deposit') ? parseFloat(formData.get('security_deposit') as string) : null,
         pet_deposit: formData.get('pet_deposit') ? parseFloat(formData.get('pet_deposit') as string) : null,
         application_fee: formData.get('application_fee') ? parseFloat(formData.get('application_fee') as string) : null,
-        minimum_lease_term: formData.get('minimum_lease_term') ? parseInt(formData.get('minimum_lease_term') as string) : null,
-        maximum_lease_term: formData.get('maximum_lease_term') ? parseInt(formData.get('maximum_lease_term') as string) : null,
+        minimum_lease_term: (() => {
+          const minTerm = formData.get('minimum_lease_term') as string;
+          if (minTerm === 'other') {
+            const customMin = formData.get('custom_minimum_lease_term') as string;
+            return customMin ? parseInt(customMin) : null;
+          }
+          return minTerm ? parseInt(minTerm) : null;
+        })(),
+        maximum_lease_term: (() => {
+          const maxTerm = formData.get('maximum_lease_term') as string;
+          if (maxTerm === 'other') {
+            const customMax = formData.get('custom_maximum_lease_term') as string;
+            return customMax ? parseInt(customMax) : null;
+          }
+          return maxTerm ? parseInt(maxTerm) : null;
+        })(),
         available_date: formData.get('available_date') as string || null,
         listing_title: formData.get('listing_title') as string || null,
         listing_description: formData.get('listing_description') as string || null,
@@ -410,9 +444,25 @@ export default function RentDetailsPage() {
                   <option value="1">1 month</option>
                   <option value="3">3 months</option>
                   <option value="6">6 months</option>
+                  <option value="9">9 months</option>
                   <option value="12">12 months</option>
                   <option value="24">24 months</option>
+                  <option value="other">Other (custom)</option>
                 </select>
+                {minLeaseTerm === 'other' && (
+                  <div className="mt-3">
+                    <input
+                      type="number"
+                      name="custom_minimum_lease_term"
+                      value={customMinLeaseTerm}
+                      onChange={(e) => setCustomMinLeaseTerm(e.target.value)}
+                      className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
+                      placeholder="Enter custom months"
+                      min="1"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-lg font-medium text-gray-700 mb-3">
@@ -428,10 +478,26 @@ export default function RentDetailsPage() {
                   <option value="1">1 month</option>
                   <option value="3">3 months</option>
                   <option value="6">6 months</option>
+                  <option value="9">9 months</option>
                   <option value="12">12 months</option>
                   <option value="24">24 months</option>
                   <option value="36">36 months</option>
+                  <option value="other">Other (custom)</option>
                 </select>
+                {maxLeaseTerm === 'other' && (
+                  <div className="mt-3">
+                    <input
+                      type="number"
+                      name="custom_maximum_lease_term"
+                      value={customMaxLeaseTerm}
+                      onChange={(e) => setCustomMaxLeaseTerm(e.target.value)}
+                      className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
+                      placeholder="Enter custom months"
+                      min="1"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
