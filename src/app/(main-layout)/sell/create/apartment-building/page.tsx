@@ -35,7 +35,6 @@ export default function ApartmentBuildingPage() {
 
   const { saveImmediately } = useApartmentBuildingAutoSave({
     buildingId: buildingId,
-    landlordId: landlordId,
     formData: {
       buildingName,
       buildingNumber,
