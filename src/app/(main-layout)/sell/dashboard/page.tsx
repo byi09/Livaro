@@ -5,7 +5,6 @@ import { createClient } from '@/utils/supabase/client'
 import Spinner from '@/src/components/ui/Spinner'
 import ListingCard from './listing-card'
 import BuildingCard from './building-card'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface PropertyListing {
   id: string
@@ -49,7 +48,7 @@ export default function PropertyDashboard() {
   const [clickingBuildingId, setClickingBuildingId] = useState<string | null>(
     null
   )
-  const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(
+  const [deletingBuildingId, setDeletingBuildingId] = useState<string | null>(
     null
   )
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
@@ -329,7 +328,7 @@ export default function PropertyDashboard() {
   const handleBuildingClick = async (building: ApartmentBuilding) => {
     try {
       setClickingBuildingId(building.id)
-      // TODO: Add building management navigation logic
+      // TODO: this will take you to the building display page
       console.log('Building clicked:', building)
     } catch (error) {
       console.error('Error navigating to building:', error)
@@ -343,8 +342,7 @@ export default function PropertyDashboard() {
     building: ApartmentBuilding
   ) => {
     e.stopPropagation()
-    // TODO: Add building edit navigation logic
-    console.log('Edit building:', building)
+    router.push(`/sell/create/apartment-building?building_id=${building.id}`)
   }
 
   const handleBuildingDelete = (
@@ -352,8 +350,25 @@ export default function PropertyDashboard() {
     building: ApartmentBuilding
   ) => {
     e.stopPropagation()
-    // TODO: Add building delete logic
-    console.log('Delete building:', building)
+    setShowDeleteConfirm(building.id)
+  }
+
+  const confirmDeleteBuilding = async (buildingId: string) => {
+    setDeletingBuildingId(buildingId)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('apartment_buildings')
+      .delete()
+      .eq('id', buildingId)
+    if (error) {
+      console.error('Error deleting building:', error)
+      alert('Failed to delete building. Please try again.')
+      setDeletingBuildingId(null)
+      return
+    }
+    setBuildings(prev => prev.filter(b => b.id !== buildingId))
+    setShowDeleteConfirm(null)
+    setDeletingBuildingId(null)
   }
 
   const getStatusBadge = (status?: string) => {
@@ -420,45 +435,6 @@ export default function PropertyDashboard() {
         return 'Click to reactivate'
       default:
         return 'Click to edit'
-    }
-  }
-
-  const handleDeleteProperty = async (propertyId: string) => {
-    setDeletingPropertyId(propertyId)
-
-    try {
-      const supabase = createClient()
-
-      // First delete the property listing (if exists)
-      const { error: listingError } = await supabase
-        .from('property_listings')
-        .delete()
-        .eq('property_id', propertyId)
-
-      if (listingError) {
-        console.error('Error deleting property listing:', listingError)
-      }
-
-      // Then delete the property itself
-      const { error: propertyError } = await supabase
-        .from('properties')
-        .delete()
-        .eq('id', propertyId)
-
-      if (propertyError) {
-        console.error('Error deleting property:', propertyError)
-        alert('Failed to delete property. Please try again.')
-        return
-      }
-
-      // Remove from local state
-      setProperties(prev => prev.filter(p => p.id !== propertyId))
-      setShowDeleteConfirm(null)
-    } catch (error) {
-      console.error('Unexpected error deleting property:', error)
-      alert('An unexpected error occurred. Please try again.')
-    } finally {
-      setDeletingPropertyId(null)
     }
   }
 
@@ -544,18 +520,28 @@ export default function PropertyDashboard() {
             </div>
 
             {/* Content Type Toggle */}
-            <Tabs
-              value={contentType}
-              onValueChange={value => setContentType(value as ContentType)}
-              className="w-auto"
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="properties">Properties</TabsTrigger>
-                <TabsTrigger value="apartments">
-                  Apartment Buildings
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setContentType('properties')}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  contentType === 'properties'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Properties
+              </button>
+              <button
+                onClick={() => setContentType('apartments')}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  contentType === 'apartments'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Apartment Buildings
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1015,6 +1001,7 @@ export default function PropertyDashboard() {
                           onClick={e => handleBuildingDelete(e, building)}
                           className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
                           title="Delete building"
+                          disabled={deletingBuildingId === building.id}
                         >
                           <svg
                             className="h-4 w-4"
@@ -1142,13 +1129,12 @@ export default function PropertyDashboard() {
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                     <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      Delete Property
+                      Delete Building
                     </h3>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Are you sure you want to delete this property? This
-                        action cannot be undone and will permanently remove the
-                        property and its listing.
+                        Are you sure you want to delete this building? This
+                        action cannot be undone.
                       </p>
                     </div>
                   </div>
@@ -1156,27 +1142,18 @@ export default function PropertyDashboard() {
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                   <button
                     type="button"
-                    onClick={() => handleDeleteProperty(showDeleteConfirm)}
-                    disabled={deletingPropertyId === showDeleteConfirm}
+                    onClick={() => confirmDeleteBuilding(showDeleteConfirm)}
+                    disabled={deletingBuildingId === showDeleteConfirm}
                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {deletingPropertyId === showDeleteConfirm ? (
-                      <>
-                        <Spinner
-                          size={16}
-                          colorClass="text-white"
-                          className="mr-2"
-                        />
-                        Deleting...
-                      </>
-                    ) : (
-                      'Delete'
-                    )}
+                    {deletingBuildingId === showDeleteConfirm
+                      ? 'Deleting...'
+                      : 'Delete'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(null)}
-                    disabled={deletingPropertyId === showDeleteConfirm}
+                    disabled={deletingBuildingId === showDeleteConfirm}
                     className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
