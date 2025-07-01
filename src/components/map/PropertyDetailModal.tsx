@@ -227,17 +227,17 @@ export default function PropertyDetailModal({
                   </div>
                 )}
                 
-                {property.properties.parkingSpaces && property.properties.parkingSpaces > 0 && (
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Car className="w-5 h-5 text-orange-600" />
-                    <div>
-                      <span className="text-sm text-gray-500">Parking</span>
-                      <p className="font-semibold text-gray-900">
-                        {property.properties.parkingSpaces} space{property.properties.parkingSpaces > 1 ? 's' : ''}
-                      </p>
-                    </div>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <Car className="w-5 h-5 text-orange-600" />
+                  <div>
+                    <span className="text-sm text-gray-500">Parking</span>
+                    <p className="font-semibold text-gray-900">
+                      {property.properties.parkingSpaces && property.properties.parkingSpaces > 0 
+                        ? `${property.properties.parkingSpaces} space${property.properties.parkingSpaces > 1 ? 's' : ''}`
+                        : 'N/A'}
+                    </p>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
