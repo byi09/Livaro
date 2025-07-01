@@ -32,17 +32,18 @@ export default function Spinner({
   };
 
   const renderCircularSpinner = () => (
-    <span
+    <div
       className={cn(
-        'animate-spin rounded-full border-2 border-solid border-transparent border-t-current',
+        'animate-spin rounded-full border-2 border-solid border-transparent border-t-current flex-shrink-0',
         colorClasses[variant]
       )}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
     />
   );
 
   const renderDotsSpinner = () => (
-    <div className={cn('flex space-x-1', colorClasses[variant])}>
+    <div className={cn('flex space-x-1 items-center justify-center', colorClasses[variant])} 
+         style={{ minHeight: size }}>
       {[0, 1, 2].map((i) => (
         <div
           key={i}
@@ -61,10 +62,10 @@ export default function Spinner({
   const renderPulseSpinner = () => (
     <div
       className={cn(
-        'rounded-full bg-current animate-pulse opacity-60',
+        'rounded-full bg-current animate-pulse opacity-60 flex-shrink-0',
         colorClasses[variant]
       )}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
     />
   );
 
@@ -80,10 +81,11 @@ export default function Spinner({
   };
 
   return (
-    <span 
+    <div 
       className={cn('inline-flex items-center gap-2', className)} 
       role="status"
       aria-label={label || 'Loading'}
+      style={{ minHeight: size }}
     >
       {renderSpinner()}
       {label && (
@@ -91,7 +93,7 @@ export default function Spinner({
           {label}
         </span>
       )}
-    </span>
+    </div>
   );
 }
 
