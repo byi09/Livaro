@@ -14,6 +14,8 @@ interface MapContextProps {
   catalog: PropertyListing[];
   fetchingListings: boolean;
   setReady: React.Dispatch<React.SetStateAction<boolean>>;
+  selectedProperty: PropertyListing | null;
+  setSelectedProperty: React.Dispatch<React.SetStateAction<PropertyListing | null>>;
 }
 
 const MapContext = createContext<MapContextProps | null>(null);
@@ -49,6 +51,7 @@ export const MapContextProvider = ({
   });
   const [sortOption, setSortOption] = useState<SortOption>("priceAsc");
   const [catalog, setCatalog] = useState<PropertyListing[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null);
   const [paramsLoaded, setParamsLoaded] = useState(false);
   const searchParams = useSearchParams();
 
@@ -115,7 +118,9 @@ export const MapContextProvider = ({
         setReady,
         catalog,
         sortOption,
-        setSortOption
+        setSortOption,
+        selectedProperty,
+        setSelectedProperty
       }}
     >
       {children}

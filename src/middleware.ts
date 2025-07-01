@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
     // Clear onboarding cookie if user is not authenticated
     response.cookies.delete(ONBOARDING_COOKIE_NAME)
     
-    const allowed = ['/', '/map', '/sign-in', '/sign-up', '/callback', '/error', '/confirm-email']
+    const allowed = ['/', '/map', '/sign-in', '/sign-up', '/callback', '/error', '/confirm-email','/student', '/owners']
     if (!allowed.includes(pathname)) {
       return NextResponse.redirect(new URL('/sign-in', request.url))
     }

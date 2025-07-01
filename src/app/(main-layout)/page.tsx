@@ -213,7 +213,7 @@ export default async function Home() {
               Built for <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Success</span>
             </h2>
             <p className="text-base text-gray-600 max-w-3xl leading-relaxed mx-auto text-center">
-              Whether you&apos;re a property owner or student renter, Livaro streamlines the rental process for everyone.
+              Whether you&apos;re a landlord/property manager or student renter, Livaro streamlines the rental process for everyone.
             </p>
           </div>
 
@@ -226,10 +226,13 @@ export default async function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold mb-2 text-gray-900">Property Owners</h3>
+
+                  <h3 className="text-xl font-bold mb-2 text-gray-900">Landlord/Property Manager</h3>
                   <p className="text-gray-600 leading-relaxed mb-4 text-sm">
                     Reduce vacancy time and find quality tenants with our comprehensive screening and management tools.
                   </p>
+                  <Link href="/owners" className="text-blue-600 underline mt-2 block">Learn more →</Link>
+
                 </div>
                 <ul className="space-y-3 text-gray-600">
                   <li className="flex items-center">
@@ -266,6 +269,8 @@ export default async function Home() {
                   <p className="text-gray-600 leading-relaxed mb-4 text-sm">
                     Stand out from other applicants and get priority access to the best rental properties.
                   </p>
+                  <Link href="/student" className="text-blue-600 underline mt-2 block">Learn more →</Link>
+
                 </div>
                 <ul className="space-y-3 text-gray-600">
                   <li className="flex items-center">

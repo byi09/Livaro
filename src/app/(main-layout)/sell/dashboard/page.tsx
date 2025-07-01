@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import Spinner from "@/src/components/ui/Spinner";
+import Spinner, { LoadingOverlay } from "@/src/components/ui/Spinner";
 import ListingCard from "./listing-card";
 
 interface PropertyListing {
@@ -228,24 +228,63 @@ export default function PropertyDashboard() {
                 return `/sell/create?property_id=${property.id}`;
             }
 
-            // If basic property info is complete, check for listing data
-            if (!property.listing_status) {
-                return `/sell/create/rent-details?property_id=${property.id}`;
+            // Check progress tracking from localStorage
+            let furthestStep = 0;
+            if (typeof window !== 'undefined') {
+                const propertyKey = `furthestStep_${property.id}`;
+                const defaultKey = 'furthestStep_default';
+                
+                // Check property-specific progress first
+                const storedProperty = window.localStorage.getItem(propertyKey);
+                const storedDefault = window.localStorage.getItem(defaultKey);
+                
+                const propertyStep = storedProperty ? parseInt(storedProperty, 10) : 0;
+                const defaultStep = storedDefault ? parseInt(storedDefault, 10) : 0;
+                
+                furthestStep = Math.max(propertyStep, defaultStep);
             }
 
-            // For properties with listings, do minimal checks to avoid API errors
-            // If listing is active, go to publish page to view/manage
+            // Define the step paths to match InteractiveProgressBar
+            const stepPaths = [
+                `/sell/create?property_id=${property.id}`, // 0 - Property Info
+                `/sell/create/rent-details?property_id=${property.id}`, // 1 - Rent Details
+                `/sell/create/media?property_id=${property.id}`, // 2 - Media
+                `/sell/create/amenities?property_id=${property.id}`, // 3 - Amenities
+                `/sell/create/screening?property_id=${property.id}`, // 4 - Screening
+                `/sell/create/costs-and-fees?property_id=${property.id}`, // 5 - Costs and Fees
+                `/sell/create/final-details?property_id=${property.id}`, // 6 - Final Details
+                `/sell/create/review?property_id=${property.id}`, // 7 - Review
+                `/sell/create/publish?property_id=${property.id}` // 8 - Publish
+            ];
+
+            // For properties with listings, check status to determine behavior
             if (property.listing_status === "active") {
-                return `/sell/create/publish?property_id=${property.id}`;
+                // Active listings always go to publish page to manage
+                return stepPaths[8];
             }
 
-            // If listing is pending/draft, go to review page
+            // For pending/draft listings, check if they reached the review step
             if (property.listing_status === "pending") {
-                return `/sell/create/review?property_id=${property.id}`;
+                // If they reached the review step or beyond, go to review
+                if (furthestStep >= 7) {
+                    return stepPaths[7];
+                }
+                // Otherwise, go to their furthest step
+                return stepPaths[Math.max(furthestStep, 1)];
             }
 
-            // Default to rent details for any other case
-            return `/sell/create/rent-details?property_id=${property.id}`;
+            // For properties without listings, check progress
+            if (!property.listing_status) {
+                // If they have progress tracked, go to their furthest step
+                if (furthestStep > 0) {
+                    return stepPaths[Math.min(furthestStep, stepPaths.length - 1)];
+                }
+                // Otherwise, go to rent details (step 1)
+                return stepPaths[1];
+            }
+
+            // Default fallback
+            return stepPaths[Math.max(furthestStep, 1)];
         } catch (error) {
             console.error("Error determining next step:", error);
             // Always default to the first page on error
@@ -377,36 +416,35 @@ export default function PropertyDashboard() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <Spinner size={48} className="mx-auto text-blue-600" />
-                    <p className="mt-4 text-gray-600">
-                        Loading your properties...
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <p className="text-red-600">{error}</p>
-                    <button
-                        onClick={fetchProperties}
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                        Try Again
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
+  if (isLoading) {
     return (
+      <LoadingOverlay
+        show={true}
+        message="Loading your properties..."
+        subtitle="Please wait while we fetch your listings"
+        size={48}
+        opacity="heavy"
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={fetchProperties}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
         <main className="min-h-screen bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-8">
                 {/* Public Launch Notice Banner */}
@@ -553,6 +591,7 @@ export default function PropertyDashboard() {
                     </div>
                 </div>
 
+
                 {/* Properties List */}
                 <div className="bg-white shadow overflow-hidden sm:rounded-md mb-8">
                     <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -697,7 +736,7 @@ export default function PropertyDashboard() {
                                                             property.id && (
                                                             <Spinner
                                                                 size={12}
-                                                                colorClass="text-blue-600"
+                                                                className="text-blue-600"
                                                             />
                                                         )}
                                                         {clickingPropertyId ===
@@ -849,96 +888,65 @@ export default function PropertyDashboard() {
                     </button>
                 </div>
 
-                {/* Delete Confirmation Modal */}
-                {showDeleteConfirm && (
-                    <div className="fixed inset-0 z-50 overflow-y-auto">
-                        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                            {/* Background overlay */}
-                            <div
-                                className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-                                onClick={() => setShowDeleteConfirm(null)}
-                            />
-
-                            {/* Modal panel */}
-                            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                                <div className="sm:flex sm:items-start">
-                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                                        <svg
-                                            className="h-6 w-6 text-red-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                                            />
-                                        </svg>
-                                    </div>
-                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                            Delete Property
-                                        </h3>
-                                        <div className="mt-2">
-                                            <p className="text-sm text-gray-500">
-                                                Are you sure you want to delete
-                                                this property? This action
-                                                cannot be undone and will
-                                                permanently remove the property
-                                                and its listing.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            handleDeleteProperty(
-                                                showDeleteConfirm
-                                            )
-                                        }
-                                        disabled={
-                                            deletingPropertyId ===
-                                            showDeleteConfirm
-                                        }
-                                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {deletingPropertyId ===
-                                        showDeleteConfirm ? (
-                                            <>
-                                                <Spinner
-                                                    size={16}
-                                                    colorClass="text-white"
-                                                    className="mr-2"
-                                                />
-                                                Deleting...
-                                            </>
-                                        ) : (
-                                            "Delete"
-                                        )}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setShowDeleteConfirm(null)
-                                        }
-                                        disabled={
-                                            deletingPropertyId ===
-                                            showDeleteConfirm
-                                        }
-                                        className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              {/* Background overlay */}
+              <div 
+                className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                onClick={() => setShowDeleteConfirm(null)}
+              />
+              
+              {/* Modal panel */}
+              <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Delete Property
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Are you sure you want to delete this property? This action cannot be undone and will permanently remove the property and its listing.
+                      </p>
                     </div>
-                )}
+                  </div>
+                </div>
+                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProperty(showDeleteConfirm)}
+                    disabled={deletingPropertyId === showDeleteConfirm}
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deletingPropertyId === showDeleteConfirm ? (
+                      <>
+                        <Spinner size={16} variant="white" className="mr-2" />
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete'
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(null)}
+                    disabled={deletingPropertyId === showDeleteConfirm}
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
-        </main>
-    );
-}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+} 
