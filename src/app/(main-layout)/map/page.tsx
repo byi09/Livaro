@@ -5,7 +5,7 @@ import MapPageClient from "@/src/components/map/MapPageClient";
 export default function MapPage() {
   return (
     <MapContextProvider>
-      <div className="flex flex-col min-h-screen h-screen pt-20">
+      <div className="flex flex-col min-h-screen h-screen">
         <MapFilters />
         <MapPageClient />
       </div>

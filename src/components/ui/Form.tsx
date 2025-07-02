@@ -36,11 +36,18 @@ export function SearchInput({
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <div className="relative w-96">
-      <HiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+    <div className="relative flex-1 min-w-[280px] max-w-[400px]">
+      <HiSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 transition-colors" />
       <input
         type="text"
-        className={clsx("w-full pr-10 pl-2 py-1 border border-gray-300 rounded-lg focus:ring-2 hover:ring-1 focus:ring-blue-500 focus:border-transparent outline-none [&:not(:placeholder-shown)]:border-gray-500", className)}
+        className={clsx(
+          "w-full pr-11 pl-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm text-sm transition-all duration-200",
+          "placeholder:text-gray-400 text-gray-900",
+          "hover:border-gray-300 hover:shadow-md",
+          "focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:shadow-lg focus:outline-none",
+          "[&:not(:placeholder-shown)]:border-gray-400 [&:not(:placeholder-shown)]:shadow-md",
+          className
+        )}
         {...props}
       />
     </div>
