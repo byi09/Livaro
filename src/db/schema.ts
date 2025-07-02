@@ -1,6 +1,17 @@
 import { integer, pgTable, timestamp, pgEnum, uuid, varchar, date, boolean, decimal, text, json } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
+
+
+// ==================== liked_properties ====================
+export const likedProperties = pgTable('liked_properties', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  propertyId: uuid('property_id').notNull().references(() => properties.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+
 // ==================== ENUMS ====================
 export const genderEnum = pgEnum('gender', ['male', 'female', 'other', 'prefer_not_to_say']);
 export const accountStatusEnum = pgEnum('account_status', ['active', 'suspended', 'deactivated']);

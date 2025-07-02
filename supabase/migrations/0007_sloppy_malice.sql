@@ -1,1 +1,0 @@
-ALTER TABLE "notifications" ALTER COLUMN "receiver_id" DROP NOT NULL;
