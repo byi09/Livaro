@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Eye } from 'lucide-react';
@@ -72,6 +72,9 @@ export default function PublishPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [showSeeMore, setShowSeeMore] = useState(false);
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const fetchPropertyData = async () => {
@@ -143,6 +146,17 @@ export default function PublishPage() {
 
     fetchPropertyData();
   }, [propertyId, router]);
+
+  // Check if description needs "See more" button
+  useEffect(() => {
+    const currentListing = propertyData?.property_listings?.[0];
+    if (descriptionRef.current && currentListing?.listing_description) {
+      const element = descriptionRef.current;
+      // Check if content is being truncated by comparing scroll height with client height
+      const isOverflowing = element.scrollHeight > element.clientHeight;
+      setShowSeeMore(isOverflowing);
+    }
+  }, [propertyData]);
 
   const handlePublishListing = async () => {
     if (!propertyData?.property_listings?.[0]) {
@@ -449,8 +463,20 @@ export default function PublishPage() {
             )}
             {listing?.listing_description && (
               <div className="mb-4">
-                <p className="text-gray-700 line-clamp-3">{listing.listing_description}</p>
-                <button className="text-blue-600 font-medium mt-2">See more</button>
+                <p 
+                  ref={descriptionRef}
+                  className={`text-gray-700 ${isDescriptionExpanded ? '' : 'line-clamp-3'}`}
+                >
+                  {listing.listing_description}
+                </p>
+                {showSeeMore && (
+                  <button 
+                    onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                    className="text-blue-600 font-medium mt-2 hover:text-blue-800 transition-colors"
+                  >
+                    {isDescriptionExpanded ? 'See less' : 'See more'}
+                  </button>
+                )}
               </div>
             )}
           </section>
