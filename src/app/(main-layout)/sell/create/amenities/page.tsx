@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
+import PageTransition from '@/src/components/ui/PageTransition';
+import { usePageTransition } from '@/src/hooks/usePageTransition';
 
 export default function AmenitiesPage() {
   const router = useRouter();
@@ -11,18 +13,22 @@ export default function AmenitiesPage() {
   
   const [customAmenities, setCustomAmenities] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Page transition hook
+  const { navigateWithTransition } = usePageTransition();
 
   // Enhanced navigation with auto-save
   const handleNavigation = async (path: string) => {
     try {
       // Save current form data before navigating
       await saveCurrentFormData();
-      router.push(path);
+      await navigateWithTransition(path);
     } catch (error) {
       console.error('Error saving data before navigation:', error);
       // Navigate anyway to prevent user from being stuck
-      router.push(path);
+      await navigateWithTransition(path);
     }
   };
 
@@ -150,7 +156,7 @@ export default function AmenitiesPage() {
       }
     };
 
-    loadExistingFeatures();
+    loadExistingFeatures().finally(() => setIsLoading(false));
   }, [propertyId]);
 
   // Redirect if no property ID
@@ -282,7 +288,7 @@ export default function AmenitiesPage() {
       }
       
       // Client-side redirect
-      router.push(`/sell/create/screening?property_id=${propertyId}`);
+      await navigateWithTransition(`/sell/create/screening?property_id=${propertyId}`);
       
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -329,7 +335,8 @@ export default function AmenitiesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white pt-28 pb-8 px-8">
+    <PageTransition isLoading={isLoading}>
+      <main className="min-h-screen bg-white pt-28 pb-8 px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -766,6 +773,7 @@ export default function AmenitiesPage() {
         </form>
       </div>
     </main>
+    </PageTransition>
   );
 }
 
