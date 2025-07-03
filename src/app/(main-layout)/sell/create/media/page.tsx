@@ -790,17 +790,22 @@ export default function MediaPage() {
                       disabled={uploading}
                     />
                     
-                    <label
-                      htmlFor="photos-direct"
-                      className={`inline-flex items-center px-6 py-3 text-sm rounded-lg font-medium transition-all cursor-pointer border ${
-                        uploading 
-                          ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed' 
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow-sm'
-                      }`}
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Quick Upload (No Editing)
-                    </label>
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="photos-direct"
+                        className={`inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all cursor-pointer border-2 ${
+                          uploading 
+                            ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed' 
+                            : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400 hover:shadow-md transform hover:scale-102'
+                        }`}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Quick Upload (No Editing)
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Upload photos directly without editing
+                      </p>
+                    </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <p className="text-sm text-gray-500">
@@ -832,17 +837,14 @@ export default function MediaPage() {
 
             {/* Empty State */}
             {!loading && existingImages.length === 0 && photos.length === 0 && (
-              <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                <div className="relative">
-                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="text-center py-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <div className="mb-6">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
                     <ImageIcon className="w-10 h-10 text-blue-500" />
                   </div>
-                  <div className="absolute -top-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <Upload className="w-4 h-4 text-white" />
-                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Ready to add photos?</h3>
-                <p className="text-sm text-gray-600 mb-1">Great photos help attract more interested renters</p>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">Ready to add photos?</h3>
+                <p className="text-sm text-gray-600 mb-2 max-w-md mx-auto">Great photos help attract more interested renters</p>
                 <p className="text-xs text-gray-500">Use the upload area above to get started</p>
               </div>
             )}
@@ -927,7 +929,7 @@ export default function MediaPage() {
                             title="Delete image"
                           >
                             {deleting === image.id ? (
-                              <Spinner size={14} colorClass="text-white" />
+                              <Spinner size={14} variant="white" />
                             ) : (
                               <Trash2 className="w-4 h-4" />
                             )}

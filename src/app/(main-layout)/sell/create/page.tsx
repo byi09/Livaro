@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
+import PageTransition from '@/src/components/ui/PageTransition';
+import { usePageTransition } from '@/src/hooks/usePageTransition';
 import { useAutoSave } from '@/src/hooks/useAutoSave';
 
 const FORM_STORAGE_KEY = 'sell-create-form-data';
@@ -17,6 +19,7 @@ export default function CreateListingPage() {
   const [squareFootage, setSquareFootage] = useState('1500');
   const [propertyType, setPropertyType] = useState('apartment');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Additional form fields for autosave
   const [addressLine1, setAddressLine1] = useState('');
@@ -45,6 +48,11 @@ export default function CreateListingPage() {
     },
     tableName: 'properties',
     debounceMs: 1500,
+  });
+
+  // Page transition hook
+  const { navigateWithTransition } = usePageTransition({
+    beforeNavigate: saveImmediately,
   });
 
   // Load form data from localStorage on mount
@@ -103,7 +111,7 @@ export default function CreateListingPage() {
       }
     };
     
-    loadFormData();
+    loadFormData().finally(() => setIsLoading(false));
   }, [propertyId]);
 
   // Auto-save form data to localStorage whenever it changes
@@ -174,7 +182,7 @@ export default function CreateListingPage() {
         }
 
         console.log('Property updated successfully, navigating to rent-details');
-        router.push(`/sell/create/rent-details?property_id=${propertyId}`);
+        await navigateWithTransition(`/sell/create/rent-details?property_id=${propertyId}`);
         
       } else {
         // Create new property
@@ -253,7 +261,7 @@ export default function CreateListingPage() {
         localStorage.removeItem(FORM_STORAGE_KEY);
         
         // Client-side redirect - much more reliable
-        router.push(`/sell/create/rent-details?property_id=${data[0].id}`);
+        await navigateWithTransition(`/sell/create/rent-details?property_id=${data[0].id}`);
       }
       
     } catch (error) {
@@ -264,7 +272,8 @@ export default function CreateListingPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-white pt-28 pb-12 px-6 sm:px-8">
+    <PageTransition isLoading={isLoading}>
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 to-white pt-28 pb-12 px-6 sm:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -522,5 +531,6 @@ export default function CreateListingPage() {
         </form>
       </div>
     </main>
+    </PageTransition>
   );
 }
