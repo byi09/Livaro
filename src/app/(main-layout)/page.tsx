@@ -111,31 +111,60 @@ export default async function Home() {
       {/* Hero Section */}
       <section
         id="hero-landing"
-        className="relative pt-32 pb-12 flex flex-col items-start justify-center h-[66vh]"
+        className="relative pt-32 pb-12 flex flex-col items-start justify-center min-h-screen"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), url('https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1980&q=80')",
+            "linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url('/hero-bg.jpg')",
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
         }}
       >
-        <div className="relative z-10 max-w-4xl px-8 sm:px-12 lg:px-16 w-full flex flex-col items-start">
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 leading-snug tracking-tight text-white text-left">
+        <div className="relative z-10 max-w-6xl px-8 sm:px-12 lg:px-16 w-full">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold mb-8 leading-tight text-white text-left">
             We&apos;re excited to
-            <span className="block mt-2 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white">
+            <span className="block mt-2">
               share our pre-launch with you
             </span>
           </h1>
-          <p className="max-w-3xl text-base sm:text-lg text-white/90 leading-relaxed font-normal tracking-wide text-left mb-6">
-            Livaro helps landlords quickly find the best tenants through smart referrals and high-quality applications.
-          </p>
-          <Link
-            href="/sign-up"
-            className="inline-flex px-10 py-5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg text-xl font-bold transform hover:scale-105"
-          >
-            Sign up 🥳
-          </Link>
+          
+          <div className="max-w-5xl mb-12">
+            <p className="text-lg sm:text-xl lg:text-2xl text-white leading-relaxed font-normal text-left mb-6">
+              Livaro helps landlords quickly find the best tenants through smart referrals and high-quality applications.
+            </p>
+            <p className="text-lg sm:text-xl lg:text-2xl text-white/90 leading-relaxed font-light italic text-left">
+              Students automate the search process and spend less time scrolling listings.
+            </p>
+          </div>
+
+          {/* Two-column layout for Landlords and Students */}
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-12 max-w-4xl">
+            {/* Landlords Section */}
+            <div className="space-y-6">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-white">
+                Landlords:
+              </h2>
+              <Link
+                href="/sign-up"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg text-xl font-medium transform hover:scale-105 w-full md:w-52"
+              >
+                Sign up 😊
+              </Link>
+            </div>
+
+            {/* Students Section */}
+            <div className="space-y-6">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-white">
+                Students:
+              </h2>
+              <Link
+                href="/waitlist"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg text-xl font-medium transform hover:scale-105 w-full md:w-52"
+              >
+                Waitlist 😄
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
