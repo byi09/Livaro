@@ -51,6 +51,9 @@ export default function PropertyDashboard() {
   const [deletingBuildingId, setDeletingBuildingId] = useState<string | null>(
     null
   )
+  const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(
+    null
+  )
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null
   )
@@ -363,7 +366,6 @@ export default function PropertyDashboard() {
     }
   }
 
-  // Placeholder handlers for apartment buildings
   const handleBuildingClick = async (building: ApartmentBuilding) => {
     try {
       setClickingBuildingId(building.id)
@@ -408,6 +410,43 @@ export default function PropertyDashboard() {
     setBuildings(prev => prev.filter(b => b.id !== buildingId))
     setShowDeleteConfirm(null)
     setDeletingBuildingId(null)
+  }
+  const handleDeleteProperty = async (propertyId: string) => {
+    setDeletingPropertyId(propertyId)
+    const supabase = createClient()
+
+    // Delete the property - cascade will handle associated listings
+    const { error } = await supabase
+      .from('properties')
+      .delete()
+      .eq('id', propertyId)
+
+    if (error) {
+      console.error('Error deleting property:', error)
+      alert('Failed to delete property. Please try again.')
+      setDeletingPropertyId(null)
+      return
+    }
+
+    setProperties(prev => prev.filter(p => p.id !== propertyId))
+    setShowDeleteConfirm(null)
+    setDeletingPropertyId(null)
+  }
+
+  const handleDelete = (itemId: string) => {
+    if (contentType === 'properties') {
+      handleDeleteProperty(itemId)
+    } else {
+      confirmDeleteBuilding(itemId)
+    }
+  }
+
+  const isDeleting = (itemId: string) => {
+    if (contentType === 'properties') {
+      return deletingPropertyId === itemId
+    } else {
+      return deletingBuildingId === itemId
+    }
   }
 
   const getStatusBadge = (status?: string) => {
@@ -1028,7 +1067,7 @@ export default function PropertyDashboard() {
                           </p>
                           <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
                             {clickingBuildingId === building.id && (
-                              <Spinner size={12} colorClass="text-blue-600" />
+                              <Spinner size={12} className="text-blue-600" />
                             )}
                             {clickingBuildingId === building.id
                               ? 'Loading...'
@@ -1169,13 +1208,23 @@ export default function PropertyDashboard() {
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                     <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      Delete Property
+                      Delete{' '}
+                      {contentType === 'properties'
+                        ? 'Property'
+                        : 'Apartment Building'}
                     </h3>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Are you sure you want to delete this property? This
-                        action cannot be undone and will permanently remove the
-                        property and its listing.
+                        Are you sure you want to delete this{' '}
+                        {contentType === 'properties'
+                          ? 'property'
+                          : 'apartment building'}
+                        ? This action cannot be undone and will permanently
+                        remove the
+                        {contentType === 'properties'
+                          ? ' property and its listing'
+                          : ' building and all associated data'}
+                        .
                       </p>
                     </div>
                   </div>
@@ -1183,11 +1232,11 @@ export default function PropertyDashboard() {
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                   <button
                     type="button"
-                    onClick={() => handleDeleteProperty(showDeleteConfirm)}
-                    disabled={deletingPropertyId === showDeleteConfirm}
+                    onClick={() => handleDelete(showDeleteConfirm)}
+                    disabled={isDeleting(showDeleteConfirm)}
                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {deletingPropertyId === showDeleteConfirm ? (
+                    {isDeleting(showDeleteConfirm) ? (
                       <>
                         <Spinner size={16} variant="white" className="mr-2" />
                         Deleting...
@@ -1199,7 +1248,7 @@ export default function PropertyDashboard() {
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(null)}
-                    disabled={deletingPropertyId === showDeleteConfirm}
+                    disabled={isDeleting(showDeleteConfirm)}
                     className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
