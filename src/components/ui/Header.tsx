@@ -192,16 +192,30 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
 
                         {/* Property Management Dropdown */}
                         <Dropdown
-                            trigger="Upload Property"
+                            trigger="Manage Rentals"
                             triggerClassName="font-medium transition-colors text-base text-gray-700 hover:text-gray-900 border-none bg-transparent shadow-none hover:bg-gray-50 px-3 py-1"
                         >
                             <DropdownItem>
-                                <Link href="/sell/create" className="w-full block">
-                                    Add a New Property
+                                <Link
+                                    href="/sell/create"
+                                    className="w-full block"
+                                >
+                                    List new Property
                                 </Link>
                             </DropdownItem>
                             <DropdownItem>
-                                <Link href="/sell/dashboard" className="w-full block">
+                                <Link
+                                    href="/sell/create/apartment-building"
+                                    className="w-full block"
+                                >
+                                    List new Apartment
+                                </Link>
+                            </DropdownItem>
+                            <DropdownItem>
+                                <Link
+                                    href="/sell/dashboard"
+                                    className="w-full block"
+                                >
                                     View Properties
                                 </Link>
                             </DropdownItem>
