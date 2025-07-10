@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { FaXTwitter, FaWhatsapp, FaLink } from 'react-icons/fa6';
 
-// ✅ Add this form inside the file (or import it if you separate it)
 function CustomWaitlistForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -12,13 +11,12 @@ function CustomWaitlistForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-        const res = await fetch('/api/waitlist' , {
+      const res = await fetch('/api/waitlist', {
         method: 'POST',
         body: JSON.stringify({ name, email }),
         headers: {
           'Content-Type': 'application/json',
         },
-        
       });
 
       if (res.ok) {
@@ -142,7 +140,30 @@ export default function StudentWaitlistPage() {
         </div>
       </div>
 
-      {/* 👇 Replace iframe with this */}
+      {/* Pricing Section */}
+      <div className="w-full max-w-4xl grid md:grid-cols-2 gap-6 mb-12">
+        {/* Basic Plan */}
+        <div className="rounded-xl border border-gray-300 bg-white p-8 shadow-md text-center">
+          <h3 className="text-xl font-semibold text-blue-700 mb-4">Basic - Free</h3>
+          <ul className="text-gray-700 space-y-2">
+            <li>2 Active Searches</li>
+            <li>10 Pre-Screen Applications</li>
+            <li>Connect Profile to Contacts</li>
+          </ul>
+        </div>
+
+        {/* Pro Plan */}
+        <div className="rounded-xl border border-gray-300 bg-white p-8 shadow-md text-center">
+          <h3 className="text-xl font-semibold text-blue-700 mb-4">Pro - $10/mo</h3>
+          <ul className="text-gray-700 space-y-2">
+            <li>10 Active Searches</li>
+            <li>Infinite Applications</li>
+            <li>Can Post Sublease Listings</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Waitlist Form */}
       <CustomWaitlistForm />
 
       {/* FAQ Section */}
