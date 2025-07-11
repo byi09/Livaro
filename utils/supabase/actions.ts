@@ -324,3 +324,42 @@ export async function addPropertyFeatures(formData: FormData) {
     redirect('/error?type=unknown')
   }
 }
+
+
+//MODIFIED
+import { ParsedQuery } from "@/utils/queryParser";
+
+export async function fetchFilteredProperties(filters: ParsedQuery) {
+  const supabase = await createClient();
+  let query = supabase.from("properties").select("*");
+
+  if (filters.location)
+    query = query.ilike("address", `%${filters.location}%`);
+  if (filters.propertyType)
+    query = query.eq("property_type", filters.propertyType);
+  if (filters.beds)
+    query = query.eq("beds", filters.beds);
+  if (filters.minPrice)
+    query = query.gte("price", filters.minPrice);
+  if (filters.maxPrice)
+    query = query.lte("price", filters.maxPrice);
+  if (filters.petFriendly)
+    query = query.eq("pet_friendly", true);
+  if (filters.parking)
+    query = query.eq("parking", true);
+  if (filters.furnished)
+    query = query.eq("furnished", true);
+  if (filters.utilitiesIncluded)
+    query = query.eq("utilities_included", true);
+  if (filters.leaseLength)
+    query = query.eq("lease_length", filters.leaseLength);
+  if (filters.moveInDate)
+    query = query.gte("available_from", filters.moveInDate);
+  if (filters.distanceToCampus)
+    query = query.lte("distance_to_campus", filters.distanceToCampus);
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(error.message);
+  return data;
+}
