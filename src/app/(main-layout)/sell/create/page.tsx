@@ -6,6 +6,7 @@ import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar'
 import PageTransition from '@/src/components/ui/PageTransition'
 import { usePageTransition } from '@/src/hooks/usePageTransition'
 import { useAutoSave } from '@/src/hooks/useAutoSave'
+import { useImageAutofill } from '@/src/hooks/useImageAutoFill'
 import ApartmentBuildingSelector from './ApartmentBuildingSelector'
 
 const FORM_STORAGE_KEY = 'sell-create-form-data'
@@ -33,6 +34,14 @@ export default function CreateListingPage() {
   const [description, setDescription] = useState('')
   const [selectedBuildingId, setSelectedBuildingId] = useState('')
 
+  // Additional property fields that can be extracted from images
+  const [parkingSpaces, setParkingSpaces] = useState('')
+  const [garageSpaces, setGarageSpaces] = useState('')
+  const [halfBathrooms, setHalfBathrooms] = useState('')
+  const [hasBasement, setHasBasement] = useState('')
+  const [hasAttic, setHasAttic] = useState('')
+  const [lotSize, setLotSize] = useState('')
+
   // Auto-save hook for existing properties (only when propertyId exists)
   const { saveImmediately } = useAutoSave({
     propertyId: propertyId, // Only auto-save when editing existing property
@@ -48,9 +57,53 @@ export default function CreateListingPage() {
       square_footage: squareFootage,
       year_built: yearBuilt,
       description: description,
+      parking_spaces: parkingSpaces,
+      garage_spaces: garageSpaces,
+      half_bathrooms: halfBathrooms,
+      has_basement: hasBasement,
+      has_attic: hasAttic,
+      lot_size: lotSize,
     },
     tableName: 'properties',
     debounceMs: 1500,
+  })
+
+  // Image autofill hook - updates form state which triggers useAutoSave
+  const { processImage, isProcessing } = useImageAutofill({
+    onDataExtracted: extractedData => {
+      // Update form state with extracted data - this will trigger useAutoSave automatically
+      if (extractedData.address_line_1)
+        setAddressLine1(extractedData.address_line_1)
+      if (extractedData.address_line_2)
+        setAddressLine2(extractedData.address_line_2)
+      if (extractedData.city) setCity(extractedData.city)
+      if (extractedData.state) setState(extractedData.state)
+      if (extractedData.zip_code) setZipCode(extractedData.zip_code)
+      if (extractedData.bedrooms) setBeds(extractedData.bedrooms.toString())
+      if (extractedData.bathrooms) setBaths(extractedData.bathrooms.toString())
+      if (extractedData.square_footage)
+        setSquareFootage(extractedData.square_footage.toString())
+      if (extractedData.year_built)
+        setYearBuilt(extractedData.year_built.toString())
+      if (extractedData.description) setDescription(extractedData.description)
+      if (extractedData.property_type)
+        setPropertyType(extractedData.property_type)
+
+      // Additional property fields that can be extracted from images
+      if (extractedData.parking_spaces)
+        setParkingSpaces(extractedData.parking_spaces.toString())
+      if (extractedData.garage_spaces)
+        setGarageSpaces(extractedData.garage_spaces.toString())
+      if (extractedData.half_bathrooms)
+        setHalfBathrooms(extractedData.half_bathrooms.toString())
+      if (extractedData.has_basement) setHasBasement(extractedData.has_basement)
+      if (extractedData.has_attic) setHasAttic(extractedData.has_attic)
+      if (extractedData.lot_size) setLotSize(extractedData.lot_size.toString())
+    },
+    onError: error => {
+      console.error('Image processing failed:', error)
+      alert('Failed to extract data from image. Please try again.')
+    },
   })
 
   // Page transition hook
@@ -618,6 +671,36 @@ export default function CreateListingPage() {
                   <h2 className="text-xl font-semibold mb-6">
                     Describe Your Property
                   </h2>
+
+                  {/* Image Upload for Auto-fill */}
+                  <div className="mb-6 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">
+                      Quick Fill from Image
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Upload a property document or listing image to
+                      automatically extract details
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          processImage(file)
+                        }
+                      }}
+                      disabled={isProcessing || isSubmitting}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                    />
+                    {isProcessing && (
+                      <div className="mt-2 flex items-center text-sm text-blue-600">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                        Processing image...
+                      </div>
+                    )}
+                  </div>
+
                   <p className="text-gray-600 mb-4">
                     What makes your place unique?
                   </p>
