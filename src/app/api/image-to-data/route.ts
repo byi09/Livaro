@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Call Gemini Vision API using the correct format
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash',
       contents: createUserContent([
         {
           inlineData: {

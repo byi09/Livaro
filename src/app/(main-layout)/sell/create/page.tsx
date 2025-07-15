@@ -473,8 +473,8 @@ export default function CreateListingPage() {
                     </select>
                   </div>
 
-                  {/* Apartment Building Selector - Only show for apartments */}
-                  {propertyType === 'apartment' && (
+                  {/* Apartment Building Selector - Only show for apartments AND when landlordId is available */}
+                  {propertyType === 'apartment' && landlordId && (
                     <div className="mb-6">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Apartment Building (Optional)
