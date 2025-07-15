@@ -682,19 +682,19 @@ export default function CreateListingPage() {
                     Describe Your Property
                   </h2>
 
-                  {/* Image Upload for Auto-fill */}
+                  {/* Media Upload for Auto-fill */}
                   <div className="mb-6 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
-                      Quick Fill from Images
+                      Quick Fill from Listing Media
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">
-                      Upload property documents or listing images to
-                      automatically extract details. You can select multiple
-                      files.
+                      Upload property documents, listing screenshots, or screen
+                      recordings from other listing sites to automatically
+                      extract details. You can select multiple files.
                     </p>
                     <input
                       type="file"
-                      accept="image/*,.pdf"
+                      accept="image/*,.pdf,video/*"
                       multiple
                       onChange={e => {
                         const files = Array.from(e.target.files || [])
@@ -708,12 +708,13 @@ export default function CreateListingPage() {
                     {isProcessing && (
                       <div className="mt-2 flex items-center text-sm text-blue-600">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                        Processing images...
+                        Processing media files...
                       </div>
                     )}
                     <p className="text-xs text-gray-500 mt-2">
-                      Tip: Upload multiple images for better data extraction.
-                      The system will merge information from all uploaded files.
+                      💡 Tip: Screen record browsing through Zillow,
+                      Apartments.com, or other listing sites. The system will
+                      extract property details from the video frames.
                     </p>
                   </div>
 
