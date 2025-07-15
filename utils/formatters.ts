@@ -7,8 +7,19 @@
  * @param num - Number to format
  */
 export function formatPrice(num: number): string {
-  if (isNaN(num)) return "0";
-  const separated = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  if (num == null || isNaN(num)) return "0";
+  
+  // Handle very small numbers by rounding to nearest dollar
+  const rounded = Math.round(num);
+  
+  // Handle negative numbers
+  if (rounded < 0) {
+    const positive = Math.abs(rounded);
+    const separated = positive.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return `-$${separated}`;
+  }
+  
+  const separated = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `$${separated}`;
 }
 
@@ -16,7 +27,19 @@ export function formatPrice(num: number): string {
  * Format a large price with M for millions and K for thousands.
  */
 export function formatLargeNumber(num: number): string {
-  if (isNaN(num)) return "0";
+  if (num == null || isNaN(num)) return "0";
+  
+  // Handle negative numbers
+  if (num < 0) {
+    const positive = Math.abs(num);
+    if (positive >= 1_000_000) {
+      return `-${(positive / 1_000_000).toFixed(1)}M`;
+    } else if (positive >= 1_000) {
+      return `-${(positive / 1_000).toFixed(1)}K`;
+    }
+    return num.toFixed(0);
+  }
+  
   if (num >= 1_000_000) {
     return `${(num / 1_000_000).toFixed(1)}M`;
   } else if (num >= 1_000) {
@@ -51,9 +74,21 @@ export function formatBedroomsAndBathrooms(
   bedrooms?: number,
   bathrooms?: number
 ): string {
-  const numBeds = bedrooms || 0;
-  const numBaths = bathrooms || 0;
-  if (numBeds > 0 || numBaths > 0) {
+  // Handle undefined/null values - if either is undefined, return default
+  if (bedrooms == null || bathrooms == null) {
+    return "Beds & Baths";
+  }
+  
+  // Truncate decimal values
+  const numBeds = Math.floor(bedrooms);
+  const numBaths = Math.floor(bathrooms);
+  
+  // Handle 0, 0 case
+  if (numBeds === 0 && numBaths === 0) {
+    return "Beds & Baths";
+  }
+  
+  if (numBeds >= 0 && numBaths >= 0) {
     return `${numBeds}+ bd, ${numBaths}+ ba`;
   }
   return "Beds & Baths";
@@ -63,6 +98,8 @@ export function formatBedroomsAndBathrooms(
  * Capitalize the first letter of a string.
  */
 export function capitalizeFirstLetter(str: string): string {
+  if (str == null) return "";
+  if (typeof str !== "string") return String(str);
   if (!str) return "";
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
@@ -71,6 +108,15 @@ export function capitalizeFirstLetter(str: string): string {
  * Remove trailing zeros from a number string.
  */
 export function trimZeros(str: string): string {
+  if (str == null) return "";
+  if (typeof str !== "string") return String(str);
+  
+  // Handle multiple decimal points - return as is
+  const decimalCount = (str.match(/\./g) || []).length;
+  if (decimalCount > 1) {
+    return str;
+  }
+  
   if (str.includes(".")) {
     return str.replace(/\.?0+$/, "");
   }
