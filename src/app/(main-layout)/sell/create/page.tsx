@@ -69,40 +69,50 @@ export default function CreateListingPage() {
   })
 
   // Image autofill hook - updates form state which triggers useAutoSave
-  const { processImage, isProcessing } = useImageAutofill({
+  const { processMultipleImages, isProcessing } = useImageAutofill({
     onDataExtracted: extractedData => {
       // Update form state with extracted data - this will trigger useAutoSave automatically
-      if (extractedData.address_line_1)
+      // Only update fields if they are currently empty or the new data is more specific
+      if (extractedData.address_line_1 && !addressLine1)
         setAddressLine1(extractedData.address_line_1)
-      if (extractedData.address_line_2)
+      if (extractedData.address_line_2 && !addressLine2)
         setAddressLine2(extractedData.address_line_2)
-      if (extractedData.city) setCity(extractedData.city)
-      if (extractedData.state) setState(extractedData.state)
-      if (extractedData.zip_code) setZipCode(extractedData.zip_code)
-      if (extractedData.bedrooms) setBeds(extractedData.bedrooms.toString())
-      if (extractedData.bathrooms) setBaths(extractedData.bathrooms.toString())
-      if (extractedData.square_footage)
+      if (extractedData.city && !city) setCity(extractedData.city)
+      if (extractedData.state && !state) setState(extractedData.state)
+      if (extractedData.zip_code && !zipCode) setZipCode(extractedData.zip_code)
+      if (extractedData.bedrooms && beds === '1')
+        setBeds(extractedData.bedrooms.toString())
+      if (extractedData.bathrooms && baths === '1')
+        setBaths(extractedData.bathrooms.toString())
+      if (extractedData.square_footage && squareFootage === '1500')
         setSquareFootage(extractedData.square_footage.toString())
-      if (extractedData.year_built)
+      if (extractedData.year_built && !yearBuilt)
         setYearBuilt(extractedData.year_built.toString())
-      if (extractedData.description) setDescription(extractedData.description)
-      if (extractedData.property_type)
+      if (extractedData.description && !description)
+        setDescription(extractedData.description)
+      if (extractedData.property_type && propertyType === 'apartment')
         setPropertyType(extractedData.property_type)
 
       // Additional property fields that can be extracted from images
-      if (extractedData.parking_spaces)
+      if (extractedData.parking_spaces && !parkingSpaces)
         setParkingSpaces(extractedData.parking_spaces.toString())
-      if (extractedData.garage_spaces)
+      if (extractedData.garage_spaces && !garageSpaces)
         setGarageSpaces(extractedData.garage_spaces.toString())
-      if (extractedData.half_bathrooms)
+      if (extractedData.half_bathrooms && !halfBathrooms)
         setHalfBathrooms(extractedData.half_bathrooms.toString())
-      if (extractedData.has_basement) setHasBasement(extractedData.has_basement)
-      if (extractedData.has_attic) setHasAttic(extractedData.has_attic)
-      if (extractedData.lot_size) setLotSize(extractedData.lot_size.toString())
+      if (extractedData.has_basement && !hasBasement)
+        setHasBasement(extractedData.has_basement)
+      if (extractedData.has_attic && !hasAttic)
+        setHasAttic(extractedData.has_attic)
+      if (extractedData.lot_size && !lotSize)
+        setLotSize(extractedData.lot_size.toString())
     },
     onError: error => {
       console.error('Image processing failed:', error)
-      alert('Failed to extract data from image. Please try again.')
+      // Don't show alert for multiple files, just log the error
+      console.log(
+        'Failed to extract data from one of the images. Continuing with other files.'
+      )
     },
   })
 
@@ -675,19 +685,21 @@ export default function CreateListingPage() {
                   {/* Image Upload for Auto-fill */}
                   <div className="mb-6 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
-                      Quick Fill from Image
+                      Quick Fill from Images
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">
-                      Upload a property document or listing image to
-                      automatically extract details
+                      Upload property documents or listing images to
+                      automatically extract details. You can select multiple
+                      files.
                     </p>
                     <input
                       type="file"
                       accept="image/*,.pdf"
+                      multiple
                       onChange={e => {
-                        const file = e.target.files?.[0]
-                        if (file) {
-                          processImage(file)
+                        const files = Array.from(e.target.files || [])
+                        if (files.length > 0) {
+                          processMultipleImages(files)
                         }
                       }}
                       disabled={isProcessing || isSubmitting}
@@ -696,9 +708,13 @@ export default function CreateListingPage() {
                     {isProcessing && (
                       <div className="mt-2 flex items-center text-sm text-blue-600">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                        Processing image...
+                        Processing images...
                       </div>
                     )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      Tip: Upload multiple images for better data extraction.
+                      The system will merge information from all uploaded files.
+                    </p>
                   </div>
 
                   <p className="text-gray-600 mb-4">
