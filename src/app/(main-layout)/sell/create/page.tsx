@@ -7,6 +7,9 @@ import PageTransition from '@/src/components/ui/PageTransition'
 import { usePageTransition } from '@/src/hooks/usePageTransition'
 import { useAutoSave } from '@/src/hooks/useAutoSave'
 import ApartmentBuildingSelector from './ApartmentBuildingSelector'
+import ScreenshotProcessor from '@/components/ScreenshotProcessor'
+import { Button } from '@/src/components/ui/button'
+import { Camera, Sparkles } from 'lucide-react'
 
 const FORM_STORAGE_KEY = 'sell-create-form-data'
 
@@ -32,6 +35,65 @@ export default function CreateListingPage() {
   const [yearBuilt, setYearBuilt] = useState('')
   const [description, setDescription] = useState('')
   const [selectedBuildingId, setSelectedBuildingId] = useState('')
+  const [showScreenshotProcessor, setShowScreenshotProcessor] = useState(false)
+
+  // Type definition for extracted data
+  interface ExtractedData {
+    propertyType?: string
+    bedrooms?: string
+    bathrooms?: string
+    squareFootage?: string
+    monthlyRent?: string
+    address?: string
+    addressLine1?: string
+    addressLine2?: string
+    city?: string
+    state?: string
+    zipCode?: string
+    description?: string
+    listingTitle?: string
+    availableDate?: string
+    amenities?: string[]
+    yearBuilt?: string
+    securityDeposit?: string
+    petDeposit?: string
+    applicationFee?: string
+    confidence?: number
+  }
+
+  // Handler for autofilling form with extracted data
+  const handleDataExtracted = (data: ExtractedData) => {
+    console.log('Received extracted data:', data)
+    
+    if (data.propertyType) setPropertyType(data.propertyType)
+    if (data.bedrooms) setBeds(data.bedrooms)
+    if (data.bathrooms) setBaths(data.bathrooms)
+    if (data.squareFootage) setSquareFootage(data.squareFootage)
+    
+    // Prioritize structured address fields over general address
+    if (data.addressLine1) {
+      setAddressLine1(data.addressLine1)
+    } else if (data.address) {
+      setAddressLine1(data.address)
+    }
+    
+    if (data.addressLine2) {
+      setAddressLine2(data.addressLine2)
+    }
+    
+    if (data.city) setCity(data.city)
+    if (data.state) setState(data.state)
+    if (data.zipCode) setZipCode(data.zipCode)
+    if (data.description) setDescription(data.description)
+    if (data.yearBuilt) setYearBuilt(data.yearBuilt)
+    
+    // Show a success message with details
+    const fieldsExtracted = Object.keys(data).filter(key => 
+      key !== 'confidence' && data[key as keyof ExtractedData] !== undefined && data[key as keyof ExtractedData] !== null
+    ).length
+    
+    alert(`Property data extracted successfully!\nFields extracted: ${fieldsExtracted}\nConfidence: ${data.confidence ? Math.round(data.confidence * 100) : 'N/A'}%`)
+  }
 
   // Auto-save hook for existing properties (only when propertyId exists)
   const { saveImmediately } = useAutoSave({
@@ -392,6 +454,29 @@ export default function CreateListingPage() {
           {/* Form */}
           <form onSubmit={handleSubmit}>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+              {/* Screenshot Processor Button */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-full">
+                      <Camera className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-blue-900">Auto-fill from Screenshots</h3>
+                      <p className="text-sm text-blue-700">Upload property listing screenshots to automatically extract information</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => setShowScreenshotProcessor(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Extract Data
+                  </Button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 {/* Left Column - Basic Details */}
                 <div>
@@ -654,6 +739,14 @@ export default function CreateListingPage() {
           </form>
         </div>
       </main>
+
+      {/* Screenshot Processor Modal */}
+      {showScreenshotProcessor && (
+        <ScreenshotProcessor
+          onDataExtracted={handleDataExtracted}
+          onClose={() => setShowScreenshotProcessor(false)}
+        />
+      )}
     </PageTransition>
   )
 }
