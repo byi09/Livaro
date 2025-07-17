@@ -6,7 +6,6 @@ import MapCatalog from "@/src/components/map/MapCatalog";
 import MapControls from "@/src/components/map/MapControls";
 import MapMarkers from "@/src/components/map/MapMarkers";
 import MapCatalogComingSoon from "@/src/components/map/MapCatalogComingSoon";
-import PropertyAssistantChat from "@/src/components/PropertyAssistantChat";
 import PropertyModalHandler from "@/src/components/PropertyModalHandler";
 import { ENABLE_MAP } from "@/lib/config";
 import type { PropertyListing, FilterOptions } from "@/lib/types";
@@ -32,14 +31,6 @@ export default function MapPageClient() {
       </div>
       {/* TODO: get rid of the coming soon component */}
       {ENABLE_MAP ? <MapCatalog /> : <MapCatalogComingSoon />}
-      
-      {/* Property Assistant Chat */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <PropertyAssistantChat
-          onFiltersChange={handleFiltersChange}
-          onPropertySelect={handlePropertySelect}
-        />
-      </div>
 
       {/* Property Modal Handler */}
       <PropertyModalHandler />

@@ -2,7 +2,6 @@
 
 import PropertySearch from "./PropertySearch";
 import Catalog from "./home/Catalog";
-import PropertyAssistantChat from "./PropertyAssistantChat";
 import React from "react";
 import { useRouter } from "next/navigation";
 import type { PropertyListing, FilterOptions } from "@/lib/types";
@@ -64,14 +63,6 @@ function Dashboard() {
       </section>
 
       <Catalog />
-
-      {/* Property Assistant Chat */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <PropertyAssistantChat
-          onFiltersChange={handleFiltersChange}
-          onPropertySelect={handlePropertySelect}
-        />
-      </div>
     </main>
   );
 }

@@ -8,6 +8,7 @@ import { GlobalLoaderProvider } from "@/src/contexts/GlobalLoaderContext";
 import ClientLayout from "@/src/components/ClientLayout";
 import PropertyModalHandler from "@/src/components/PropertyModalHandler";
 import { Analytics } from "@vercel/analytics/next"
+import MessagingHandler from "@/src/components/messaging/MessagingHandler"
 
 export const metadata: Metadata = {
   title: "Livaro - Find Your Perfect Rental",
@@ -29,6 +30,7 @@ export default function RootLayout({
                 <ClientLayout>
                   {children}
                   <PropertyModalHandler />
+                  <MessagingHandler />
                 </ClientLayout>
                 <Analytics />
               </GlobalLoaderProvider>

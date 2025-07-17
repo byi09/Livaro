@@ -6,7 +6,7 @@ import { users } from '@/src/db/schema';
 import {inArray } from 'drizzle-orm';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
         const supabase: SupabaseClient = await createClient();
         const { data: { user }, error } = await supabase.auth.getUser();
@@ -15,9 +15,31 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        console.log('Loading conversations for user:', user.id);
+        // Get query parameters for filtering and sorting
+        const { searchParams } = new URL(request.url);
+        const category = searchParams.get('category');
+        const sortBy = searchParams.get('sortBy') || 'newest'; // newest, oldest, unresponded
+        const archived = searchParams.get('archived') === 'true';
 
-        const userConversations = await getUserConversationsComplete(user.id);
+        console.log('Loading conversations for user:', user.id, { category, sortBy, archived });
+
+        let userConversations = await getUserConversationsComplete(user.id, {
+            sortBy,
+            archived
+        });
+
+        // Filter by category on client side (since we're not modifying DB schema)
+        if (category && category !== 'all') {
+            userConversations = userConversations.filter(conv => {
+                // For now, we'll use property-based categorization
+                if (category === 'landlord_inquiry') {
+                    return conv.propertyId !== null;
+                } else if (category === 'general') {
+                    return conv.propertyId === null;
+                }
+                return true;
+            });
+        }
         
         console.log(`Found ${userConversations.length} conversations for user`);
 
@@ -75,6 +97,13 @@ export async function POST(request: NextRequest) {
             if (!title) {
                 return NextResponse.json({ 
                     error: 'Group chat requires a title' 
+                }, { status: 400 });
+            }
+        } else if (conversation_type === 'support') {
+            // Support conversations can be created without additional participants (for testing/customer support)
+            if (!title) {
+                return NextResponse.json({ 
+                    error: 'Support conversation requires a title' 
                 }, { status: 400 });
             }
         }
@@ -136,6 +165,20 @@ export async function POST(request: NextRequest) {
                 console.error('Error adding initial message:', messageError);
                 // Don't throw - conversation was created successfully
             }
+        }
+
+        // Add a welcome message for testing
+        const { error: welcomeMessageError } = await supabase
+            .from('messages')
+            .insert({
+                conversation_id: newConversation.id,
+                sender_id: user.id,
+                content: `Welcome to the conversation! This is the start of your ${conversation_type} chat.`,
+                message_type: 'text'
+            });
+
+        if (welcomeMessageError) {
+            console.error('Error adding welcome message:', welcomeMessageError);
         }
 
         return NextResponse.json({ 

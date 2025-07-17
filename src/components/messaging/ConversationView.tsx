@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MoreVertical, Paperclip, Smile } from 'lucide-react';
+import { Send, MoreVertical, Paperclip, Smile, Tag, Plus, X } from 'lucide-react';
 import Spinner from '../ui/Spinner';
 
 interface Message {
@@ -10,6 +10,7 @@ interface Message {
   messageType: 'text' | 'image' | 'file' | 'system';
   isEdited?: boolean;
   replyToId?: string;
+  tags?: string[];
 }
 
 interface User {
@@ -55,6 +56,11 @@ export default function ConversationView({
   isLoading = false
 }: ConversationViewProps) {
   const [messageInput, setMessageInput] = useState('');
+  const [messageTags, setMessageTags] = useState<string[]>([]);
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const [openMessageOptions, setOpenMessageOptions] = useState<string | null>(null);
+  const [deletingMessage, setDeletingMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -62,14 +68,61 @@ export default function ConversationView({
     scrollToBottom();
   }, [messages]);
 
+  // Close options menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMessageOptions) {
+        setOpenMessageOptions(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openMessageOptions]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Predefined message tags
+  const PREDEFINED_TAGS = [
+    'urgent',
+    'follow_up_needed', 
+    'documents_required',
+    'payment_related',
+    'viewing_scheduled',
+    'application_status',
+    'maintenance_request'
+  ];
+
   const handleSend = () => {
     if (messageInput.trim()) {
+      // For now, just send the message without tags 
+      // (tags would be implemented in the API)
       onSendMessage(messageInput.trim());
       setMessageInput('');
+      setMessageTags([]);
+      setShowTagInput(false);
+    }
+  };
+
+  const addTag = (tag: string) => {
+    if (!messageTags.includes(tag)) {
+      setMessageTags([...messageTags, tag]);
+    }
+    setNewTag('');
+    setShowTagInput(false);
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setMessageTags(messageTags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleCustomTag = () => {
+    if (newTag.trim() && !messageTags.includes(newTag.trim())) {
+      addTag(newTag.trim());
     }
   };
 
@@ -77,6 +130,43 @@ export default function ConversationView({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('Are you sure you want to delete this message?')) {
+      return;
+    }
+
+    console.log('🗑️ Frontend: Attempting to delete message:', messageId);
+    setDeletingMessage(messageId);
+    
+    try {
+      const response = await fetch('/api/messaging/message', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messageId }),
+      });
+
+      console.log('📡 Frontend: Delete response status:', response.status);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Frontend: Message deleted successfully:', result);
+        // Message will be removed via real-time event
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Frontend: Failed to delete message:', errorData);
+        alert(`Failed to delete message: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ Frontend: Error deleting message:', error);
+      alert('Failed to delete message. Please try again.');
+    } finally {
+      setDeletingMessage(null);
+      setOpenMessageOptions(null);
     }
   };
 
@@ -214,7 +304,7 @@ export default function ConversationView({
                   )}
                 </div>
               )}
-              <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwnMessage ? 'order-1' : 'order-2'}`}>
+              <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwnMessage ? 'order-1' : 'order-2'} relative group`}>
                 {!isOwnMessage && !isGrouped && (
                   <span className="text-xs text-gray-500 mb-1 ml-2">
                     {sender ? `${sender.user.firstName} ${sender.user.lastName}` : 'Unknown'}
@@ -222,13 +312,67 @@ export default function ConversationView({
                 )}
                 
                 <div
-                  className={`px-4 py-2 rounded-2xl ${
+                  className={`px-4 py-2 rounded-2xl relative ${
                     isOwnMessage
                       ? 'bg-blue-600 text-white rounded-br-lg'
                       : 'bg-gray-100 text-gray-900 rounded-bl-lg'
                   } ${isGrouped ? (isOwnMessage ? 'rounded-tr-lg' : 'rounded-tl-lg') : ''}`}
                 >
+                  {/* Options menu for own messages */}
+                  {isOwnMessage && (
+                    <div className="absolute top-1 right-1">
+                      <button
+                        onClick={() => setOpenMessageOptions(openMessageOptions === message.id ? null : message.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-700 rounded"
+                        disabled={deletingMessage === message.id}
+                      >
+                        <MoreVertical className="w-3 h-3" />
+                      </button>
+                      
+                      {openMessageOptions === message.id && (
+                        <div className="absolute top-6 right-0 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-24">
+                          <button
+                            onClick={() => handleDeleteMessage(message.id)}
+                            disabled={deletingMessage === message.id}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md flex items-center"
+                          >
+                            {deletingMessage === message.id ? (
+                              <>
+                                <Spinner size={12} />
+                                <span className="ml-2">Deleting...</span>
+                              </>
+                            ) : (
+                              <>
+                                <X className="w-3 h-3 mr-2" />
+                                Delete
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  
+                  {/* Message Tags */}
+                  {message.tags && message.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {message.tags.map((tag, tagIndex) => (
+                        <span
+                          key={tagIndex}
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            isOwnMessage
+                              ? 'bg-blue-700 text-blue-100'
+                              : 'bg-gray-200 text-gray-700'
+                          }`}
+                        >
+                          <Tag className="w-3 h-3 mr-1" />
+                          {tag.replace('_', ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
                   {message.isEdited && (
                     <span className={`text-xs ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'} italic`}>
                       (edited)
@@ -251,7 +395,91 @@ export default function ConversationView({
 
       {/* Message Input */}
       <div className="p-4 border-t border-gray-200">
+        {/* Message Tags */}
+        {messageTags.length > 0 && (
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-2">
+              {messageTags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700"
+                >
+                  <Tag className="w-3 h-3 mr-1" />
+                  {tag.replace('_', ' ')}
+                  <button
+                    onClick={() => removeTag(tag)}
+                    className="ml-1 text-blue-500 hover:text-blue-700"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tag Input Dropdown */}
+        {showTagInput && (
+          <div className="mb-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+            <div className="mb-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Add tags to categorize this message:
+              </label>
+            </div>
+            
+            {/* Predefined Tags */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {PREDEFINED_TAGS.filter(tag => !messageTags.includes(tag)).map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => addTag(tag)}
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  {tag.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Tag Input */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleCustomTag()}
+                placeholder="Custom tag..."
+                className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                onClick={handleCustomTag}
+                disabled={!newTag.trim()}
+                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => setShowTagInput(false)}
+                className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-end space-x-2">
+          <button 
+            onClick={() => setShowTagInput(!showTagInput)}
+            className={`p-2 hover:bg-gray-50 rounded-lg ${
+              showTagInput || messageTags.length > 0 
+                ? 'text-blue-600' 
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Tag className="w-5 h-5" />
+          </button>
+          
           <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg">
             <Paperclip className="w-5 h-5" />
           </button>
