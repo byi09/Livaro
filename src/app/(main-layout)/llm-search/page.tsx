@@ -46,12 +46,33 @@ export default async function LLMSearchPage() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full items-center justify-center">
-      <h1 className="text-2xl font-bold">LLM Search</h1>
-      <Chatbox
-        initialMessage="Hello! I can help you find rental properties. Tell me what you're looking for - location, budget, number of bedrooms, or any other preferences."
-        onSubmit={handleQuery}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0 bg-grid-pattern"></div>
+      </div>
+
+      {/* Hero Section */}
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+            Find your place.
+          </h1>
+          <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+            Discover amazing properties in your ideal
+            <br />
+            location with our comprehensive search tools
+          </p>
+        </div>
+
+        {/* Search Container */}
+        <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl p-8 md:p-12">
+          <Chatbox
+            initialMessage="Need help deciding? Try asking..."
+            onSubmit={handleQuery}
+          />
+        </div>
+      </div>
     </div>
   );
 }
