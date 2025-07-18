@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChatMessage, PropertyListing } from "./types";
 import PropertyCard from "./PropertyCard";
 
@@ -26,10 +26,12 @@ export default function Chatbox({
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
+  const initialQueryExecuted = useRef(false);
 
   // Handle initial query from URL parameters
   useEffect(() => {
-    if (initialQuery && !hasAutoSearched) {
+    if (initialQuery && !hasAutoSearched && !initialQueryExecuted.current) {
+      initialQueryExecuted.current = true;
       setHasAutoSearched(true);
       // Create a FormData object with the initial query
       const formData = new FormData();
