@@ -9,7 +9,10 @@ import PropertyCard from "./PropertyCard";
 interface ChatboxProps {
   initialMessage: string;
   initialQuery?: string;
-  onSubmit: (formData: FormData) => Promise<{
+  onSubmit: (
+    formData: FormData,
+    chatHistory?: ChatMessage[],
+  ) => Promise<{
     response?: string;
     error?: string;
     propertyListings?: PropertyListing[];
@@ -40,40 +43,49 @@ export default function Chatbox({
       setIsLoading(true);
 
       // Execute the search
-      onSubmit(formData)
+      onSubmit(formData, [])
         .then((result) => {
           // Add both the user message and AI response at once
           if (result.response) {
             if (result.propertyListings && result.propertyListings.length > 0) {
               setMessages((prev) => [
                 ...prev,
-                { text: initialQuery, type: "user" },
+                { text: initialQuery, type: "user", timestamp: new Date() },
                 {
                   text: `Found ${result.propertyListings?.length || 0} properties matching your criteria:`,
                   type: "ai",
                   propertyListings: result.propertyListings,
+                  timestamp: new Date(),
                 },
               ]);
             } else {
               setMessages((prev) => [
                 ...prev,
-                { text: initialQuery, type: "user" },
-                { text: result.response || "", type: "ai" },
+                { text: initialQuery, type: "user", timestamp: new Date() },
+                {
+                  text: result.response || "",
+                  type: "ai",
+                  timestamp: new Date(),
+                },
               ]);
             }
           } else if (result.error) {
             setMessages((prev) => [
               ...prev,
-              { text: initialQuery, type: "user" },
-              { text: result.error || "An error occurred", type: "error" },
+              { text: initialQuery, type: "user", timestamp: new Date() },
+              {
+                text: result.error || "An error occurred",
+                type: "error",
+                timestamp: new Date(),
+              },
             ]);
           }
         })
         .catch((error) => {
           setMessages((prev) => [
             ...prev,
-            { text: initialQuery, type: "user" },
-            { text: `Error: ${error}`, type: "error" },
+            { text: initialQuery, type: "user", timestamp: new Date() },
+            { text: `Error: ${error}`, type: "error", timestamp: new Date() },
           ]);
         })
         .finally(() => {
@@ -86,11 +98,18 @@ export default function Chatbox({
     const prompt = formData.get("prompt") as string;
     if (!prompt.trim()) return;
 
-    setMessages((prev) => [...prev, { text: prompt, type: "user" }]);
+    const newUserMessage: ChatMessage = {
+      text: prompt,
+      type: "user",
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, newUserMessage]);
     setIsLoading(true);
 
     try {
-      const result = await onSubmit(formData);
+      // Pass current chat history (excluding the just-added user message to avoid duplication)
+      const currentHistory = messages;
+      const result = await onSubmit(formData, currentHistory);
 
       if (result.response) {
         // Check if the response contains property listings data
@@ -101,18 +120,23 @@ export default function Chatbox({
               text: `Found ${result.propertyListings?.length || 0} properties matching your criteria:`,
               type: "ai",
               propertyListings: result.propertyListings,
+              timestamp: new Date(),
             },
           ]);
         } else {
           setMessages((prev) => [
             ...prev,
-            { text: result.response || "", type: "ai" },
+            { text: result.response || "", type: "ai", timestamp: new Date() },
           ]);
         }
       } else if (result.error) {
         setMessages((prev) => [
           ...prev,
-          { text: result.error || "An error occurred", type: "error" },
+          {
+            text: result.error || "An error occurred",
+            type: "error",
+            timestamp: new Date(),
+          },
         ]);
       }
     } catch (error) {

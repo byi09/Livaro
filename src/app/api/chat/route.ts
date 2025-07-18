@@ -30,7 +30,22 @@ export async function POST(request: NextRequest) {
 
     // Build conversation context from chat history
     let conversationContext = "";
+    let hasFoundProperties = false;
+    let previousSearchInfo = "";
+
     if (chatHistory && chatHistory.length > 0) {
+      // Check if properties were found in previous messages
+      const propertyMessages = chatHistory.filter(
+        (msg) => msg.propertyListings && msg.propertyListings.length > 0,
+      );
+      hasFoundProperties = propertyMessages.length > 0;
+
+      // Extract information about what the user was already looking for
+      const userMessages = chatHistory.filter((msg) => msg.type === "user");
+      if (userMessages.length > 0) {
+        previousSearchInfo = userMessages.map((msg) => msg.text).join(" ");
+      }
+
       conversationContext = chatHistory
         .filter((msg) => msg.type === "user" || msg.type === "ai")
         .map(
@@ -49,8 +64,33 @@ export async function POST(request: NextRequest) {
         thinkingConfig: {
           thinkingBudget: 0,
         },
-        systemInstruction:
-          "You are a helpful AI assistant specializing in helping users find rental properties. Your role is to have natural conversations with users to gather more information about their housing needs, preferences, and requirements. You should ask clarifying questions about location preferences, budget ranges, property types, amenities, lifestyle needs, and any other relevant details that would help narrow down their search. Be conversational, friendly, and helpful. Don't try to search for properties - just focus on understanding what the user is looking for and ask follow-up questions to get more specific details. If they provide very specific and complete search criteria, acknowledge that you understand their needs and suggest they can search for properties. Keep responses concise but warm and engaging.",
+        systemInstruction: `You are a helpful AI assistant specializing in helping users find rental properties. Your role is to have natural conversations with users to gather more information about their housing needs, preferences, and requirements.
+
+IMPORTANT FORMATTING RULES:
+- NEVER use markdown formatting (no **, __, ##, -, *, etc.)
+- Use plain text only
+- Emojis are allowed and encouraged 😊
+- Use line breaks for readability but no special formatting
+
+${
+  hasFoundProperties
+    ? `The user has already found some properties in their search. Focus on helping them refine their selection by asking about:
+  - Specific features they liked/disliked about the found properties
+  - Additional preferences to narrow down choices
+  - Questions about neighborhoods, commute, amenities
+  - Budget adjustments or other criteria refinements
+  
+  Be helpful in guiding them to make the best choice from their results.`
+    : `Your goal is to gather information for an initial property search. Ask clarifying questions about:
+  - Location preferences (be specific about cities/neighborhoods)
+  - Budget ranges 
+  - Property types and size requirements
+  - Important amenities and lifestyle needs
+  
+  AVOID asking for information already provided: ${previousSearchInfo ? `The user has already mentioned: ${previousSearchInfo}` : ""}`
+}
+
+Be conversational, friendly, and helpful. Keep responses concise but warm and engaging. Do not use any markdown formatting.`,
       },
     });
 
