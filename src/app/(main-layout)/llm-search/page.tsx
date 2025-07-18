@@ -2,7 +2,17 @@ import Chatbox from "./chatbox";
 import { getFilters, getPropertyListings } from "./actions";
 import { PropertyFilters } from "./types";
 
-export default async function LLMSearchPage() {
+interface LLMSearchPageProps {
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+export default async function LLMSearchPage({
+  searchParams,
+}: LLMSearchPageProps) {
+  // Extract query from URL search parameters
+  const urlQuery = searchParams.q;
+  const initialQuery = Array.isArray(urlQuery) ? urlQuery[0] : urlQuery;
+
   async function handleQuery(formData: FormData) {
     "use server";
 
@@ -72,6 +82,7 @@ export default async function LLMSearchPage() {
         <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl p-8 md:p-12">
           <Chatbox
             initialMessage="Need help deciding? Try asking..."
+            initialQuery={initialQuery}
             onSubmit={handleQuery}
           />
         </div>

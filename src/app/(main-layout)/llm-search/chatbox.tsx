@@ -2,12 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChatMessage, PropertyListing } from "./types";
 import PropertyCard from "./PropertyCard";
 
 interface ChatboxProps {
   initialMessage: string;
+  initialQuery?: string;
   onSubmit: (formData: FormData) => Promise<{
     response?: string;
     error?: string;
@@ -15,11 +16,69 @@ interface ChatboxProps {
   }>;
 }
 
-export default function Chatbox({ initialMessage, onSubmit }: ChatboxProps) {
+export default function Chatbox({
+  initialMessage,
+  initialQuery,
+  onSubmit,
+}: ChatboxProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { text: initialMessage, type: "system" },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAutoSearched, setHasAutoSearched] = useState(false);
+
+  // Handle initial query from URL parameters
+  useEffect(() => {
+    if (initialQuery && !hasAutoSearched) {
+      setHasAutoSearched(true);
+      // Create a FormData object with the initial query
+      const formData = new FormData();
+      formData.append("prompt", initialQuery);
+
+      setIsLoading(true);
+
+      // Execute the search
+      onSubmit(formData)
+        .then((result) => {
+          // Add both the user message and AI response at once
+          if (result.response) {
+            if (result.propertyListings && result.propertyListings.length > 0) {
+              setMessages((prev) => [
+                ...prev,
+                { text: initialQuery, type: "user" },
+                {
+                  text: `Found ${result.propertyListings?.length || 0} properties matching your criteria:`,
+                  type: "ai",
+                  propertyListings: result.propertyListings,
+                },
+              ]);
+            } else {
+              setMessages((prev) => [
+                ...prev,
+                { text: initialQuery, type: "user" },
+                { text: result.response || "", type: "ai" },
+              ]);
+            }
+          } else if (result.error) {
+            setMessages((prev) => [
+              ...prev,
+              { text: initialQuery, type: "user" },
+              { text: result.error || "An error occurred", type: "error" },
+            ]);
+          }
+        })
+        .catch((error) => {
+          setMessages((prev) => [
+            ...prev,
+            { text: initialQuery, type: "user" },
+            { text: `Error: ${error}`, type: "error" },
+          ]);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [initialQuery, hasAutoSearched, onSubmit]);
 
   async function handleSubmit(formData: FormData) {
     const prompt = formData.get("prompt") as string;
