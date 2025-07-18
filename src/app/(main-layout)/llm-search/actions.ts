@@ -1,11 +1,17 @@
-import { AIChatRequest, PropertyFilters, PropertyListing } from "./types";
+import {
+  AIChatRequest,
+  ChatMessage,
+  PropertyFilters,
+  PropertyListing,
+} from "./types";
 import { createClient } from "../../../../utils/supabase/server";
 
-export async function getFilters(prompt: string) {
+export async function getFilters(prompt: string, chatHistory?: ChatMessage[]) {
   // sample prompt:
   // "Hello, could you please help me find a place to rent in San Francisco? I'm looking for a 1-bedroom apartment with a budget of $3000 per month. Ideally, it should be pet-friendly and close to public transport. Thanks!",
   const payload: AIChatRequest = {
     prompt: prompt,
+    chatHistory: chatHistory,
   };
 
   const baseURL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
@@ -138,4 +144,66 @@ export async function getPropertyListings(
   });
 
   return mappedData;
+}
+
+export async function decideChatOrFilter(
+  chatHistory: ChatMessage[],
+  prompt: string,
+): Promise<"search" | "chat"> {
+  // takes in chat history and prompt makes an API call to gemini to decide
+  // if the next response should be a chat response or if it should make an api call to /api/query-to-filter
+  const baseURL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+  const payload: AIChatRequest = {
+    prompt: prompt,
+    chatHistory: chatHistory,
+  };
+
+  try {
+    const res = await fetch(`${baseURL}/api/decide-action`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      console.error("Failed to decide action, defaulting to chat");
+      return "chat";
+    }
+
+    const data = await res.json();
+    return data.action === "search" ? "search" : "chat";
+  } catch (error) {
+    console.error("Error deciding action:", error);
+    return "chat"; // Default to chat on error
+  }
+}
+
+export async function getChatResponse(
+  chatHistory: ChatMessage[],
+  prompt: string,
+) {
+  const baseURL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+  const payload: AIChatRequest = {
+    prompt: prompt,
+    chatHistory: chatHistory,
+  };
+
+  const res = await fetch(`${baseURL}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to get chat response");
+  }
+
+  const data = await res.json();
+  return data;
 }

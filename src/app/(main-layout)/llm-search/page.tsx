@@ -1,57 +1,80 @@
 import Chatbox from "./chatbox";
-import { getFilters, getPropertyListings } from "./actions";
-import { PropertyFilters } from "./types";
+import {
+  getFilters,
+  getPropertyListings,
+  decideChatOrFilter,
+  getChatResponse,
+} from "./actions";
+import { PropertyFilters, ChatMessage } from "./types";
 
 interface LLMSearchPageProps {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default async function LLMSearchPage({
   searchParams,
 }: LLMSearchPageProps) {
   // Extract query from URL search parameters
-  const urlQuery = searchParams.q;
+  const resolvedSearchParams = await searchParams;
+  const urlQuery = resolvedSearchParams.q;
   const initialQuery = Array.isArray(urlQuery) ? urlQuery[0] : urlQuery;
 
-  async function handleQuery(formData: FormData) {
+  async function handleQuery(formData: FormData, chatHistory?: ChatMessage[]) {
     "use server";
 
     const prompt = formData.get("prompt") as string;
     if (!prompt) return { error: "Prompt is required" };
 
     try {
-      // gets filters from /api/query-to-filter
-      const filtersResult = await getFilters(prompt);
+      // Decide whether to search for properties or continue conversation
+      const action = await decideChatOrFilter(chatHistory || [], prompt);
 
-      if (!filtersResult.response) {
-        return { error: "Failed to parse filters from your query" };
-      }
+      if (action === "search") {
+        // Get filters from the prompt and chat history
+        const filtersResult = await getFilters(prompt, chatHistory);
 
-      let filters: PropertyFilters;
-      try {
-        filters = JSON.parse(filtersResult.response);
-      } catch (parseError) {
-        console.error("Error parsing filters:", parseError);
+        if (!filtersResult.response) {
+          return { error: "Failed to parse filters from your query" };
+        }
+
+        let filters: PropertyFilters;
+        try {
+          filters = JSON.parse(filtersResult.response);
+        } catch (parseError) {
+          console.error("Error parsing filters:", parseError);
+          return {
+            error:
+              "Your query appears to be invalid, please only ask housing related queries.",
+          };
+        }
+
+        // Get listings based on filters
+        const propertyListings = await getPropertyListings(filters);
+
+        if (propertyListings.length === 0) {
+          return {
+            response: `I couldn't find any properties matching your criteria. Try adjusting your search parameters.`,
+            propertyListings: [],
+          };
+        }
+
         return {
-          error:
-            "Your query appears to be invalid, please only ask housing related queries.",
+          response: `Found ${propertyListings.length} properties matching your criteria.`,
+          propertyListings: propertyListings,
         };
-      }
+      } else {
+        // Continue conversation
+        const chatResponse = await getChatResponse(chatHistory || [], prompt);
 
-      // gets listings based on filters
-      const propertyListings = await getPropertyListings(filters);
+        if (!chatResponse.response) {
+          return { error: "Failed to get chat response" };
+        }
 
-      if (propertyListings.length === 0) {
         return {
-          response: `I couldn't find any properties matching your criteria. Try adjusting your search parameters.`,
+          response: chatResponse.response,
           propertyListings: [],
         };
       }
-
-      return {
-        response: `Found ${propertyListings.length} properties matching your criteria.`,
-        propertyListings: propertyListings,
-      };
     } catch (error) {
       console.error("Error processing query:", error);
       return { error: "Failed to process your query" };

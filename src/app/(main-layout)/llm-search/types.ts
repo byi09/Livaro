@@ -1,5 +1,6 @@
 export interface AIChatRequest {
   prompt: string;
+  chatHistory?: ChatMessage[];
 }
 
 export interface PropertyFilters {
@@ -51,6 +52,7 @@ export interface ChatMessage {
   text: string;
   type: "user" | "ai" | "error" | "system";
   propertyListings?: PropertyListing[];
+  timestamp?: Date;
 }
 
 export interface DatabasePropertyListingResponse {
