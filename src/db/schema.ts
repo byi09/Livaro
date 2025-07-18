@@ -32,6 +32,26 @@ export const messageTypeEnum = pgEnum('message_type', ['text', 'image', 'file', 
 export const messageStatusEnum = pgEnum('message_status', ['sent', 'delivered', 'read']);
 export const participantRoleEnum = pgEnum('participant_role', ['member', 'admin', 'owner']);
 
+// Message and conversation tags/categories
+export const conversationCategoryEnum = pgEnum('conversation_category', [
+    'landlord_inquiry', 
+    'tenant_inquiry', 
+    'rental_application', 
+    'maintenance', 
+    'lease_agreement', 
+    'property_viewing', 
+    'general'
+]);
+export const messageTagEnum = pgEnum('message_tag', [
+    'urgent', 
+    'follow_up_needed', 
+    'documents_required', 
+    'payment_related', 
+    'viewing_scheduled', 
+    'application_status',
+    'maintenance_request'
+]);
+
 // ==================== NOTIFICATION ENUMS ====================
 export const notificationTypeEnum = pgEnum('notification_type', ['notification', 'phone', 'email']);
 
@@ -510,6 +530,7 @@ export const conversations = pgTable('conversations', {
 
     // Conversation metadata
     conversationType: conversationTypeEnum('conversation_type').default('direct'),
+    category: conversationCategoryEnum('category').default('general'),
     title: varchar('title', { length: 255 }), // For group chats, null for direct messages
     description: text('description'), // Optional description for group chats
     avatarS3Key: varchar('avatar_s3_key', { length: 500 }), // Group avatar
@@ -517,6 +538,9 @@ export const conversations = pgTable('conversations', {
     // Conversation settings
     isArchived: boolean('is_archived').default(false),
     isLocked: boolean('is_locked').default(false), // Prevents new messages
+    needsResponse: boolean('needs_response').default(false), // Whether conversation needs a response
+    lastResponderId: uuid('last_responder_id').references(() => users.id), // Who last responded
+    priority: integer('priority').default(0), // 0 = normal, 1 = high, 2 = urgent
 
     // Related to property (if conversation is about a specific property)
     propertyId: uuid('property_id').references(() => properties.id),
@@ -571,6 +595,7 @@ export const messages = pgTable('messages', {
     // Message content
     content: text('content').notNull(),
     messageType: messageTypeEnum('message_type').default('text'),
+    tags: json('tags').$type<string[]>(), // Array of message tags
 
     // File attachments (for image/file messages)
     attachmentS3Key: varchar('attachment_s3_key', { length: 500 }),

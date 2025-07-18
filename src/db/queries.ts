@@ -228,7 +228,14 @@ export const getNearbyProperties = async (
 //--------------------------------
 
 // Get all conversations for a user
-export const getUserConversationsComplete = async (userId: string) => {
+export const getUserConversationsComplete = async (
+  userId: string, 
+  options?: {
+    category?: string | null;
+    sortBy?: string;
+    archived?: boolean;
+  }
+) => {
   const lastMessageSubquery = db.$with("last_message_subquery").as(
     db
       .select({
@@ -309,10 +316,15 @@ export const getUserConversationsComplete = async (userId: string) => {
     .where(
       and(
         eq(conversationParticipants.userId, userId),
-        eq(conversationParticipants.isActive, true)
+        eq(conversationParticipants.isActive, true),
+        options?.archived !== undefined ? eq(conversations.isArchived, options.archived) : undefined
       )
     )
-    .orderBy(desc(conversations.updatedAt));
+    .orderBy(
+      options?.sortBy === 'oldest' 
+        ? conversations.updatedAt
+        : desc(conversations.updatedAt)
+    );
 
   return userConversations;
 };
