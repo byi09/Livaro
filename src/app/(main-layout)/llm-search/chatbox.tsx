@@ -30,6 +30,16 @@ export default function Chatbox({
   const [isLoading, setIsLoading] = useState(false);
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
   const initialQueryExecuted = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
 
   // Handle initial query from URL parameters
   useEffect(() => {
@@ -195,7 +205,7 @@ export default function Chatbox({
       {/* Chat Messages */}
       {messages.length > 1 && (
         <div className="w-full">
-          <div className="max-h-96 overflow-y-auto mb-6 space-y-4">
+          <div className="max-h-96 overflow-y-auto mb-6 space-y-4 scroll-smooth">
             {messages.slice(1).map((message, index) => (
               <div key={index} className="space-y-3">
                 {message.type === "user" ? (
@@ -237,6 +247,9 @@ export default function Chatbox({
                 )}
               </div>
             ))}
+
+            {/* Scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Loading State */}
