@@ -22,7 +22,10 @@ export default async function LLMSearchPage() {
         filters = JSON.parse(filtersResult.response);
       } catch (parseError) {
         console.error("Error parsing filters:", parseError);
-        return { error: "Invalid filters format received from AI" };
+        return {
+          error:
+            "Your query appears to be invalid, please only ask housing related queries.",
+        };
       }
 
       // gets listings based on filters
