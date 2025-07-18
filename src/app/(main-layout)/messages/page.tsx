@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { pusherClient } from '@/src/lib/pusher';
-import { Search, Filter, Plus, MessageSquare, Archive, Users, Building } from 'lucide-react';
+import { Search, Filter, Plus, MessageSquare, Archive, Users, Building, Tag, X } from 'lucide-react';
 
 // Import our existing messaging components
 import ConversationList from '@/src/components/messaging/ConversationList';
@@ -67,14 +67,16 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   
-  // UI State
+  // Enhanced UI State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [showArchived, setShowArchived] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  
   // Get current user
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -85,7 +87,7 @@ export default function MessagesPage() {
     getCurrentUser();
   }, []);
 
-  // Load conversations
+  // Load conversations with enhanced filtering
   const loadConversations = useCallback(async () => {
     if (!currentUser) return;
     
@@ -93,7 +95,8 @@ export default function MessagesPage() {
       const params = new URLSearchParams({
         sortBy,
         archived: showArchived.toString(),
-        ...(selectedCategory !== 'all' && { category: selectedCategory })
+        ...(selectedCategory !== 'all' && { category: selectedCategory }),
+        ...(selectedTags.length > 0 && { tags: selectedTags.join(',') })
       });
 
       const response = await fetch(`/api/messaging/conversation?${params}`);
@@ -106,7 +109,7 @@ export default function MessagesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentUser, selectedCategory, sortBy, showArchived]);
+  }, [currentUser, selectedCategory, sortBy, showArchived, selectedTags]);
 
   useEffect(() => {
     loadConversations();
@@ -135,8 +138,8 @@ export default function MessagesPage() {
   };
 
   // Send message
-  const handleSendMessage = async (content: string) => {
-    if (!selectedConversationId || !currentUser) return;
+  const handleSendMessage = async (content: string, tags?: string[]): Promise<boolean> => {
+    if (!selectedConversationId || !currentUser) return false;
 
     try {
       const response = await fetch('/api/messaging/message', {
@@ -152,9 +155,12 @@ export default function MessagesPage() {
       if (response.ok) {
         // Message will be added via Pusher real-time event
         loadConversations(); // Refresh conversation list to update last message
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Error sending message:', error);
+      return false;
     }
   };
 
@@ -216,18 +222,7 @@ export default function MessagesPage() {
 
   // Real-time Pusher setup
   useEffect(() => {
-    if (!currentUser || !selectedConversationId) return;
-
-    // Subscribe to conversation channel
-    const conversationChannel = pusherClient.subscribe(`private-conversation-${selectedConversationId}`);
-    
-    conversationChannel.bind('new-message', (data: any) => {
-      // Avoid duplicates by checking clientId
-      const clientId = `${currentUser.id}-${Date.now()}`;
-      if (data.clientId && data.clientId === clientId) return;
-      
-      setMessages(prev => [...prev, data]);
-    });
+    if (!currentUser) return;
 
     // Subscribe to user channel for conversation updates
     const userChannel = pusherClient.subscribe(`private-user-${currentUser.id}`);
@@ -236,11 +231,47 @@ export default function MessagesPage() {
       loadConversations(); // Refresh conversation list
     });
 
+    userChannel.bind('message-deleted', (data: any) => {
+      if (data.conversationId === selectedConversationId) {
+        setMessages(prev => prev.filter(msg => msg.id !== data.messageId));
+      }
+    });
+
+    // Clean up user channel subscription when component unmounts or user changes
     return () => {
-      pusherClient.unsubscribe(`private-conversation-${selectedConversationId}`);
       pusherClient.unsubscribe(`private-user-${currentUser.id}`);
     };
-  }, [currentUser, selectedConversationId, loadConversations]);
+  }, [currentUser, loadConversations, selectedConversationId]);
+
+  // Separate effect for conversation channel to avoid unnecessary resubscriptions
+  useEffect(() => {
+    if (!currentUser || !selectedConversationId) return;
+
+    console.log(`Subscribing to conversation channel: private-conversation-${selectedConversationId}`);
+    
+    // Subscribe to conversation channel
+    const conversationChannel = pusherClient.subscribe(`private-conversation-${selectedConversationId}`);
+    
+    conversationChannel.bind('new-message', (data: any) => {
+      console.log('Received new message via Pusher:', data);
+      
+      // Add the new message to the messages state
+      setMessages(prev => {
+        // Check if we already have this message (avoid duplicates)
+        const messageExists = prev.some(msg => msg.id === data.id);
+        if (messageExists) {
+          return prev;
+        }
+        return [...prev, data];
+      });
+    });
+
+    // Clean up conversation channel subscription when component unmounts or conversation changes
+    return () => {
+      console.log(`Unsubscribing from conversation channel: private-conversation-${selectedConversationId}`);
+      pusherClient.unsubscribe(`private-conversation-${selectedConversationId}`);
+    };
+  }, [currentUser, selectedConversationId]);
 
   // Get selected conversation object
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
@@ -266,6 +297,26 @@ export default function MessagesPage() {
       </div>
     );
   }
+
+  // Available message tags for filtering
+  const AVAILABLE_TAGS = [
+    { id: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-700' },
+    { id: 'follow_up_needed', label: 'Follow-up Needed', color: 'bg-amber-100 text-amber-700' },
+    { id: 'documents_required', label: 'Documents Required', color: 'bg-blue-100 text-blue-700' },
+    { id: 'payment_related', label: 'Payment Related', color: 'bg-green-100 text-green-700' },
+    { id: 'viewing_scheduled', label: 'Viewing Scheduled', color: 'bg-purple-100 text-purple-700' },
+    { id: 'application_status', label: 'Application Status', color: 'bg-indigo-100 text-indigo-700' },
+    { id: 'maintenance_request', label: 'Maintenance Request', color: 'bg-pink-100 text-pink-700' }
+  ];
+
+  // Toggle tag selection
+  const toggleTag = (tagId: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tagId) 
+        ? prev.filter(t => t !== tagId)
+        : [...prev, tagId]
+    );
+  };
 
   return (
     <div className="h-screen flex bg-gray-50">
@@ -299,41 +350,145 @@ export default function MessagesPage() {
             />
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Categories</option>
-              <option value="landlord_inquiry">Landlord Inquiries</option>
-              <option value="tenant_inquiry">Tenant Inquiries</option>
-              <option value="general">General</option>
-            </select>
+          {/* Filter Toggle Button */}
+          <button
+            onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+            className="flex items-center justify-between w-full px-3 py-2 mb-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+          >
+            <span className="flex items-center">
+              <Filter className="w-4 h-4 mr-2" />
+              Filters & Sorting
+            </span>
+            <span className={`transform transition-transform ${filterPanelOpen ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </button>
 
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="unresponded">Needs Response</option>
-            </select>
+          {/* Enhanced Filters Panel */}
+          <div className={`space-y-3 overflow-hidden transition-all duration-300 ${filterPanelOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+            {/* Categories */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Categories</option>
+                <option value="landlord_inquiry">Landlord Inquiries</option>
+                <option value="tenant_inquiry">Tenant Inquiries</option>
+                <option value="general">General</option>
+              </select>
+            </div>
 
+            {/* Sort Options */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="unresponded">Needs Response</option>
+                <option value="priority">Priority (High to Low)</option>
+                <option value="activity">Recent Activity</option>
+              </select>
+            </div>
+
+            {/* Tags Filter */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Filter by Tags</label>
+              <div className="flex flex-wrap gap-2">
+                {AVAILABLE_TAGS.map(tag => (
+                  <button
+                    key={tag.id}
+                    onClick={() => toggleTag(tag.id)}
+                    className={`px-2 py-1 text-xs rounded-full flex items-center transition-colors ${selectedTags.includes(tag.id) ? tag.color : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    <Tag className="w-3 h-3 mr-1" />
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Show Archived Toggle */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="show-archived"
+                checked={showArchived}
+                onChange={() => setShowArchived(!showArchived)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="show-archived" className="ml-2 text-sm text-gray-700">
+                Show Archived
+              </label>
+            </div>
+
+            {/* Apply Filters Button */}
             <button
-              onClick={() => setShowArchived(!showArchived)}
-              className={`px-3 py-1 text-sm rounded-md flex items-center ${
-                showArchived 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              onClick={loadConversations}
+              className="w-full px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
             >
-              <Archive className="w-3 h-3 mr-1" />
-              {showArchived ? 'Hide Archived' : 'Show Archived'}
+              Apply Filters
             </button>
           </div>
+
+          {/* Active Filters Display */}
+          {(selectedTags.length > 0 || selectedCategory !== 'all' || showArchived) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {selectedTags.map(tagId => {
+                const tag = AVAILABLE_TAGS.find(t => t.id === tagId);
+                return (
+                  <span key={tagId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                    {tag?.label}
+                    <button
+                      onClick={() => toggleTag(tagId)}
+                      className="ml-1 text-blue-500 hover:text-blue-700"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
+              {selectedCategory !== 'all' && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                  Category: {selectedCategory.replace('_', ' ')}
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    className="ml-1 text-purple-500 hover:text-purple-700"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {showArchived && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                  Archived
+                  <button
+                    onClick={() => setShowArchived(false)}
+                    className="ml-1 text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setSelectedTags([]);
+                  setSelectedCategory('all');
+                  setShowArchived(false);
+                  setSortBy('newest');
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                Clear All
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Conversation List */}
@@ -394,4 +549,4 @@ export default function MessagesPage() {
       />
     </div>
   );
-} 
+}

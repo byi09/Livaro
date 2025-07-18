@@ -189,7 +189,6 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
                         >
                             Rent
                         </Link>
-
                         {/* Property Management Dropdown */}
                         <Dropdown
                             trigger="Manage Rentals"
@@ -220,6 +219,14 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
                                 </Link>
                             </DropdownItem>
                         </Dropdown>
+                        {/* Messages Nav Link */}
+                        <Link
+                            href="/messages"
+                            className="font-medium transition-colors text-base text-gray-700 hover:text-blue-600 relative"
+                        >
+                            Messages
+                            {/* Optionally, add a badge for unread messages here in the future */}
+                        </Link>
                     </nav>
 
                     {/* Right side actions */}

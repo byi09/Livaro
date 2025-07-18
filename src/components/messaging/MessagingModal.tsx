@@ -148,13 +148,16 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
   };
 
   // Send message
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, tags?: string[]): Promise<boolean> => {
     console.log('Attempting to send message:', { content, selectedConversationId, currentUser: currentUser?.id });
     
     if (!selectedConversationId || !currentUser) {
       console.error('Cannot send message - missing selectedConversationId or currentUser');
-      return;
+      return false;
     }
+
+    // Generate a unique clientId for this specific message
+    const clientId = `${currentUser.id}-${Date.now()}`;
 
     try {
       const response = await fetch('/api/messaging/message', {
@@ -163,7 +166,7 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
         body: JSON.stringify({
           conversationId: selectedConversationId,
           content,
-          clientId: `${currentUser.id}-${Date.now()}` // For deduplication
+          clientId // Use the pre-generated clientId
         })
       });
 
@@ -171,12 +174,15 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
         console.log('Message sent successfully');
         // Message will be added via Pusher real-time event
         loadConversations(); // Refresh conversation list to update last message
+        return true;
       } else {
         const errorData = await response.json();
         console.error('Failed to send message:', errorData);
+        return false;
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      return false;
     }
   };
 
@@ -251,18 +257,7 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
 
   // Real-time Pusher setup
   useEffect(() => {
-    if (!currentUser || !selectedConversationId || !isOpen) return;
-
-    // Subscribe to conversation channel
-    const conversationChannel = pusherClient.subscribe(`private-conversation-${selectedConversationId}`);
-    
-    conversationChannel.bind('new-message', (data: any) => {
-      // Avoid duplicates by checking clientId
-      const clientId = `${currentUser.id}-${Date.now()}`;
-      if (data.clientId && data.clientId === clientId) return;
-      
-      setMessages(prev => [...prev, data]);
-    });
+    if (!currentUser || !isOpen) return;
 
     // Subscribe to user channel for conversation updates
     const userChannel = pusherClient.subscribe(`private-user-${currentUser.id}`);
@@ -281,11 +276,41 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
       }
     });
 
+    // Clean up user channel subscription when component unmounts or user changes
     return () => {
-      pusherClient.unsubscribe(`private-conversation-${selectedConversationId}`);
       pusherClient.unsubscribe(`private-user-${currentUser.id}`);
     };
-  }, [currentUser, selectedConversationId, loadConversations, isOpen]);
+  }, [currentUser, loadConversations, isOpen, selectedConversationId]);
+
+  // Separate effect for conversation channel to avoid unnecessary resubscriptions
+  useEffect(() => {
+    if (!currentUser || !selectedConversationId || !isOpen) return;
+
+    console.log(`Subscribing to conversation channel: private-conversation-${selectedConversationId}`);
+    
+    // Subscribe to conversation channel
+    const conversationChannel = pusherClient.subscribe(`private-conversation-${selectedConversationId}`);
+    
+    conversationChannel.bind('new-message', (data: any) => {
+      console.log('Received new message via Pusher:', data);
+      
+      // Add the new message to the messages state
+      setMessages(prev => {
+        // Check if we already have this message (avoid duplicates)
+        const messageExists = prev.some(msg => msg.id === data.id);
+        if (messageExists) {
+          return prev;
+        }
+        return [...prev, data];
+      });
+    });
+
+    // Clean up conversation channel subscription when component unmounts or conversation changes
+    return () => {
+      console.log(`Unsubscribing from conversation channel: private-conversation-${selectedConversationId}`);
+      pusherClient.unsubscribe(`private-conversation-${selectedConversationId}`);
+    };
+  }, [currentUser, selectedConversationId, isOpen]);
 
   // Get selected conversation object
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
