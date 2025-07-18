@@ -160,14 +160,18 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
     const clientId = `${currentUser.id}-${Date.now()}`;
 
     try {
+      const body: any = {
+        conversationId: selectedConversationId,
+        content,
+        clientId
+      };
+      if (tags && tags.length > 0) {
+        body.tags = tags;
+      }
       const response = await fetch('/api/messaging/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: selectedConversationId,
-          content,
-          clientId // Use the pre-generated clientId
-        })
+        body: JSON.stringify(body)
       });
 
       if (response.ok) {

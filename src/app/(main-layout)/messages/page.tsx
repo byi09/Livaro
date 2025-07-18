@@ -38,6 +38,7 @@ interface Message {
   isEdited?: boolean;
   replyToId?: string;
   tags?: string[];
+  isDeleted?: boolean;
 }
 
 interface Conversation {
@@ -119,10 +120,15 @@ export default function MessagesPage() {
   const loadMessages = useCallback(async (conversationId: string) => {
     setMessagesLoading(true);
     try {
+      console.log('📥 Loading messages for conversation:', conversationId);
       const response = await fetch(`/api/messaging/message?conversationId=${conversationId}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('📥 Received messages:', data);
+        console.log('📥 Messages with isDeleted:', data.filter((msg: any) => msg.isDeleted));
         setMessages(data.reverse()); // Reverse to show oldest first
+      } else {
+        console.error('❌ Failed to load messages:', response.status);
       }
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -142,14 +148,18 @@ export default function MessagesPage() {
     if (!selectedConversationId || !currentUser) return false;
 
     try {
+      const body: any = {
+        conversationId: selectedConversationId,
+        content,
+        clientId: `${currentUser.id}-${Date.now()}` // For deduplication
+      };
+      if (tags && tags.length > 0) {
+        body.tags = tags;
+      }
       const response = await fetch('/api/messaging/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: selectedConversationId,
-          content,
-          clientId: `${currentUser.id}-${Date.now()}` // For deduplication
-        })
+        body: JSON.stringify(body)
       });
 
       if (response.ok) {

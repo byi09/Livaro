@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const conversationMessages = await db.select({
         id: messages.id, content: messages.content, messageType: messages.messageType,
         senderId: messages.senderId, createdAt: messages.createdAt, isEdited: messages.isEdited,
-        replyToId: messages.replyToId,
+        replyToId: messages.replyToId, isDeleted: messages.isDeleted, tags: messages.tags,
         sender: { id: users.id, username: users.username, firstName: customers.firstName, lastName: customers.lastName }
       })
       .from(messages)
@@ -65,11 +65,12 @@ export async function POST(request: NextRequest) {
 
     // Extract only the needed fields from the request to avoid tags column error
     const requestData = await request.json();
-    const { conversationId, content, clientId } = requestData;
+    const { conversationId, content, clientId, tags } = requestData;
     console.log('Message POST request received:', { 
       conversationId, 
       contentLength: content?.length, 
-      clientId 
+      clientId,
+      tags
     });
 
     if (!conversationId || !content) {
@@ -83,17 +84,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Insert message with basic required fields only (for compatibility)
-    const messageData = {
+    // Insert message with tags if provided
+    const messageData: any = {
       conversationId,
       senderId: user.id,
       content,
       messageType: 'text' as const,
     };
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      messageData.tags = tags;
+    }
 
     console.log('Inserting message into database:', messageData);
 
-    // Insert without tags to avoid the column error
+    // Insert with tags if present
     const [newMessage] = await db.insert(messages).values(messageData).returning();
     console.log('Message inserted successfully:', newMessage.id);
     

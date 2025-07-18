@@ -12,6 +12,7 @@ interface Message {
   isEdited?: boolean;
   replyToId?: string;
   tags?: string[];
+  isDeleted?: boolean; // Added isDeleted property
 }
 
 interface User {
@@ -121,10 +122,11 @@ export default function ConversationView({
     { id: 'maintenance_request', label: 'Maintenance Request', color: 'bg-pink-100 text-pink-700' }
   ];
 
-  // Filter messages by tag
-  const filteredMessages = activeTagFilter
+  // Always filter out deleted messages, then apply tag filter
+  const filteredMessages = (activeTagFilter
     ? messagesState.filter(message => message.tags?.includes(activeTagFilter))
-    : messagesState;
+    : messagesState
+  ).filter(msg => !msg.isDeleted);
 
   const handleSend = () => {
     if (messageInput.trim()) {
@@ -190,6 +192,7 @@ export default function ConversationView({
     }
 
     console.log('🗑️ Frontend: Attempting to delete message:', messageId);
+    console.log('🗑️ Frontend: Current messages state:', messagesState);
     setDeletingMessage(messageId);
     
     try {
@@ -206,7 +209,13 @@ export default function ConversationView({
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Frontend: Message deleted successfully:', result);
-        // Message will be removed via real-time event
+        console.log('🗑️ Frontend: Removing message from UI immediately');
+        // Optimistically remove the message from the UI
+        setMessagesState(prev => {
+          const newState = prev.filter(msg => msg.id !== messageId);
+          console.log('🗑️ Frontend: New messages state after removal:', newState);
+          return newState;
+        });
       } else {
         const errorData = await response.json();
         console.error('❌ Frontend: Failed to delete message:', errorData);
