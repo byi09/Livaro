@@ -108,6 +108,17 @@ export default function PropertyCard({ listing, index }: PropertyCardProps) {
             </a>
           </div>
         )}
+
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <button
+            onClick={() => {
+              /* Dummy button - does nothing */
+            }}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+          >
+            Apply Now
+          </button>
+        </div>
       </CardContent>
     </Card>
   );
