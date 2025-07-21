@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { HiChevronLeft } from "react-icons/hi";
-import StripeImage from "@/public/stripe.png";
+import StripeImage from "@/src/stripe.png";
 
 export default function BillingPage() {
   return (

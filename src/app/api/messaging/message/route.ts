@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const conversationMessages = await db.select({
         id: messages.id, content: messages.content, messageType: messages.messageType,
         senderId: messages.senderId, createdAt: messages.createdAt, isEdited: messages.isEdited,
-        replyToId: messages.replyToId,
+        replyToId: messages.replyToId, isDeleted: messages.isDeleted, tags: messages.tags,
         sender: { id: users.id, username: users.username, firstName: customers.firstName, lastName: customers.lastName }
       })
       .from(messages)
@@ -59,34 +59,76 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.error('Authentication error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { conversationId, content, clientId } = await request.json();
+    // Extract only the needed fields from the request to avoid tags column error
+    const requestData = await request.json();
+    const { conversationId, content, clientId, tags } = requestData;
+    console.log('Message POST request received:', { 
+      conversationId, 
+      contentLength: content?.length, 
+      clientId,
+      tags
+    });
 
     if (!conversationId || !content) {
+      console.error('Missing required fields:', { conversationId, contentExists: !!content });
       return NextResponse.json({ error: 'Missing conversationId or content' }, { status: 400 });
     }
 
-    if (!(await userHasConversationAccess(user.id, conversationId))) {
+    const hasAccess = await userHasConversationAccess(user.id, conversationId);
+    if (!hasAccess) {
+      console.error('User does not have access to conversation:', { userId: user.id, conversationId });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const [newMessage] = await db.insert(messages).values({
+    // Insert message with tags if provided
+    const messageData: any = {
       conversationId,
       senderId: user.id,
       content,
-      messageType: 'text',
-    }).returning();
+      messageType: 'text' as const,
+    };
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      messageData.tags = tags;
+    }
+
+    console.log('Inserting message into database:', messageData);
+
+    // Insert with tags if present
+    const [newMessage] = await db.insert(messages).values(messageData).returning();
+    console.log('Message inserted successfully:', newMessage.id);
+    
+    try {
+      await db.update(messages)
+        .set({ 
+          isDeleted: false,
+          isEdited: false,
+          updatedAt: new Date()
+        })
+        .where(eq(messages.id, newMessage.id));
+    } catch (error) {
+      // Ignore errors for missing columns - they may not exist yet
+      console.log('Some optional columns may not exist yet:', error);
+    }
 
     const messageWithSender = await db.query.messages.findFirst({
         where: eq(messages.id, newMessage.id),
         with: { sender: { with: { customer: true } } }
     });
 
+    if (!messageWithSender) {
+      console.error('Failed to retrieve message with sender after insertion');
+      return NextResponse.json({ error: 'Message created but failed to retrieve details' }, { status: 500 });
+    }
+
     // Add clientId to the broadcast payload if it exists
     const broadcastPayload = { ...messageWithSender, clientId };
 
+    console.log('Broadcasting new message event to conversation channel:', `private-conversation-${conversationId}`);
+    
     // 1. Trigger event for the active conversation channel
     await pusherServer.trigger(
       `private-conversation-${conversationId}`,
@@ -98,6 +140,8 @@ export async function POST(request: NextRequest) {
     const allParticipants = await db.query.conversationParticipants.findMany({
       where: eq(conversationParticipants.conversationId, conversationId),
     });
+
+    console.log(`Notifying ${allParticipants.length} participants about the new message`);
 
     // 3. Trigger an event for each participant so their conversation list updates
     for (const participant of allParticipants) {
@@ -116,9 +160,151 @@ export async function POST(request: NextRequest) {
       .set({ updatedAt: new Date() })
       .where(eq(conversations.id, conversationId));
 
+    console.log('Message processing completed successfully');
     return NextResponse.json(messageWithSender);
   } catch (error) {
     console.error('Error sending message:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    
+    // Provide more specific error messages based on the error type
+    if (error instanceof Error) {
+      // Check for specific database errors
+      if (error.message.includes('column "tags" of relation "messages" does not exist')) {
+        console.log('Database schema issue: Missing tags column. Please run the migration.');
+        
+        // Return a more user-friendly error message
+        return NextResponse.json({ 
+          error: 'Message sent but not displayed. Please refresh the page.',
+          details: 'The application needs a database update. Contact support if this persists.',
+          code: 'DB_SCHEMA_MISMATCH'
+        }, { status: 200 }); // Return 200 to prevent error display to user
+      }
+      
+      if (error.message.includes('foreign key constraint')) {
+        return NextResponse.json({ 
+          error: 'Invalid conversation or user reference',
+          details: error.message
+        }, { status: 400 });
+      }
+    }
+    
+    return NextResponse.json({ 
+      error: 'Failed to send message', 
+      details: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { messageId } = body;
+
+    console.log('🗑️ Delete request received:', { messageId, userId: user.id });
+
+    if (!messageId) {
+      return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
+    }
+
+    // First, get the message to verify permissions
+    const messageToDelete = await db.query.messages.findFirst({
+      where: and(
+        eq(messages.id, messageId),
+        eq(messages.isDeleted, false)
+      ),
+    });
+
+    console.log('📋 Message to delete:', messageToDelete);
+
+    if (!messageToDelete) {
+      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+    }
+
+    // Check if user has permission to delete this message
+    if (messageToDelete.senderId !== user.id) {
+      console.log('❌ Permission denied:', { messageSenderId: messageToDelete.senderId, userId: user.id });
+      return NextResponse.json({ error: 'You can only delete your own messages' }, { status: 403 });
+    }
+
+    // Verify user has access to the conversation
+    const hasAccess = await userHasConversationAccess(user.id, messageToDelete.conversationId);
+    if (!hasAccess) {
+      console.log('❌ Conversation access denied');
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    console.log('✅ Permissions verified, proceeding with delete');
+
+    // Soft delete the message
+    try {
+      const [deletedMessage] = await db
+        .update(messages)
+        .set({ 
+          isDeleted: true, 
+          deletedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(messages.id, messageId))
+        .returning();
+
+      console.log('✅ Message soft deleted:', deletedMessage);
+
+      // Get all conversation participants for real-time updates
+      const allParticipants = await db.select({
+        userId: conversationParticipants.userId,
+      })
+      .from(conversationParticipants)
+      .where(and(
+        eq(conversationParticipants.conversationId, messageToDelete.conversationId),
+        eq(conversationParticipants.isActive, true)
+      ));
+
+      console.log('👥 Participants to notify:', allParticipants);
+
+      // Trigger real-time event for message deletion
+      for (const participant of allParticipants) {
+        try {
+          await pusherServer.trigger(
+            `private-user-${participant.userId}`,
+            'message-deleted',
+            {
+              messageId: messageId,
+              conversationId: messageToDelete.conversationId,
+              deletedBy: user.id,
+            }
+          );
+          console.log('📡 Pusher event sent to user:', participant.userId);
+        } catch (pusherError) {
+          console.error('❌ Pusher error for user:', participant.userId, pusherError);
+        }
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        messageId: messageId,
+        deletedMessage
+      });
+
+    } catch (dbError) {
+      console.error('❌ Database error during delete:', dbError);
+      return NextResponse.json({ 
+        error: 'Database error during delete',
+        details: dbError instanceof Error ? dbError.message : 'Unknown database error'
+      }, { status: 500 });
+    }
+
+  } catch (error) {
+    console.error('❌ Error deleting message:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

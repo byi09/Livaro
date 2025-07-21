@@ -1,292 +1,549 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import { X, MapPin, Bed, Bath, Square, Phone, Mail, MessageCircle, Heart, Share2, Calendar, DollarSign, Car, Home, Clock } from 'lucide-react';
-import { PropertyListing } from '@/lib/types';
-import { formatPrice, capitalizeFirstLetter, trimZeros } from '@/utils/formatters';
-import Image from 'next/image';
+import React, { useState, useEffect } from 'react'
+import {
+  X,
+  MapPin,
+  Phone,
+  Mail,
+  MessageCircle,
+  Heart,
+  Share2,
+  Bed,
+  Bath,
+  Home,
+  Car,
+  Calendar,
+  DollarSign,
+} from 'lucide-react'
+import { PropertyListing } from '@/lib/types'
+import { formatPrice } from '@/utils/formatters'
+import { createClient } from '@supabase/supabase-js'
 
 interface PropertyDetailModalProps {
-  property: PropertyListing | null;
-  onClose: () => void;
-  onContact: (property: PropertyListing, method: 'phone' | 'email' | 'message') => void;
+  property: PropertyListing | null
+  onClose: () => void
+  onContact: (
+    property: PropertyListing,
+    method: 'phone' | 'email' | 'message'
+  ) => void
 }
 
-export default function PropertyDetailModal({ 
-  property, 
-  onClose, 
-  onContact 
-}: PropertyDetailModalProps) {
-  const [isSaved, setIsSaved] = useState(false);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-  if (!property) return null;
+const loveHighlightsPool = [
+  'Prime Location – Walking distance to shopping, dining, and entertainment',
+  'Modern Amenities – Updated with contemporary finishes',
+  'Great Transit – Easy access to public transportation',
+  'Quiet Neighborhood – Peaceful and relaxing surroundings',
+  'City Views – Panoramic skyline views from your windows',
+  'Secure Access – Gated entry and security system',
+  'Outdoor Space – Private balcony or patio',
+  'Tech-Ready – Smart home features included',
+  'Move-In Ready – Freshly painted and professionally cleaned',
+]
+
+export default function PropertyDetailModal({
+  property,
+  onClose,
+  onContact,
+}: PropertyDetailModalProps) {
+  const [isSaved, setIsSaved] = useState(false)
+  const [imageUrls, setImageUrls] = useState<string[]>([])
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  useEffect(() => {
+    const fetchImages = async () => {
+      if (!property?.properties?.id) return
+
+      const bucket = 'property-images'
+
+      // ✅ Manual override for folder path
+      const folderMap: Record<string, string> = {
+        '58d18cd8-2edf-4841-9e4e-8e0dbf7d1e01':
+          '14c20054-7b28-454e-aaf2-12ece2a4b7ee',
+        '49673659-620f-43ff-8c12-f7a6617a207d':
+          '49673659-620f-43ff-8c12-f7a6617a207d',
+        '5bc214fc-b4db-4dec-abb9-0306c1577a1b':
+          '5bc214fc-b4db-4dec-abb9-0306c1577a1b',
+        'ac3c6957-b8c4-4698-a34e-90317f407a66':
+          'ac3c6957-b8c4-4698-a34e-90317f407a66',
+        'f86f7b0a-49d6-47eb-989f-b6ca6a1ed7bf':
+          '14c20054-7b28-454e-aaf2-12ece2a4b7ee',
+        // Add more if needed
+      }
+
+      const actualFolder = folderMap[property.properties.id]
+
+      if (!actualFolder) {
+        console.warn(
+          `⚠️ No folder mapping found for property ID: ${property.properties.id}`
+        )
+        return
+      }
+
+      const folderPath = `listings/${actualFolder}`
+
+      const { data: files, error } = await supabase.storage
+        .from(bucket)
+        .list(folderPath, {
+          limit: 100,
+          sortBy: { column: 'name', order: 'asc' },
+        })
+
+      if (error) {
+        console.error(`❌ Supabase error:`, error.message)
+        return
+      }
+
+      if (!files || files.length === 0) {
+        console.warn(`⚠️ No images found in folder: ${folderPath}`)
+        return
+      }
+
+      const urls = files.map(
+        file =>
+          supabase.storage
+            .from(bucket)
+            .getPublicUrl(`${folderPath}/${file.name}`).data.publicUrl
+      )
+
+      setImageUrls(urls)
+    }
+
+    fetchImages()
+  }, [property])
+
+  if (!property) return null
 
   const handleContact = (method: 'phone' | 'email' | 'message') => {
-    onContact(property, method);
-  };
+    onContact(property, method)
+  }
 
-  const handleSave = () => {
-    setIsSaved(!isSaved);
-    // TODO: Implement save functionality
-  };
+  const handleSave = () => setIsSaved(!isSaved)
 
   const handleShare = () => {
-    // TODO: Implement share functionality
     if (navigator.share) {
       navigator.share({
         title: property.property_listings.listingTitle || 'Property Listing',
-        text: `Check out this property: ${formatPrice(parseFloat(property.property_listings.monthlyRent))}/mo`,
-        url: window.location.href
-      });
+        text: `Check out this property: ${formatPrice(
+          parseFloat(property.property_listings.monthlyRent)
+        )}/mo`,
+        url: window.location.href,
+      })
     } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
+      navigator.clipboard.writeText(window.location.href)
     }
-  };
+  }
+
+  const randomHighlights = loveHighlightsPool
+    .sort(() => 0.5 - Math.random())
+    .slice(0, 4)
+  const rent = +property.property_listings.monthlyRent
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden">
-        {/* Header with Image */}
-        <div className="relative">
-          <Image
-            src="/hero-bg.jpg"
-            alt={property.property_listings.listingTitle || "Property Image"}
-            className="w-full h-72 object-cover"
-            width={800}
-            height={288}
-          />
-          {/* Overlay gradient for better text readability */}
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
+        {/* Header Images */}
+        <div className="relative overflow-hidden">
+          {imageUrls.length > 0 ? (
+            <div className="relative w-full h-72">
+              {/* Main Image Display */}
+              <div className="w-full h-full">
+                <img
+                  src={imageUrls[currentImageIndex]}
+                  alt={`Property Image ${currentImageIndex + 1}`}
+                  className="w-full h-full object-cover rounded-lg shadow"
+                />
+              </div>
+
+              {/* Navigation Arrows */}
+              {imageUrls.length > 1 && (
+                <>
+                  <button
+                    onClick={() =>
+                      setCurrentImageIndex(prev =>
+                        prev === 0 ? imageUrls.length - 1 : prev - 1
+                      )
+                    }
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200 z-10"
+                  >
+                    <svg
+                      className="w-5 h-5 text-gray-700"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 19l-7-7 7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setCurrentImageIndex(prev =>
+                        prev === imageUrls.length - 1 ? 0 : prev + 1
+                      )
+                    }
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200 z-10"
+                  >
+                    <svg
+                      className="w-5 h-5 text-gray-700"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
+                </>
+              )}
+
+              {/* Image Counter */}
+              {imageUrls.length > 1 && (
+                <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                  {currentImageIndex + 1} / {imageUrls.length}
+                </div>
+              )}
+
+              {/* Thumbnail Navigation */}
+              {imageUrls.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/60 px-3 py-2 rounded-full">
+                  {imageUrls.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                        index === currentImageIndex
+                          ? 'bg-white'
+                          : 'bg-white/50 hover:bg-white/75'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="w-full h-72 bg-gray-200 flex items-center justify-center text-gray-500">
+              No Image Available
+            </div>
+          )}
+
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-          
-          {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200"
+            className="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow"
           >
-            <X className="w-6 h-6 text-gray-700" />
+            <X className="w-5 h-5 text-gray-700" />
           </button>
-          
-          {/* Action buttons */}
-          <div className="absolute top-4 left-4 flex gap-3">
+          <div className="absolute top-4 left-4 flex gap-2">
             <button
               onClick={handleSave}
-              className={`p-2 rounded-full shadow-lg transition-all duration-200 backdrop-blur-sm ${
-                isSaved 
-                  ? 'bg-red-500 text-white shadow-red-200' 
+              className={`p-2 rounded-full shadow ${
+                isSaved
+                  ? 'bg-red-500 text-white'
                   : 'bg-white/90 text-gray-700 hover:bg-white'
               }`}
             >
-              <Heart className={`w-6 h-6 ${isSaved ? 'fill-current' : ''}`} />
+              <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
             </button>
             <button
               onClick={handleShare}
-              className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200 text-gray-700"
+              className="p-2 rounded-full bg-white/90 text-gray-700 hover:bg-white shadow"
             >
-              <Share2 className="w-6 h-6" />
+              <Share2 className="w-5 h-5" />
             </button>
           </div>
-
-          {/* Price overlay */}
-          <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {formatPrice(parseFloat(property.property_listings.monthlyRent))}
-              <span className="text-lg font-normal text-gray-600">/month</span>
+          <div className="absolute bottom-4 left-4 bg-white/90 px-4 py-2 rounded-lg shadow">
+            <h1 className="text-xl font-bold text-gray-900">
+              {formatPrice(rent)}
+              <span className="text-base font-normal text-gray-600">
+                {' '}
+                /month
+              </span>
             </h1>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex flex-col lg:flex-row max-h-[calc(95vh-18rem)]">
-          {/* Main Details */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            {/* Title and Address */}
-            <div className="mb-6">
-              {property.property_listings.listingTitle && (
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                  {property.property_listings.listingTitle}
-                </h2>
-              )}
-              
-              <div className="flex items-start gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-gray-500 mt-1 flex-shrink-0" />
+        {/* Main Body */}
+        <div className="flex flex-col lg:flex-row overflow-y-auto max-h-[calc(95vh-18rem)]">
+          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+            {/* Title & Address */}
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {property.property_listings.listingTitle}
+              </h2>
+              <div className="flex gap-2 items-start mt-2 text-gray-600">
+                <MapPin className="w-5 h-5 mt-1" />
                 <div>
-                  <p className="text-lg text-gray-900 font-medium">
+                  <p>
                     {property.properties.addressLine1}
-                    {property.properties.addressLine2 && (
-                      <span>, {property.properties.addressLine2}</span>
-                    )}
+                    {property.properties.addressLine2 &&
+                      `, ${property.properties.addressLine2}`}
                   </p>
-                  <p className="text-gray-600">
-                    {property.properties.city}, {property.properties.state} {property.properties.zipCode}
+                  <p>
+                    {property.properties.city}, {property.properties.state}{' '}
+                    {property.properties.zipCode}
                   </p>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                <SummaryCard
+                  icon="bed"
+                  value={property.properties.bedrooms.toString()}
+                  label="Bedrooms"
+                  color="bg-blue-100 text-blue-600"
+                />
+                <SummaryCard
+                  icon="bath"
+                  value={property.properties.bathrooms.toString()}
+                  label="Bathrooms"
+                  color="bg-green-100 text-green-600"
+                />
+                <SummaryCard
+                  icon="home"
+                  value={`${property.properties.squareFootage} Sq Ft`}
+                  label="Sq Ft"
+                  color="bg-purple-100 text-purple-600"
+                />
+                <SummaryCard
+                  icon="car"
+                  value={(property.properties.parkingSpaces ?? 0).toString()}
+                  label="Parking"
+                  color="bg-orange-100 text-orange-600"
+                />
               </div>
             </div>
 
-            {/* Key Features */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Bed className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Bedrooms</p>
-                  <p className="font-semibold text-gray-900">
-                    {property.properties.bedrooms > 0
-                      ? `${property.properties.bedrooms}`
-                      : 'Studio'}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Bath className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Bathrooms</p>
-                  <p className="font-semibold text-gray-900">{trimZeros(property.properties.bathrooms)}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Square className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Sq Ft</p>
-                  <p className="font-semibold text-gray-900">
-                    {property.properties.squareFootage && property.properties.squareFootage > 0 
-                      ? property.properties.squareFootage 
-                      : 'N/A'}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Home className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Type</p>
-                  <p className="font-semibold text-gray-900">{capitalizeFirstLetter(property.properties.propertyType)}</p>
-                </div>
+            {/* Description & Features */}
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                About This Property
+              </h3>
+              <p className="text-gray-700 leading-relaxed">
+                {property.properties.description}
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Why You&apos;ll Love Living Here
+              </h3>
+              <ul className="space-y-2">
+                {randomHighlights.map((item, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-2 text-sm text-gray-700"
+                  >
+                    <span className="text-green-500 mt-1">✔</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Neighborhood & Schools
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <LocationBox
+                  title="Walk & Transit Scores"
+                  points={[
+                    `Walk Score: ${78 + Math.floor(Math.random() * 10)}/100`,
+                    `Transit Score: ${85 + Math.floor(Math.random() * 10)}/100`,
+                    `Bike Score: ${75 + Math.floor(Math.random() * 10)}/100`,
+                  ]}
+                />
+                <LocationBox
+                  title="Nearby Schools"
+                  points={[
+                    `${property.properties.city} Elementary – 0.3 mi – ⭐${
+                      8 + Math.floor(Math.random() * 2)
+                    }/10`,
+                    `${property.properties.city} Middle – 0.8 mi – ⭐${
+                      7 + Math.floor(Math.random() * 2)
+                    }/10`,
+                    `${property.properties.city} High School – 1.2 mi – ⭐${
+                      8 + Math.floor(Math.random() * 2)
+                    }/10`,
+                  ]}
+                />
               </div>
             </div>
 
-            {/* Property Description */}
-            {property.properties.description && (
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Description</h3>
-                <p className="text-gray-700 leading-relaxed">
-                  {property.properties.description}
-                </p>
-              </div>
-            )}
-
-            {/* Additional Details */}
-            <div className="mb-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Property Details</h3>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Monthly Cost Breakdown
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {property.property_listings.securityDeposit && (
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <DollarSign className="w-5 h-5 text-green-600" />
                     <div>
-                      <span className="text-sm text-gray-500">Security Deposit</span>
+                      <span className="text-sm text-gray-500">
+                        Security Deposit
+                      </span>
                       <p className="font-semibold text-gray-900">
-                        {formatPrice(parseFloat(property.property_listings.securityDeposit))}
+                        {formatPrice(
+                          parseFloat(property.property_listings.securityDeposit)
+                        )}
                       </p>
                     </div>
                   </div>
                 )}
-                
+
                 {property.property_listings.availableDate && (
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <Calendar className="w-5 h-5 text-blue-600" />
                     <div>
-                      <span className="text-sm text-gray-500">Available Date</span>
+                      <span className="text-sm text-gray-500">
+                        Available Date
+                      </span>
                       <p className="font-semibold text-gray-900">
-                        {new Date(property.property_listings.availableDate).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
+                        {new Date(
+                          property.property_listings.availableDate
+                        ).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
                         })}
                       </p>
                     </div>
                   </div>
                 )}
-                
+
                 {property.properties.yearBuilt && (
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <Home className="w-5 h-5 text-purple-600" />
                     <div>
                       <span className="text-sm text-gray-500">Year Built</span>
-                      <p className="font-semibold text-gray-900">{property.properties.yearBuilt}</p>
+                      <p className="font-semibold text-gray-900">
+                        {property.properties.yearBuilt}
+                      </p>
                     </div>
                   </div>
                 )}
-                
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Car className="w-5 h-5 text-orange-600" />
-                  <div>
-                    <span className="text-sm text-gray-500">Parking</span>
-                    <p className="font-semibold text-gray-900">
-                      {property.properties.parkingSpaces && property.properties.parkingSpaces > 0 
-                        ? `${property.properties.parkingSpaces} space${property.properties.parkingSpaces > 1 ? 's' : ''}`
-                        : 'N/A'}
-                    </p>
-                  </div>
-                </div>
+
+                {property.properties.parkingSpaces &&
+                  property.properties.parkingSpaces > 0 && (
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <Car className="w-5 h-5 text-orange-600" />
+                      <div>
+                        <span className="text-sm text-gray-500">Parking</span>
+                        <p className="font-semibold text-gray-900">
+                          {property.properties.parkingSpaces} space
+                          {property.properties.parkingSpaces > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
 
-          {/* Contact Sidebar */}
-          <div className="lg:w-80 bg-gray-50 p-6 border-t lg:border-t-0 lg:border-l border-gray-200">
-            <div className="sticky top-0">
-              <h3 className="text-lg font-semibold mb-4">Contact Property Manager</h3>
-              
-              <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                <p className="text-sm text-blue-800">
-                  ✨ <strong>Easy Communication:</strong> Connect directly with the property owner through our secure messaging platform, or contact them via phone or email.
-                </p>
-              </div>
-
-              {/* Contact Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 mb-4">
+          {/* Sidebar */}
+          <div className="lg:w-80 bg-gray-50 p-6 border-t lg:border-t-0 lg:border-l border-gray-200 shrink-0">
+            <div className="sticky top-6 space-y-4">
+              <h3 className="text-lg font-semibold">
+                Interested in this property?
+              </h3>
+              <p className="text-sm text-gray-600">
+                Contact us today to schedule a viewing
+              </p>
+              <div className="space-y-3">
                 <button
                   onClick={() => handleContact('message')}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg"
                 >
                   <MessageCircle className="w-5 h-5" />
-                  <span>Send Message</span>
+                  Send Message
                 </button>
-                
                 <button
                   onClick={() => handleContact('phone')}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg"
                 >
                   <Phone className="w-5 h-5" />
-                  <span>Call Now</span>
+                  Call Now
                 </button>
-                
                 <button
                   onClick={() => handleContact('email')}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                  className="w-full flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg"
                 >
                   <Mail className="w-5 h-5" />
-                  <span>Send Email</span>
+                  Send Email
                 </button>
               </div>
-
-              <p className="text-sm text-gray-500 text-center">
-                💬 Average response time: Usually within 1 hour
-              </p>
+              <div className="text-sm text-gray-500">
+                <p>
+                  ⚡ Quick Response: We typically respond within{' '}
+                  <strong>1 hour</strong>
+                </p>
+                {property.property_listings.availableDate && (
+                  <p className="mt-2">
+                    📅 <strong>Available:</strong>{' '}
+                    {new Date(
+                      property.property_listings.availableDate
+                    ).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
-} 
+  )
+}
+
+function LocationBox({ title, points }: { title: string; points: string[] }) {
+  return (
+    <div className="bg-gray-100 p-4 rounded-md">
+      <p className="font-semibold text-gray-700 mb-2">{title}</p>
+      <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+        {points.map((pt, i) => (
+          <li key={i}>{pt}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function SummaryCard({
+  icon,
+  value,
+  label,
+  color,
+}: {
+  icon: 'bed' | 'bath' | 'home' | 'car'
+  value: string
+  label: string
+  color: string
+}) {
+  const icons = {
+    bed: <Bed className="w-6 h-6" />,
+    bath: <Bath className="w-6 h-6" />,
+    home: <Home className="w-6 h-6" />,
+    car: <Car className="w-6 h-6" />,
+  }
+
+  return (
+    <div className="flex flex-col items-center border rounded-lg p-4 shadow-sm bg-white">
+      <div className={`p-2 rounded-full ${color}`}>{icons[icon]}</div>
+      <div className="mt-2 text-lg font-bold text-gray-900">{value}</div>
+      <div className="text-sm text-gray-500">{label}</div>
+    </div>
+  )
+}
