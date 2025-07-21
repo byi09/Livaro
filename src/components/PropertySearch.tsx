@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { useGeolocationContext } from "../contexts/GeolocationContext";
 import { useRouter } from "next/navigation";
 import { geocode } from "@/utils/geocoding";
+import { generateSearchUrl } from "@/src/app/(main-layout)/llm-search/utils";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/LoadingSkeleton";
 import { Search, SlidersHorizontal } from "lucide-react";
@@ -18,7 +19,7 @@ const propertyTypeOptions = [
   { value: "apartment", label: "Apartment" },
   { value: "house", label: "House" },
   { value: "condo", label: "Condo" },
-  { value: "townhouse", label: "Townhouse" }
+  { value: "townhouse", label: "Townhouse" },
 ];
 
 const bedOptions = [
@@ -26,7 +27,7 @@ const bedOptions = [
   { value: "-1", label: "Studio" },
   { value: "1", label: "1 Bed" },
   { value: "2", label: "2 Beds" },
-  { value: "3+", label: "3+ Beds" }
+  { value: "3+", label: "3+ Beds" },
 ];
 
 // form values
@@ -47,7 +48,7 @@ const resolver: Resolver<SearchFormValues> = async (values) => {
   if (!values.location) {
     errors.location = {
       type: "required",
-      message: "Location is required"
+      message: "Location is required",
     };
   }
 
@@ -55,7 +56,7 @@ const resolver: Resolver<SearchFormValues> = async (values) => {
 
   return {
     values: hasErrors ? {} : values,
-    errors: hasErrors ? errors : {}
+    errors: hasErrors ? errors : {},
   };
 };
 
@@ -65,12 +66,13 @@ function PropertySearch() {
     register,
     handleSubmit,
     formState: { errors },
-    setValue
+    setValue,
   } = useForm<SearchFormValues>({ resolver });
   const { location, isLoading } = useGeolocationContext();
   const router = useRouter();
   const [isSearching, setIsSearching] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [useAISearch, setUseAISearch] = useState(false);
 
   // Memoize default location to prevent unnecessary re-renders
   const defaultLocation = useMemo(() => {
@@ -89,9 +91,16 @@ function PropertySearch() {
   const onSubmit = useCallback(
     async (data: SearchFormValues) => {
       setIsSearching(true);
-      
+
       try {
-        // build search parameters for map filters
+        // If AI search is enabled, redirect to LLM search with the location query
+        if (useAISearch) {
+          const query = data.location || "";
+          router.push(generateSearchUrl(query));
+          return;
+        }
+
+        // Normal search behavior - build search parameters for map filters
         const searchParams = new URLSearchParams();
 
         // if location is provided, geocode it to get center coordinates
@@ -113,15 +122,16 @@ function PropertySearch() {
         if (data.petFriendly) searchParams.set("petFriendly", "true");
         if (data.parking) searchParams.set("parking", "true");
         if (data.furnished) searchParams.set("furnished", "true");
-        if (data.utilitiesIncluded) searchParams.set("utilitiesIncluded", "true");
+        if (data.utilitiesIncluded)
+          searchParams.set("utilitiesIncluded", "true");
 
         router.push(`/map?${searchParams.toString()}`);
       } catch (error) {
-        console.error('Search error:', error);
+        console.error("Search error:", error);
         setIsSearching(false);
       }
     },
-    [router]
+    [router, useAISearch],
   );
 
   if (isLoading) {
@@ -215,18 +225,78 @@ function PropertySearch() {
             More Filters
           </Button>
         </div>
-        
-        <Button
-          type="submit"
-          loading={isSearching}
-          loadingText="Searching..."
-          size="lg"
-          variant="gradient"
-          className="px-8"
-        >
-          <Search className="w-4 h-4 mr-2" />
-          Search
-        </Button>
+
+        <div className="flex items-center gap-4">
+          {/* AI Search Toggle */}
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="ai-search-toggle"
+              className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2"
+            >
+              <svg
+                className="w-4 h-4 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              Search with AI
+            </label>
+            <button
+              type="button"
+              id="ai-search-toggle"
+              onClick={() => setUseAISearch(!useAISearch)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                useAISearch ? "bg-blue-600" : "bg-gray-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  useAISearch ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          <Button
+            type="submit"
+            loading={isSearching}
+            loadingText="Searching..."
+            size="lg"
+            variant="gradient"
+            className="px-8"
+          >
+            {useAISearch ? (
+              <>
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                AI Search
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Search
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Additional filters section */}
@@ -250,17 +320,14 @@ function PropertySearch() {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Move-in Date
               </label>
-              <input
-                type="date"
-                className="input-primary text-sm"
-              />
+              <input type="date" className="input-primary text-sm" />
             </div>
-            
+
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Lease Length
@@ -273,7 +340,7 @@ function PropertySearch() {
                 <option value="24-months">24+ Months</option>
               </select>
             </div>
-            
+
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Distance to Campus
