@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatMessage, PropertyListing } from "./types";
 import PropertyCard from "./PropertyCard";
 
@@ -19,166 +19,275 @@ interface ChatboxProps {
   }>;
 }
 
+// Typing indicator component
+const TypingIndicator = () => (
+  <div className="flex items-center space-x-1 p-3">
+    <div className="flex space-x-1">
+      <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+      <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+      <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+    </div>
+    <span className="text-sm text-gray-500 ml-2">AI is thinking...</span>
+  </div>
+);
+
+// Message component with animations
+const MessageBubble = ({ message, index }: { message: ChatMessage; index: number }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), index * 50);
+    return () => clearTimeout(timer);
+  }, [index]);
+
+  const baseClasses = `message-animate ${
+    isVisible ? 'opacity-100' : 'opacity-0'
+  }`;
+
+  if (message.type === "user") {
+    return (
+      <div className={`${baseClasses} flex justify-end mb-4`}>
+        <div className="max-w-[80%] lg:max-w-[60%]">
+          <div className="bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-tr-md shadow-sm">
+            <p className="text-sm leading-relaxed">{message.text}</p>
+          </div>
+          {message.timestamp && (
+            <div className="text-xs text-gray-400 mt-1 text-right">
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === "ai") {
+    return (
+      <div className={`${baseClasses} flex justify-start mb-4`}>
+        <div className="max-w-[80%] lg:max-w-[60%]">
+          <div className="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-md shadow-sm">
+            <p className="text-sm leading-relaxed">{message.text}</p>
+          </div>
+          {message.timestamp && (
+            <div className="text-xs text-gray-400 mt-1">
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+          {message.propertyListings && message.propertyListings.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {message.propertyListings.map((listing, listingIndex) => (
+                <div
+                  key={listing.id}
+                  className="message-animate"
+                  style={{
+                    animationDelay: `${(listingIndex + 1) * 100}ms`,
+                  }}
+                >
+                  <PropertyCard listing={listing} index={listingIndex} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === "error") {
+    return (
+      <div className={`${baseClasses} flex justify-start mb-4`}>
+        <div className="max-w-[80%] lg:max-w-[60%]">
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-2xl rounded-tl-md">
+            <p className="text-sm leading-relaxed">{message.text}</p>
+          </div>
+          {message.timestamp && (
+            <div className="text-xs text-gray-400 mt-1">
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${baseClasses} text-center text-gray-500 text-sm mb-4`}>
+      {message.text}
+    </div>
+  );
+};
+
 export default function Chatbox({
   initialMessage,
   initialQuery,
   onSubmit,
 }: ChatboxProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { text: initialMessage, type: "system" },
+    { text: initialMessage, type: "system", timestamp: new Date() },
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
+  const [inputValue, setInputValue] = useState("");
   const initialQueryExecuted = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when messages change
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Smooth auto-scroll to bottom
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: "smooth", 
+        block: "end" 
+      });
+    }
+  }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+    const timer = setTimeout(scrollToBottom, 100);
+    return () => clearTimeout(timer);
+  }, [messages, isLoading, scrollToBottom]);
 
   // Handle initial query from URL parameters
   useEffect(() => {
     if (initialQuery && !hasAutoSearched && !initialQueryExecuted.current) {
       initialQueryExecuted.current = true;
       setHasAutoSearched(true);
-      // Create a FormData object with the initial query
+      
+      // Add user message immediately
+      const userMessage: ChatMessage = {
+        text: initialQuery,
+        type: "user",
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      setIsLoading(true);
+
       const formData = new FormData();
       formData.append("prompt", initialQuery);
-
-      setIsLoading(true);
 
       // Execute the search
       onSubmit(formData, [])
         .then((result) => {
-          // Add both the user message and AI response at once
+          setIsLoading(false);
+          
           if (result.response) {
-            if (result.propertyListings && result.propertyListings.length > 0) {
-              setMessages((prev) => [
-                ...prev,
-                { text: initialQuery, type: "user", timestamp: new Date() },
-                {
-                  text: `Found ${result.propertyListings?.length || 0} properties matching your criteria:`,
-                  type: "ai",
-                  propertyListings: result.propertyListings,
-                  timestamp: new Date(),
-                },
-              ]);
-            } else {
-              setMessages((prev) => [
-                ...prev,
-                { text: initialQuery, type: "user", timestamp: new Date() },
-                {
-                  text: result.response || "",
-                  type: "ai",
-                  timestamp: new Date(),
-                },
-              ]);
-            }
+            const aiMessage: ChatMessage = {
+              text: result.response,
+              type: "ai",
+              propertyListings: result.propertyListings,
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, aiMessage]);
           } else if (result.error) {
-            setMessages((prev) => [
-              ...prev,
-              { text: initialQuery, type: "user", timestamp: new Date() },
-              {
-                text: result.error || "An error occurred",
-                type: "error",
-                timestamp: new Date(),
-              },
-            ]);
+            const errorMessage: ChatMessage = {
+              text: result.error,
+              type: "error",
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, errorMessage]);
           }
         })
         .catch((error) => {
-          setMessages((prev) => [
-            ...prev,
-            { text: initialQuery, type: "user", timestamp: new Date() },
-            { text: `Error: ${error}`, type: "error", timestamp: new Date() },
-          ]);
-        })
-        .finally(() => {
           setIsLoading(false);
+          const errorMessage: ChatMessage = {
+            text: `Error: ${error}`,
+            type: "error",
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, errorMessage]);
         });
     }
   }, [initialQuery, hasAutoSearched, onSubmit]);
 
-  async function handleSubmit(formData: FormData) {
+  const handleSubmit = useCallback(async (formData: FormData) => {
     const prompt = formData.get("prompt") as string;
     if (!prompt.trim()) return;
 
-    const newUserMessage: ChatMessage = {
-      text: prompt,
+    // Add user message immediately (optimistic update)
+    const userMessage: ChatMessage = {
+      text: prompt.trim(),
       type: "user",
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, newUserMessage]);
+    
+    setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
+    setInputValue(""); // Clear input immediately
 
     try {
-      // Pass current chat history (excluding the just-added user message to avoid duplication)
-      const currentHistory = messages;
+      // Get current chat history (excluding system message)
+      const currentHistory = messages.filter(msg => msg.type !== "system");
       const result = await onSubmit(formData, currentHistory);
 
+      setIsLoading(false);
+
       if (result.response) {
-        // Check if the response contains property listings data
-        if (result.propertyListings && result.propertyListings.length > 0) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              text: `Found ${result.propertyListings?.length || 0} properties matching your criteria:`,
-              type: "ai",
-              propertyListings: result.propertyListings,
-              timestamp: new Date(),
-            },
-          ]);
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            { text: result.response || "", type: "ai", timestamp: new Date() },
-          ]);
-        }
+        const aiMessage: ChatMessage = {
+          text: result.response,
+          type: "ai",
+          propertyListings: result.propertyListings,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiMessage]);
       } else if (result.error) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            text: result.error || "An error occurred",
-            type: "error",
-            timestamp: new Date(),
-          },
-        ]);
+        const errorMessage: ChatMessage = {
+          text: result.error,
+          type: "error",
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMessage]);
       }
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        { text: `Error: ${error}`, type: "error" },
-      ]);
-    } finally {
       setIsLoading(false);
+      const errorMessage: ChatMessage = {
+        text: `Error: ${error}`,
+        type: "error",
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
     }
 
-    const form = document.querySelector("form") as HTMLFormElement;
-    form?.reset();
-  }
+    // Focus back to input
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  }, [messages, onSubmit]);
 
-  return (
-    <div className="flex flex-col w-full">
-      {/* Initial State - Search Input */}
-      {messages.length === 1 && (
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
+      e.preventDefault();
+      const form = e.currentTarget.closest('form');
+      if (form) {
+        const formData = new FormData(form);
+        handleSubmit(formData);
+      }
+    }
+  }, [isLoading, handleSubmit]);
+
+  // Show initial state
+  if (messages.length === 1) {
+    return (
+      <div className="flex flex-col w-full">
         <div className="text-center">
           <form action={handleSubmit} className="relative">
             <Input
+              ref={inputRef}
               name="prompt"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Need help deciding? Try asking..."
               required
               disabled={isLoading}
-              className="w-full text-lg py-6 px-8 pr-16 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+              className="w-full text-lg py-6 px-8 pr-16 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white"
+              autoFocus
             />
             <Button
               type="submit"
-              disabled={isLoading}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2"
+              disabled={isLoading || !inputValue.trim()}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg px-4 py-2 transition-all duration-200"
             >
               {isLoading ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -200,91 +309,77 @@ export default function Chatbox({
             </Button>
           </form>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* Chat Messages */}
-      {messages.length > 1 && (
-        <div className="w-full">
-          <div className="max-h-96 overflow-y-auto mb-6 space-y-4 scroll-smooth">
-            {messages.slice(1).map((message, index) => (
-              <div key={index} className="space-y-3">
-                {message.type === "user" ? (
-                  <div className="text-right">
-                    <div className="inline-block bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm max-w-xs lg:max-w-md">
-                      {message.text}
-                    </div>
-                  </div>
-                ) : message.type === "ai" ? (
-                  <div className="text-left">
-                    <div className="inline-block bg-gray-100 text-gray-800 px-4 py-2 rounded-2xl rounded-tl-sm max-w-xs lg:max-w-md">
-                      {message.text}
-                    </div>
-                    {message.propertyListings &&
-                      message.propertyListings.length > 0 && (
-                        <div className="mt-4 space-y-4">
-                          {message.propertyListings.map(
-                            (listing, listingIndex) => (
-                              <PropertyCard
-                                key={listing.id}
-                                listing={listing}
-                                index={listingIndex}
-                              />
-                            ),
-                          )}
-                        </div>
-                      )}
-                  </div>
-                ) : message.type === "error" ? (
-                  <div className="text-left">
-                    <div className="inline-block bg-red-100 text-red-800 px-4 py-2 rounded-2xl rounded-tl-sm max-w-xs lg:max-w-md">
-                      {message.text}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 text-sm">
-                    {message.text}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Scroll anchor */}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Loading State */}
-          {isLoading && (
-            <div className="text-center text-gray-500 mb-4">
-              <div className="inline-flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-                <span>AI is searching for properties...</span>
-              </div>
+  // Show chat interface
+  return (
+    <div className="flex flex-col w-full h-full">
+      {/* Messages Container */}
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto mb-6 px-2 py-4 space-y-2 max-h-[70vh] scroll-smooth chat-scroll"
+      >
+        {messages.slice(1).map((message, index) => (
+          <MessageBubble key={index} message={message} index={index} />
+        ))}
+        
+        {/* Typing indicator */}
+        {isLoading && (
+          <div className="flex justify-start mb-4">
+            <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-md shadow-sm">
+              <TypingIndicator />
             </div>
-          )}
+          </div>
+        )}
+        
+        {/* Scroll anchor */}
+        <div ref={messagesEndRef} />
+      </div>
 
-          {/* New Message Input */}
-          <form action={handleSubmit} className="flex gap-2">
+      {/* Input Form */}
+      <div className="border-t border-gray-200 pt-4">
+        <form action={handleSubmit} className="flex gap-3 items-end">
+          <div className="flex-1 relative">
             <Input
+              ref={inputRef}
               name="prompt"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Ask me anything about rentals..."
               required
               disabled={isLoading}
-              className="flex-1 py-3 px-4 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+              className="w-full py-3 px-4 pr-12 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white resize-none"
+              autoFocus
             />
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-3"
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                "Send"
-              )}
-            </Button>
-          </form>
-        </div>
-      )}
+          </div>
+          <Button
+            type="submit"
+            disabled={isLoading || !inputValue.trim()}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl px-6 py-3 transition-all duration-200 flex items-center justify-center min-w-[80px]"
+          >
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
+              </svg>
+            )}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
