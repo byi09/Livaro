@@ -6,14 +6,7 @@ export interface AIChatRequest {
 export interface PropertyFilters {
   city?: string;
   state?: string;
-  property_type?:
-    | "apartment"
-    | "house"
-    | "condo"
-    | "townhouse"
-    | "studio"
-    | "room"
-    | "duplex";
+  property_type?: string; // Allow comma-separated values like "house,apartment"
   square_footage?: number;
   bedrooms?: number;
   bathrooms?: number;

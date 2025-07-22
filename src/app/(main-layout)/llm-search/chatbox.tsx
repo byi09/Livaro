@@ -32,7 +32,13 @@ const TypingIndicator = () => (
 );
 
 // Message component with animations
-const MessageBubble = ({ message, index }: { message: ChatMessage; index: number }) => {
+const MessageBubble = ({
+  message,
+  index,
+}: {
+  message: ChatMessage;
+  index: number;
+}) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -41,7 +47,7 @@ const MessageBubble = ({ message, index }: { message: ChatMessage; index: number
   }, [index]);
 
   const baseClasses = `message-animate ${
-    isVisible ? 'opacity-100' : 'opacity-0'
+    isVisible ? "opacity-100" : "opacity-0"
   }`;
 
   if (message.type === "user") {
@@ -53,7 +59,10 @@ const MessageBubble = ({ message, index }: { message: ChatMessage; index: number
           </div>
           {message.timestamp && (
             <div className="text-xs text-gray-400 mt-1 text-right">
-              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {message.timestamp.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </div>
           )}
         </div>
@@ -70,7 +79,10 @@ const MessageBubble = ({ message, index }: { message: ChatMessage; index: number
           </div>
           {message.timestamp && (
             <div className="text-xs text-gray-400 mt-1">
-              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {message.timestamp.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </div>
           )}
           {message.propertyListings && message.propertyListings.length > 0 && (
@@ -102,7 +114,10 @@ const MessageBubble = ({ message, index }: { message: ChatMessage; index: number
           </div>
           {message.timestamp && (
             <div className="text-xs text-gray-400 mt-1">
-              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {message.timestamp.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </div>
           )}
         </div>
@@ -136,9 +151,9 @@ export default function Chatbox({
   // Smooth auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
-        behavior: "smooth", 
-        block: "end" 
+      messagesEndRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
       });
     }
   }, []);
@@ -153,15 +168,15 @@ export default function Chatbox({
     if (initialQuery && !hasAutoSearched && !initialQueryExecuted.current) {
       initialQueryExecuted.current = true;
       setHasAutoSearched(true);
-      
+
       // Add user message immediately
       const userMessage: ChatMessage = {
         text: initialQuery,
         type: "user",
         timestamp: new Date(),
       };
-      
-      setMessages(prev => [...prev, userMessage]);
+
+      setMessages((prev) => [...prev, userMessage]);
       setIsLoading(true);
 
       const formData = new FormData();
@@ -171,7 +186,7 @@ export default function Chatbox({
       onSubmit(formData, [])
         .then((result) => {
           setIsLoading(false);
-          
+
           if (result.response) {
             const aiMessage: ChatMessage = {
               text: result.response,
@@ -179,14 +194,14 @@ export default function Chatbox({
               propertyListings: result.propertyListings,
               timestamp: new Date(),
             };
-            setMessages(prev => [...prev, aiMessage]);
+            setMessages((prev) => [...prev, aiMessage]);
           } else if (result.error) {
             const errorMessage: ChatMessage = {
               text: result.error,
               type: "error",
               timestamp: new Date(),
             };
-            setMessages(prev => [...prev, errorMessage]);
+            setMessages((prev) => [...prev, errorMessage]);
           }
         })
         .catch((error) => {
@@ -196,75 +211,81 @@ export default function Chatbox({
             type: "error",
             timestamp: new Date(),
           };
-          setMessages(prev => [...prev, errorMessage]);
+          setMessages((prev) => [...prev, errorMessage]);
         });
     }
   }, [initialQuery, hasAutoSearched, onSubmit]);
 
-  const handleSubmit = useCallback(async (formData: FormData) => {
-    const prompt = formData.get("prompt") as string;
-    if (!prompt.trim()) return;
+  const handleSubmit = useCallback(
+    async (formData: FormData) => {
+      const prompt = formData.get("prompt") as string;
+      if (!prompt.trim()) return;
 
-    // Add user message immediately (optimistic update)
-    const userMessage: ChatMessage = {
-      text: prompt.trim(),
-      type: "user",
-      timestamp: new Date(),
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
-    setInputValue(""); // Clear input immediately
+      // Add user message immediately (optimistic update)
+      const userMessage: ChatMessage = {
+        text: prompt.trim(),
+        type: "user",
+        timestamp: new Date(),
+      };
 
-    try {
-      // Get current chat history (excluding system message)
-      const currentHistory = messages.filter(msg => msg.type !== "system");
-      const result = await onSubmit(formData, currentHistory);
+      setMessages((prev) => [...prev, userMessage]);
+      setIsLoading(true);
+      setInputValue(""); // Clear input immediately
 
-      setIsLoading(false);
+      try {
+        // Get current chat history (excluding system message)
+        const currentHistory = messages.filter((msg) => msg.type !== "system");
+        const result = await onSubmit(formData, currentHistory);
 
-      if (result.response) {
-        const aiMessage: ChatMessage = {
-          text: result.response,
-          type: "ai",
-          propertyListings: result.propertyListings,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, aiMessage]);
-      } else if (result.error) {
+        setIsLoading(false);
+
+        if (result.response) {
+          const aiMessage: ChatMessage = {
+            text: result.response,
+            type: "ai",
+            propertyListings: result.propertyListings,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, aiMessage]);
+        } else if (result.error) {
+          const errorMessage: ChatMessage = {
+            text: result.error,
+            type: "error",
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+        }
+      } catch (error) {
+        setIsLoading(false);
         const errorMessage: ChatMessage = {
-          text: result.error,
+          text: `Error: ${error}`,
           type: "error",
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, errorMessage]);
+        setMessages((prev) => [...prev, errorMessage]);
       }
-    } catch (error) {
-      setIsLoading(false);
-      const errorMessage: ChatMessage = {
-        text: `Error: ${error}`,
-        type: "error",
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    }
 
-    // Focus back to input
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-  }, [messages, onSubmit]);
+      // Focus back to input
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    },
+    [messages, onSubmit],
+  );
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
-      e.preventDefault();
-      const form = e.currentTarget.closest('form');
-      if (form) {
-        const formData = new FormData(form);
-        handleSubmit(formData);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter" && !e.shiftKey && !isLoading) {
+        e.preventDefault();
+        const form = e.currentTarget.closest("form");
+        if (form) {
+          const formData = new FormData(form);
+          handleSubmit(formData);
+        }
       }
-    }
-  }, [isLoading, handleSubmit]);
+    },
+    [isLoading, handleSubmit],
+  );
 
   // Show initial state
   if (messages.length === 1) {
@@ -317,14 +338,14 @@ export default function Chatbox({
   return (
     <div className="flex flex-col w-full h-full">
       {/* Messages Container */}
-      <div 
+      <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto mb-6 px-2 py-4 space-y-2 max-h-[70vh] scroll-smooth chat-scroll"
       >
         {messages.slice(1).map((message, index) => (
           <MessageBubble key={index} message={message} index={index} />
         ))}
-        
+
         {/* Typing indicator */}
         {isLoading && (
           <div className="flex justify-start mb-4">
@@ -333,7 +354,7 @@ export default function Chatbox({
             </div>
           </div>
         )}
-        
+
         {/* Scroll anchor */}
         <div ref={messagesEndRef} />
       </div>
