@@ -18,7 +18,7 @@ export default function TwoFactorAction() {
 
   if (mfaEnabled === null) {
     return (
-      <Skeleton className="w-[70px] h-[20px] rounded-md" />
+      <Skeleton className="w-[70px] h-[20px] rounded-md" data-testid="skeleton" />
     );
   }
 
@@ -145,7 +145,7 @@ function EnableTwoFactorAction() {
                 </ol>
                 {isEnrolling && (
                   <div className="w-full h-[300px] grid place-items-center">
-                    <Spinner size={16} colorClass="text-blue-700" />
+                    <Spinner size={16} variant="primary" className="text-blue-700" />
                   </div>
                 )}
 
@@ -156,11 +156,16 @@ function EnableTwoFactorAction() {
                 {!isEnrolling && totp && (
                   <>
                     <div className="w-[300px] h-[300px] relative mx-auto rounded my-2">
-                      <Image src={totp.qr_code} alt={totp.uri} layout="fill" />
+                      <Image 
+                        src={totp.qr_code} 
+                        alt={totp.uri} 
+                        fill
+                        style={{ objectFit: "contain" }}
+                      />
                     </div>
                     <div>
-                      <label htmlFor="code">Authentication Code</label>
-                      <Input {...register("code")} />
+                      <label htmlFor="auth-code">Authentication Code</label>
+                      <Input id="auth-code" {...register("code")} />
                       {errors.code && (
                         <p className="text-red-500 text-sm mt-1">
                           {errors.code.message}

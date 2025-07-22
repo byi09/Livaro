@@ -31,12 +31,24 @@ export default function BuildingCard({
   isLoading,
   formatAddress,
 }: BuildingCardProps) {
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEditClick(e);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDeleteClick(e);
+  };
+
   return (
     <Card
       className={`hover:shadow-lg transition-shadow cursor-pointer ${
         isLoading ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
       }`}
       onClick={() => onBuildingClick(building)}
+      role="button"
+      aria-label="Click to manage building"
     >
       {/* Building Image Placeholder */}
       <div className="w-full h-48 bg-gradient-to-br from-green-100 to-green-200 rounded-t-lg flex items-center justify-center">
@@ -45,7 +57,7 @@ export default function BuildingCard({
             <Building className="h-8 w-8 text-white" />
           </div>
           <p className="text-green-700 text-sm font-medium">
-            {building.total_units} Units
+            {building.total_units} {building.total_units === 1 ? 'Unit' : 'Units'}
           </p>
         </div>
       </div>
@@ -59,7 +71,7 @@ export default function BuildingCard({
 
           <div className="flex space-x-1">
             <Button
-              onClick={onEditClick}
+              onClick={handleEditClick}
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
@@ -68,7 +80,7 @@ export default function BuildingCard({
               <Edit className="h-4 w-4" />
             </Button>
             <Button
-              onClick={onDeleteClick}
+              onClick={handleDeleteClick}
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50"
@@ -107,9 +119,11 @@ export default function BuildingCard({
         {/* Action Text */}
         <div className="flex items-center text-xs text-blue-600 font-medium">
           {isLoading && (
-            <Spinner size={12} colorClass="text-blue-600" className="mr-2" />
+            <Spinner size={12} variant="primary" className="mr-2" />
           )}
-          {isLoading ? 'Loading...' : 'Click to manage building'}
+          <span data-testid={isLoading ? "loading-text" : "action-text"}>
+            {isLoading ? 'Loading...' : 'Click to manage building'}
+          </span>
         </div>
       </CardContent>
     </Card>
