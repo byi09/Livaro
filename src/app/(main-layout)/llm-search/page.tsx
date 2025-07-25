@@ -1,5 +1,10 @@
 import Chatbox from "./chatbox";
 import {
+  getOrCreateAISearchConversation,
+  logUserQuery,
+  logAIResponse,
+} from "./chatlog-utils";
+import {
   getFilters,
   getPropertyListings,
   decideChatOrFilter,
@@ -26,6 +31,14 @@ export default async function LLMSearchPage({
     if (!prompt) return { error: "Prompt is required" };
 
     try {
+      // Get or create AI search conversation
+      const conversationId = await getOrCreateAISearchConversation();
+
+      // Log the user query
+      if (conversationId) {
+        await logUserQuery(conversationId, prompt);
+      }
+
       // Decide whether to search for properties or continue conversation
       const action = await decideChatOrFilter(chatHistory || [], prompt);
 
@@ -34,7 +47,19 @@ export default async function LLMSearchPage({
         const filtersResult = await getFilters(prompt, chatHistory);
 
         if (!filtersResult.response) {
-          return { error: "Failed to parse filters from your query" };
+          const errorResponse = {
+            error: "Failed to parse filters from your query",
+          };
+
+          // Log AI error response
+          if (conversationId) {
+            await logAIResponse(
+              conversationId,
+              "I couldn't understand your search criteria. Please try rephrasing your query with more specific details about what you're looking for.",
+            );
+          }
+
+          return errorResponse;
         }
 
         let filters: PropertyFilters;
@@ -42,24 +67,53 @@ export default async function LLMSearchPage({
           filters = JSON.parse(filtersResult.response);
         } catch (parseError) {
           console.error("Error parsing filters:", parseError);
-          return {
+          const errorResponse = {
             error:
               "Your query appears to be invalid, please only ask housing related queries.",
           };
+
+          // Log AI error response
+          if (conversationId) {
+            await logAIResponse(
+              conversationId,
+              "Your query appears to be invalid. Please only ask housing related queries.",
+            );
+          }
+
+          return errorResponse;
         }
 
         // Get listings based on filters
         const propertyListings = await getPropertyListings(filters);
 
         if (propertyListings.length === 0) {
+          const response = `I couldn't find any properties matching your criteria. Try adjusting your search parameters.`;
+
+          // Log AI response with no results
+          if (conversationId) {
+            await logAIResponse(conversationId, response, [], filters);
+          }
+
           return {
-            response: `I couldn't find any properties matching your criteria. Try adjusting your search parameters.`,
+            response,
             propertyListings: [],
           };
         }
 
+        const response = `Found ${propertyListings.length} properties matching your criteria.`;
+
+        // Log AI response with property results
+        if (conversationId) {
+          await logAIResponse(
+            conversationId,
+            response,
+            propertyListings,
+            filters,
+          );
+        }
+
         return {
-          response: `Found ${propertyListings.length} properties matching your criteria.`,
+          response,
           propertyListings: propertyListings,
         };
       } else {
@@ -67,7 +121,22 @@ export default async function LLMSearchPage({
         const chatResponse = await getChatResponse(chatHistory || [], prompt);
 
         if (!chatResponse.response) {
-          return { error: "Failed to get chat response" };
+          const errorResponse = { error: "Failed to get chat response" };
+
+          // Log AI error response
+          if (conversationId) {
+            await logAIResponse(
+              conversationId,
+              "I'm having trouble responding right now. Please try again.",
+            );
+          }
+
+          return errorResponse;
+        }
+
+        // Log AI chat response
+        if (conversationId) {
+          await logAIResponse(conversationId, chatResponse.response);
         }
 
         return {
