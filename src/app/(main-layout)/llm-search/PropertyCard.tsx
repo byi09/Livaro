@@ -1,6 +1,8 @@
 import { PropertyListing } from "./types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { usePropertyModal } from "@/src/contexts/MapContext";
+import type { PropertyListing as GlobalPropertyListing } from "@/lib/types";
 
 interface PropertyCardProps {
   listing: PropertyListing;
@@ -9,6 +11,69 @@ interface PropertyCardProps {
 
 export default function PropertyCard({ listing, index }: PropertyCardProps) {
   const { property } = listing;
+  const { setSelectedProperty } = usePropertyModal();
+
+  // Convert chatbot PropertyListing to global PropertyListing format
+  const convertToGlobalPropertyListing = (): GlobalPropertyListing => {
+    return {
+      properties: {
+        id: property.id,
+        addressLine1: property.addressLine1,
+        addressLine2: property.addressLine2 || null,
+        city: property.city,
+        state: property.state,
+        zipCode: property.zipCode,
+        propertyType: property.propertyType as "apartment" | "house" | "condo" | "townhouse" | "studio" | "room" | "duplex",
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        halfBathrooms: null,
+        squareFootage: property.squareFootage || null,
+        lotSize: null,
+        parkingSpaces: property.parkingSpaces,
+        garageSpaces: null,
+        latitude: null,
+        longitude: null,
+        yearBuilt: null,
+        hasBasement: false,
+        hasAttic: false,
+        propertyStatus: 'available' as const,
+        description: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        landlordId: null,
+        buildingId: null,
+        country: 'United States',
+      },
+      property_listings: {
+        id: listing.id,
+        propertyId: property.id,
+        monthlyRent: listing.monthlyRent,
+        securityDeposit: listing.securityDeposit || null,
+        petDeposit: null,
+        applicationFee: null,
+        minimumLeaseTerm: null,
+        maximumLeaseTerm: null,
+        availableDate: listing.availableDate || null,
+        utilitiesIncluded: null,
+        parkingCost: null,
+        listingTitle: listing.listingTitle || null,
+        listingDescription: listing.listingDescription || null,
+        virtualTourUrl: listing.virtualTourUrl || null,
+        listingStatus: 'active' as const,
+        listDate: new Date().toISOString(),
+        expirationDate: null,
+        viewCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      features_subquery: null
+    };
+  };
+
+  const handleApplyClick = () => {
+    const globalProperty = convertToGlobalPropertyListing();
+    setSelectedProperty(globalProperty);
+  };
 
   return (
     <Card className="w-full mb-4">
@@ -111,9 +176,7 @@ export default function PropertyCard({ listing, index }: PropertyCardProps) {
 
         <div className="mt-4 pt-4 border-t border-gray-200">
           <button
-            onClick={() => {
-              /* Dummy button - does nothing */
-            }}
+            onClick={handleApplyClick}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
           >
             Apply Now

@@ -1,7 +1,7 @@
 import Spinner from '@/src/components/ui/Spinner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Edit, Trash2, Bed, Bath, Square } from 'lucide-react'
+import { Edit, Trash2, Bed, Bath, Square, Zap } from 'lucide-react'
 
 interface PropertyListing {
   id: string
@@ -66,7 +66,15 @@ export default function ListingCard({
       <CardContent className="p-4">
         {/* Status Badge and Action Buttons */}
         <div className="flex justify-between items-start mb-2">
-          {getStatusBadge(property.listing_status)}
+          <div className="flex items-center space-x-2">
+            {getStatusBadge(property.listing_status)}
+            
+            {/* One Tap Application Status */}
+            <div className="flex items-center space-x-1 text-xs">
+              <Zap className="h-3 w-3 text-purple-500" />
+              <span className="text-purple-600 font-medium">One Tap</span>
+            </div>
+          </div>
 
           <div className="flex space-x-1">
             <Button

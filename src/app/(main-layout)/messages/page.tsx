@@ -329,7 +329,7 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 mt-16">
       {/* Sidebar */}
       <div className={`${isSidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 overflow-hidden border-r border-gray-200 bg-white flex flex-col`}>
         {/* Sidebar Header */}
