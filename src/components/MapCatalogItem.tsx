@@ -1,5 +1,6 @@
 'use client'
 
+import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { PropertyListing } from '@/lib/types'
 import {
@@ -11,6 +12,11 @@ import Image from 'next/image'
 import { useMapContext } from '@/src/contexts/MapContext'
 import { useToast } from '@/src/components/ui/Toast'
 import { usePropertyModal } from '@/src/contexts/MapContext'
+
+// Initialize Supabase Client using environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 const useSafeMapContext = () => {
   try {
@@ -31,35 +37,49 @@ export default function MapCatalogItem({
 }) {
   const mapContext = useSafeMapContext()
   const { success, error } = useToast()
+  const { setSelectedProperty } = usePropertyModal()
   const [isLiked, setIsLiked] = useState(initialLiked)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+
+  // Fetch Random Image from Supabase Storage
+  useEffect(() => {
+    const fetchRandomImage = async () => {
+      const { data, error } = await supabase
+        .storage
+        .from('property-images')
+        .list('listings/ac3c6957-b8c4-4698-a34e-90317f407a66', {
+          limit: 100,
+        })
+
+      if (error) {
+        console.error('Error fetching images:', error)
+        return
+      }
+
+      if (data && data.length > 0) {
+        const randomIndex = Math.floor(Math.random() * data.length)
+        const fileName = data[randomIndex].name
+
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('property-images')
+          .getPublicUrl(`listings/ac3c6957-b8c4-4698-a34e-90317f407a66/${fileName}`)
+
+        if (publicUrlData?.publicUrl) {
+          setImageUrl(publicUrlData.publicUrl)
+        }
+      }
+    }
+
+    fetchRandomImage()
+  }, [])
 
   useEffect(() => {
     setIsLiked(initialLiked)
-
-    // 🔁 Fetch liked status from backend on first mount (only if not already liked)
-    if (!initialLiked) {
-      fetch('/api/properties/like')
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data.properties)) {
-            const likedIds = data.properties.map((p: any) => p.properties?.id)
-            if (likedIds.includes(item.properties.id)) {
-              setIsLiked(true)
-            }
-          }
-        })
-        .catch(err => {
-          console.error('Failed to check liked status:', err)
-        })
-    }
-  }, [initialLiked, item.properties.id])
-  const { setSelectedProperty } = usePropertyModal()
+  }, [initialLiked])
 
   const handleClick = () => {
-    // Set the selected property in the global modal context
     setSelectedProperty(item)
-
-    // Also set it in map context if available (for backward compatibility)
     if (mapContext) {
       mapContext.setSelectedProperty(item)
     }
@@ -77,9 +97,7 @@ export default function MapCatalogItem({
 
       const data = await res.json()
 
-      if (!res.ok) {
-        throw new Error(data?.message || 'Failed to toggle like')
-      }
+      if (!res.ok) throw new Error(data?.message || 'Failed to toggle like')
 
       if (method === 'POST') {
         success('Property liked!')
@@ -87,7 +105,7 @@ export default function MapCatalogItem({
       } else {
         success('Removed from liked properties.')
         setIsLiked(false)
-        onUnlike?.(propertyId) // Optional parent update
+        onUnlike?.(propertyId)
       }
     } catch (err: any) {
       error('Failed to update like status', err.message)
@@ -108,7 +126,7 @@ export default function MapCatalogItem({
       onClick={handleClick}
     >
       <Image
-        src="/hero-bg.jpg"
+        src={imageUrl || '/hero-bg.jpg'} // Load Supabase image or fallback
         alt={item.property_listings.listingTitle || 'Property Image'}
         className="w-full h-40 object-cover"
         width={400}
@@ -148,7 +166,7 @@ export default function MapCatalogItem({
         </p>
         <p className="line-clamp-1 text-sm">
           {item.property_listings.listingTitle &&
-            `${item.property_listings.listingTitle} | `}
+            `${item.property_listings.listingTitle} | `} 
           {item.properties.addressLine1}, {item.properties.city},{' '}
           {item.properties.state} {item.properties.zipCode}
         </p>
