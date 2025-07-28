@@ -56,75 +56,36 @@ export default function PropertyDetailModal({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
+    // Always load from the specific folder regardless of property
     const fetchImages = async () => {
-      if (!property?.properties?.id) return;
-
-      const bucket = "property-images";
-
-      // ✅ Manual override for folder path
-      const folderMap: Record<string, string> = {
-        "58d18cd8-2edf-4841-9e4e-8e0dbf7d1e01":
-          "14c20054-7b28-454e-aaf2-12ece2a4b7ee",
-        "49673659-620f-43ff-8c12-f7a6617a207d":
-          "49673659-620f-43ff-8c12-f7a6617a207d",
-        "5bc214fc-b4db-4dec-abb9-0306c1577a1b":
-          "5bc214fc-b4db-4dec-abb9-0306c1577a1b",
-        "ac3c6957-b8c4-4698-a34e-90317f407a66":
-          "ac3c6957-b8c4-4698-a34e-90317f407a66",
-        "f86f7b0a-49d6-47eb-989f-b6ca6a1ed7bf":
-          "14c20054-7b28-454e-aaf2-12ece2a4b7ee",
-        // Add more if needed
-      };
-
-      const actualFolder = folderMap[property.properties.id];
-
-      if (!actualFolder) {
-        console.warn(
-          `⚠️ No folder mapping found for property ID: ${property.properties.id}, using fallback image`,
-        );
-        // Use fallback image for properties not in the mapping
-        setImageUrls(["/hero-bg.jpg"]);
-        return;
-      }
-
-      const folderPath = `listings/${actualFolder}`;
-
+      const bucket = 'property-images';
+      const folderPath = 'listings/ac3c6957-b8c4-4698-a34e-90317f407a66';
       const { data: files, error } = await supabase.storage
         .from(bucket)
         .list(folderPath, {
           limit: 100,
-          sortBy: { column: "name", order: "asc" },
+          sortBy: { column: 'name', order: 'asc' },
         });
-
       if (error) {
         console.error(`❌ Supabase error:`, error.message);
-        // Use fallback image on error
-        setImageUrls(["/hero-bg.jpg"]);
         return;
-      }
-
+      }    
       if (!files || files.length === 0) {
-        console.warn(
-          `⚠️ No images found in folder: ${folderPath}, using fallback image`,
-        );
-        // Use fallback image when no images found
-        setImageUrls(["/hero-bg.jpg"]);
+        console.warn(`⚠️ No images found in folder: ${folderPath}`);
         return;
       }
-
-      const urls = files.map(
-        (file) =>
+      const urls = files
+        .filter(file => file.name.match(/\.(png|jpg|jpeg|webp)$/i))
+        .map(file =>
           supabase.storage
             .from(bucket)
-            .getPublicUrl(`${folderPath}/${file.name}`).data.publicUrl,
-      );
-
+            .getPublicUrl(`${folderPath}/${file.name}`).data.publicUrl
+        );
       setImageUrls(urls);
     };
-
     fetchImages();
-  }, [property]);
-
+  }, []);
+        
   if (!property) return null;
 
   const handleContact = (method: "phone" | "email" | "message") => {
@@ -152,6 +113,16 @@ export default function PropertyDetailModal({
     .slice(0, 4);
   const rent = +property.property_listings.monthlyRent;
 
+  // Image titles for carousel
+  const imageTitles = [
+    'Living Room',
+    'Living Room - II',
+    'Bedroom - I',
+    'Bedroom - II',
+    'Kitchen',
+    'Gallery',
+  ];
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
@@ -159,16 +130,20 @@ export default function PropertyDetailModal({
         <div className="relative overflow-hidden">
           {imageUrls.length > 0 ? (
             <div className="relative w-full h-72">
-              {/* Main Image Display */}
-              <div className="w-full h-full">
+              {/* Main Image */}
+              <div className="w-full h-full relative">
                 <img
                   src={imageUrls[currentImageIndex]}
-                  alt={`Property Image ${currentImageIndex + 1}`}
+                  alt={imageTitles[currentImageIndex] || `Property Image ${currentImageIndex + 1}`}
                   className="w-full h-full object-cover rounded-lg shadow"
                 />
+                {/* Overlay Title */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-6 py-2 rounded-full text-lg font-semibold shadow-lg pointer-events-none select-none">
+                  {imageTitles[currentImageIndex] || `Image ${currentImageIndex + 1}`}
+                </div>
               </div>
 
-              {/* Navigation Arrows */}
+              {/* Arrows */}
               {imageUrls.length > 1 && (
                 <>
                   <button
@@ -179,18 +154,8 @@ export default function PropertyDetailModal({
                     }
                     className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200 z-10"
                   >
-                    <svg
-                      className="w-5 h-5 text-gray-700"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                      />
+                    <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
 
@@ -202,18 +167,8 @@ export default function PropertyDetailModal({
                     }
                     className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200 z-10"
                   >
-                    <svg
-                      className="w-5 h-5 text-gray-700"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
+                    <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
                 </>
@@ -226,7 +181,7 @@ export default function PropertyDetailModal({
                 </div>
               )}
 
-              {/* Thumbnail Navigation */}
+              {/* Thumbnail Dots */}
               {imageUrls.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/60 px-3 py-2 rounded-full">
                   {imageUrls.map((_, index) => (
@@ -277,10 +232,7 @@ export default function PropertyDetailModal({
           <div className="absolute bottom-4 left-4 bg-white/90 px-4 py-2 rounded-lg shadow">
             <h1 className="text-xl font-bold text-gray-900">
               {formatPrice(rent)}
-              <span className="text-base font-normal text-gray-600">
-                {" "}
-                /month
-              </span>
+              <span className="text-base font-normal text-gray-600"> /month</span>
             </h1>
           </div>
         </div>
