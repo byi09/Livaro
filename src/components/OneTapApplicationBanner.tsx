@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { HiX, HiSparkles, HiPencil } from 'react-icons/hi'
+import { HiSparkles, HiX, HiPencil } from 'react-icons/hi'
 
 interface OneTapApplicationBannerProps {
   onSetupClick: () => void
@@ -48,14 +48,11 @@ export default function OneTapApplicationBanner({ onSetupClick, refreshKey = 0 }
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-purple-800">
-                {hasPreferences ? '⚡ One Tap Application Ready' : '🚀 Set Up One Tap Application'}
+                ⚡ Set Your One Tap Preferences
               </h3>
               <div className="mt-1 text-sm text-purple-700">
                 <p>
-                  {hasPreferences 
-                    ? 'Your tenant application form is configured. You can quickly collect information from potential tenants with your pre-set preferences.'
-                    : 'Configure your tenant application form to streamline the screening process. Choose what information to collect from potential tenants.'
-                  }
+                  Control who can apply instantly. Fine-tune your ideal tenant criteria for faster, smarter matches.
                 </p>
               </div>
             </div>
@@ -74,12 +71,12 @@ export default function OneTapApplicationBanner({ onSetupClick, refreshKey = 0 }
               {hasPreferences ? (
                 <>
                   <HiPencil className="w-4 h-4 mr-2" />
-                  Edit Application Settings
+                  Edit Preferences
                 </>
               ) : (
                 <>
                   <HiSparkles className="w-4 h-4 mr-2" />
-                  Configure Application Settings
+                  Set Preferences
                 </>
               )}
             </button>
