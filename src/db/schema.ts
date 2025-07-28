@@ -533,6 +533,36 @@ export const renterSearchPreferences = pgTable('renter_search_preferences', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// ==================== ONE TAP APPLICATION PREFERENCES ====================
+
+export const oneTapApplicationPreferences = pgTable('one_tap_application_preferences', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    landlordId: uuid('landlord_id')
+        .notNull()
+        .references(() => landlords.id, { onDelete: 'cascade' }),
+    
+    // Form field preferences
+    includeNumberOfOccupants: boolean('include_number_of_occupants').notNull().default(true),
+    includeLeaseStartDate: boolean('include_lease_start_date').notNull().default(true),
+    includeLeaseLength: boolean('include_lease_length').notNull().default(true),
+    includeStudentFlexibility: boolean('include_student_flexibility').notNull().default(true),
+    includePetsPreference: boolean('include_pets_preference').notNull().default(true),
+    includeParkingPreference: boolean('include_parking_preference').notNull().default(true),
+    
+    // Contact information preferences
+    includeTenantName: boolean('include_tenant_name').notNull().default(true),
+    includeTenantEmail: boolean('include_tenant_email').notNull().default(true),
+    includeTenantPhone: boolean('include_tenant_phone').notNull().default(false),
+    includeMessageToLandlord: boolean('include_message_to_landlord').notNull().default(false),
+    
+    // Custom field configurations
+    fieldConfigs: json('field_configs'),
+    
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // ==================== MESSAGING TABLES ====================
 
 // Conversations table - represents a chat conversation between users
@@ -735,6 +765,7 @@ export const landlordsRelations = relations(landlords, ({ one, many }) => ({
     properties: many(properties),
     applications: many(rentalApplications),
     tours: many(propertyTours),
+    oneTapPreferences: many(oneTapApplicationPreferences),
 }));
 
 // Property relations
@@ -846,6 +877,14 @@ export const renterSearchPreferencesRelations = relations(renterSearchPreference
     renter: one(renters, {
         fields: [renterSearchPreferences.renterId],
         references: [renters.id],
+    }),
+}));
+
+// One tap application preferences relations
+export const oneTapApplicationPreferencesRelations = relations(oneTapApplicationPreferences, ({ one }) => ({
+    landlord: one(landlords, {
+        fields: [oneTapApplicationPreferences.landlordId],
+        references: [landlords.id],
     }),
 }));
 

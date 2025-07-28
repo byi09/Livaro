@@ -1,30 +1,32 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { HiSparkles, HiX } from 'react-icons/hi'
+import React, { useState, useEffect } from 'react'
+import { HiX, HiSparkles, HiPencil } from 'react-icons/hi'
 
 interface OneTapApplicationBannerProps {
   onSetupClick: () => void
+  refreshKey?: number
 }
 
-export default function OneTapApplicationBanner({ onSetupClick }: OneTapApplicationBannerProps) {
-  const [isVisible, setIsVisible] = useState(false)
+export default function OneTapApplicationBanner({ onSetupClick, refreshKey = 0 }: OneTapApplicationBannerProps) {
+  const [isVisible, setIsVisible] = useState(true)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasPreferences, setHasPreferences] = useState(false)
 
   useEffect(() => {
     checkPreferences()
-  }, [])
+  }, [refreshKey]) // Add refreshKey to dependency array
 
   const checkPreferences = async () => {
     try {
       const response = await fetch('/api/one-tap-application-preferences')
       const data = await response.json()
       
-      // Show banner if no preferences exist or if there's an error
-      setIsVisible(!data.preferences)
+      // Always show banner, but track if preferences exist
+      setHasPreferences(!!data.preferences)
     } catch (error) {
       console.error('Error checking preferences:', error)
       // Show banner on error to be safe
-      setIsVisible(true)
+      setHasPreferences(false)
     } finally {
       setIsLoading(false)
     }
@@ -46,12 +48,14 @@ export default function OneTapApplicationBanner({ onSetupClick }: OneTapApplicat
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-purple-800">
-                🚀 Set Up One Tap Applications
+                {hasPreferences ? '⚡ One Tap Application Ready' : '🚀 Set Up One Tap Application'}
               </h3>
               <div className="mt-1 text-sm text-purple-700">
                 <p>
-                  Streamline your rental process by setting up your One Tap Application preferences. 
-                  This allows potential tenants to apply instantly with pre-filled information.
+                  {hasPreferences 
+                    ? 'Your tenant application form is configured. You can quickly collect information from potential tenants with your pre-set preferences.'
+                    : 'Configure your tenant application form to streamline the screening process. Choose what information to collect from potential tenants.'
+                  }
                 </p>
               </div>
             </div>
@@ -67,8 +71,17 @@ export default function OneTapApplicationBanner({ onSetupClick }: OneTapApplicat
               onClick={onSetupClick}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
             >
-              <HiSparkles className="w-4 h-4 mr-2" />
-              Set Up Preferences
+              {hasPreferences ? (
+                <>
+                  <HiPencil className="w-4 h-4 mr-2" />
+                  Edit Application Settings
+                </>
+              ) : (
+                <>
+                  <HiSparkles className="w-4 h-4 mr-2" />
+                  Configure Application Settings
+                </>
+              )}
             </button>
           </div>
         </div>
