@@ -69,6 +69,7 @@ export default function PropertyDetailModal({
       if (error) {
         console.error(`❌ Supabase error:`, error.message);
         return;
+      }
       if (!files || files.length === 0) {
         console.warn(`⚠️ No images found in folder: ${folderPath}`);
         return;
@@ -84,6 +85,7 @@ export default function PropertyDetailModal({
     };
     fetchImages();
   }, []);
+
   if (!property) return null;
 
   const handleContact = (method: "phone" | "email" | "message") => {

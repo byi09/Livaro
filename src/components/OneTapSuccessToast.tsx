@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { HiCheck, HiX } from 'react-icons/hi'
 
 interface OneTapSuccessToastProps {
@@ -31,10 +31,10 @@ export default function OneTapSuccessToast({ isVisible, onClose }: OneTapSuccess
           </div>
           <div className="ml-3 flex-1">
             <h3 className="text-sm font-medium text-green-800">
-              One Tap Application Preferences Saved!
+              Preferences Saved!
             </h3>
             <p className="mt-1 text-sm text-green-700">
-              Your preferences have been successfully saved. Potential tenants can now apply with one tap.
+              Your ideal tenant preferences have been successfully saved. You can now filter and match with tenants who meet your criteria.
             </p>
           </div>
           <div className="ml-4 flex-shrink-0">

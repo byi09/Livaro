@@ -90,7 +90,7 @@ export default function SellPage() {
               One Tap Applications
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Streamline your rental process with instant applications. Set up your preferences once and let qualified tenants apply with just one tap.
+              Streamline your rental process with instant applications. Configure which fields to include in your application form and let qualified tenants apply with just one tap.
             </p>
           </div>
 
@@ -99,15 +99,15 @@ export default function SellPage() {
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-purple-600 font-bold text-lg">1</span>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Set Preferences</h3>
-              <p className="text-gray-600">Configure your rental preferences including lease terms, move-in dates, and requirements.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Configure Form Fields</h3>
+              <p className="text-gray-600">Choose which fields to include in your application form - from contact info to lease preferences.</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-purple-600 font-bold text-lg">2</span>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Applications</h3>
-              <p className="text-gray-600">Qualified tenants can apply instantly with pre-filled information based on your preferences.</p>
+              <p className="text-gray-600">Qualified tenants can apply instantly with only the fields you've configured.</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -124,7 +124,7 @@ export default function SellPage() {
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-200"
             >
               <HiSparkles className="mr-2 h-5 w-5" />
-              Set Up One Tap Applications
+              Configure Application Form
             </Link>
           </div>
         </div>
