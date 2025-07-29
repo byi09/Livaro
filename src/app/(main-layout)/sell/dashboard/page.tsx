@@ -64,6 +64,7 @@ export default function PropertyDashboard() {
   const [contentType, setContentType] = useState<ContentType>('properties')
   const [showOneTapForm, setShowOneTapForm] = useState(false)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [bannerRefreshKey, setBannerRefreshKey] = useState(0)
 
   useEffect(() => {
     fetchProperties()
@@ -450,8 +451,11 @@ export default function PropertyDashboard() {
     setShowOneTapForm(true)
   }
 
+
+
   const handleOneTapSuccess = () => {
     setShowSuccessToast(true)
+    setBannerRefreshKey(prev => prev + 1) // Refresh the banner to show updated state
   }
 
   const isDeleting = (itemId: string) => {
@@ -559,9 +563,9 @@ export default function PropertyDashboard() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 mt-16">
         {/* One Tap Application Banner */}
-        <OneTapApplicationBanner onSetupClick={handleOneTapSetup} />
+        <OneTapApplicationBanner onSetupClick={handleOneTapSetup} refreshKey={bannerRefreshKey} />
         
         {/* Public Launch Notice Banner */}
         <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -654,7 +658,7 @@ export default function PropertyDashboard() {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900">One Tap Applications</h3>
-                  <p className="text-sm text-gray-500">Streamline your rental application process</p>
+                  <p className="text-sm text-gray-500">Configure your application form fields</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -665,7 +669,7 @@ export default function PropertyDashboard() {
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  Manage Preferences
+                  Configure Form
                 </button>
               </div>
             </div>
@@ -1327,6 +1331,8 @@ export default function PropertyDashboard() {
           onClose={() => setShowOneTapForm(false)}
           onSuccess={handleOneTapSuccess}
         />
+
+
 
         {/* Success Toast */}
         <OneTapSuccessToast

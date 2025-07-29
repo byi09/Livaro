@@ -62,6 +62,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const isAuthPage =
     pathname?.includes("/sign-") || pathname?.includes("/auth");
   const showHeader = !isAuthPage || user;
+  
+  // Don't add top padding for map, messages, and sell pages since they have their own layouts
+  const isMapPage = pathname?.includes("/map");
+  const isMessagesPage = pathname?.includes("/messages");
+  const isSellPage = pathname?.includes("/sell");
 
   if (loading) {
     return (
@@ -82,7 +87,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         Only offset content when the header is the solid authenticated version (i.e., a user is logged in).
         For guests we want the hero/landing sections to sit beneath the transparent header.
       */}
-      <main className={`${user ? 'pt-16' : ''} flex-1`}>{children}</main>
+      <main className={`${user && !isMapPage && !isMessagesPage && !isSellPage ? 'pt-16' : ''} flex-1`}>{children}</main>
 
       {/* Footer removed as per design update */}
     </div>

@@ -146,19 +146,20 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     const requiredFields = [
-      'number_of_occupants',
-      'desired_lease_start_month',
-      'desired_lease_start_year',
-      'preferred_lease_length',
-      'move_in_flexibility',
-      'pets_allowed',
-      'parking_needed',
-      'tenant_name',
-      'tenant_email'
+      'include_number_of_occupants',
+      'include_lease_start_date',
+      'include_lease_length',
+      'include_student_flexibility',
+      'include_pets_preference',
+      'include_parking_preference',
+      'include_tenant_name',
+      'include_tenant_email',
+      'include_tenant_phone',
+      'include_message_to_landlord'
     ]
 
     for (const field of requiredFields) {
-      if (body[field] === undefined || body[field] === null || body[field] === '') {
+      if (body[field] === undefined || body[field] === null) {
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
           { status: 400 }
@@ -177,17 +178,17 @@ export async function POST(request: NextRequest) {
       .from('one_tap_application_preferences')
       .insert({
         landlord_id: landlordId,
-        number_of_occupants: body.number_of_occupants,
-        desired_lease_start_month: body.desired_lease_start_month,
-        desired_lease_start_year: body.desired_lease_start_year,
-        preferred_lease_length: body.preferred_lease_length,
-        move_in_flexibility: body.move_in_flexibility,
-        pets_allowed: body.pets_allowed,
-        parking_needed: body.parking_needed,
-        tenant_name: body.tenant_name,
-        tenant_email: body.tenant_email,
-        tenant_phone: body.tenant_phone || null,
-        message_to_landlord: body.message_to_landlord || null,
+        include_number_of_occupants: body.include_number_of_occupants,
+        include_lease_start_date: body.include_lease_start_date,
+        include_lease_length: body.include_lease_length,
+        include_student_flexibility: body.include_student_flexibility,
+        include_pets_preference: body.include_pets_preference,
+        include_parking_preference: body.include_parking_preference,
+        include_tenant_name: body.include_tenant_name,
+        include_tenant_email: body.include_tenant_email,
+        include_tenant_phone: body.include_tenant_phone,
+        include_message_to_landlord: body.include_message_to_landlord,
+        field_configs: body.field_configs || null,
         is_active: true
       })
       .select()
