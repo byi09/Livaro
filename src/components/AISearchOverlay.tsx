@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, Send } from "lucide-react";
 import {
   ChatMessage,
@@ -207,8 +208,14 @@ export default function AISearchOverlay({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
+    <div 
+      className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      onWheel={(e) => e.preventDefault()}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col"
+        onWheel={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
@@ -248,38 +255,40 @@ export default function AISearchOverlay({
         </div>
 
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {chatHistory.length === 0 && (
-            <div className="text-center text-gray-500 py-8">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-4.126-.98L3 20l1.98-5.874A8.955 8.955 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"
-                  />
-                </svg>
+        <ScrollArea className="flex-1 p-6">
+          <div className="space-y-4">
+            {chatHistory.length === 0 && (
+              <div className="text-center text-gray-500 py-8">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg
+                    className="w-8 h-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-4.126-.98L3 20l1.98-5.874A8.955 8.955 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
+                <p className="text-sm">
+                  Ask me about properties, neighborhoods, or specific requirements
+                </p>
               </div>
-              <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-              <p className="text-sm">
-                Ask me about properties, neighborhoods, or specific requirements
-              </p>
-            </div>
-          )}
+            )}
 
-          {chatHistory.map((message, index) => (
-            <MessageBubble key={index} message={message} index={index} />
-          ))}
+            {chatHistory.map((message, index) => (
+              <MessageBubble key={index} message={message} index={index} />
+            ))}
 
-          {isLoading && <TypingIndicator />}
-          <div ref={messagesEndRef} />
-        </div>
+            {isLoading && <TypingIndicator />}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
 
         {/* Property Results */}
         {propertyListings.length > 0 && (
@@ -287,15 +296,20 @@ export default function AISearchOverlay({
             <h3 className="text-lg font-semibold mb-4">
               Properties Found ({propertyListings.length})
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-60 overflow-y-auto">
-              {propertyListings.map((listing, index) => (
-                <PropertyCard
-                  key={listing.id}
-                  listing={listing}
-                  index={index}
-                />
-              ))}
-            </div>
+            <ScrollArea 
+              className="h-60"
+              onWheel={(e) => e.stopPropagation()}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {propertyListings.map((listing, index) => (
+                  <PropertyCard
+                    key={listing.id}
+                    listing={listing}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
           </div>
         )}
 
