@@ -308,7 +308,7 @@ export default function AISearchOverlay({
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask me about properties, neighborhoods, or specific requirements..."
               disabled={isLoading}
-              className="flex-1 text-base"
+              className="flex-1 text-base text-black"
             />
             <Button
               type="submit"
