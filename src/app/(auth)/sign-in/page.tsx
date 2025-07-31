@@ -79,12 +79,13 @@ export default function SignIn() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setLoading(true);
     
     if (!validateForm()) {
+      setLoading(false);
       return;
     }
     
-    setLoading(true);
     setErrors({});
     
     const supabase = createClient();
@@ -93,8 +94,9 @@ export default function SignIn() {
       password,
     });
     
+    setLoading(false);
+    
     if (error) {
-      setLoading(false);
       showError('Sign in failed', error.message);
     } else {
       success('Welcome back!', 'Redirecting...');
@@ -264,4 +266,4 @@ export default function SignIn() {
       </div>
     </div>
   );
-} 
+}
