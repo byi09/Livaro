@@ -1,6 +1,5 @@
 import { integer, pgTable, timestamp, pgEnum, uuid, varchar, date, boolean, decimal, text, json } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import { year } from 'drizzle-orm/mysql-core';
 
 
 
@@ -38,8 +37,8 @@ export const viewTypeEnum = pgEnum('view_type', ['listing_view', 'photo_view', '
 export const alertFrequencyEnum = pgEnum('alert_frequency', ['immediate', 'daily', 'weekly']);
 
 // ==================== MESSAGING ENUMS ====================
-export const conversationTypeEnum = pgEnum('conversation_type', ['direct', 'group', 'support']);
-export const messageTypeEnum = pgEnum('message_type', ['text', 'image', 'file', 'system']);
+export const conversationTypeEnum = pgEnum('conversation_type', ['direct', 'group', 'support', 'ai_search']);
+export const messageTypeEnum = pgEnum('message_type', ['text', 'image', 'file', 'system', 'ai_query', 'ai_response']);
 export const messageStatusEnum = pgEnum('message_status', ['sent', 'delivered', 'read']);
 export const participantRoleEnum = pgEnum('participant_role', ['member', 'admin', 'owner']);
 

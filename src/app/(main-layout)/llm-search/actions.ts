@@ -77,7 +77,15 @@ export async function getPropertyListings(
   }
 
   if (filters.property_type) {
-    query = query.eq("properties.property_type", filters.property_type);
+    // Handle multiple property types separated by commas
+    if (filters.property_type.includes(",")) {
+      const propertyTypes = filters.property_type
+        .split(",")
+        .map((type) => type.trim());
+      query = query.in("properties.property_type", propertyTypes);
+    } else {
+      query = query.eq("properties.property_type", filters.property_type);
+    }
   }
 
   if (filters.bedrooms !== undefined) {

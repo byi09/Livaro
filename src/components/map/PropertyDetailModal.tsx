@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from "react";
 import {
   X,
   MapPin,
@@ -15,134 +15,113 @@ import {
   Car,
   Calendar,
   DollarSign,
-} from 'lucide-react'
-import { PropertyListing } from '@/lib/types'
-import { formatPrice } from '@/utils/formatters'
-import { createClient } from '@supabase/supabase-js'
+} from "lucide-react";
+import { PropertyListing } from "@/lib/types";
+import { formatPrice } from "@/utils/formatters";
+import { createClient } from "@supabase/supabase-js";
 
 interface PropertyDetailModalProps {
-  property: PropertyListing | null
-  onClose: () => void
+  property: PropertyListing | null;
+  onClose: () => void;
   onContact: (
     property: PropertyListing,
-    method: 'phone' | 'email' | 'message'
-  ) => void
+    method: "phone" | "email" | "message",
+  ) => void;
 }
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
 
 const loveHighlightsPool = [
-  'Prime Location – Walking distance to shopping, dining, and entertainment',
-  'Modern Amenities – Updated with contemporary finishes',
-  'Great Transit – Easy access to public transportation',
-  'Quiet Neighborhood – Peaceful and relaxing surroundings',
-  'City Views – Panoramic skyline views from your windows',
-  'Secure Access – Gated entry and security system',
-  'Outdoor Space – Private balcony or patio',
-  'Tech-Ready – Smart home features included',
-  'Move-In Ready – Freshly painted and professionally cleaned',
-]
+  "Prime Location – Walking distance to shopping, dining, and entertainment",
+  "Modern Amenities – Updated with contemporary finishes",
+  "Great Transit – Easy access to public transportation",
+  "Quiet Neighborhood – Peaceful and relaxing surroundings",
+  "City Views – Panoramic skyline views from your windows",
+  "Secure Access – Gated entry and security system",
+  "Outdoor Space – Private balcony or patio",
+  "Tech-Ready – Smart home features included",
+  "Move-In Ready – Freshly painted and professionally cleaned",
+];
 
 export default function PropertyDetailModal({
   property,
   onClose,
   onContact,
 }: PropertyDetailModalProps) {
-  const [isSaved, setIsSaved] = useState(false)
-  const [imageUrls, setImageUrls] = useState<string[]>([])
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [isSaved, setIsSaved] = useState(false);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
+    // Always load from the specific folder regardless of property
     const fetchImages = async () => {
-      if (!property?.properties?.id) return
-
-      const bucket = 'property-images'
-
-      // ✅ Manual override for folder path
-      const folderMap: Record<string, string> = {
-        '58d18cd8-2edf-4841-9e4e-8e0dbf7d1e01':
-          '14c20054-7b28-454e-aaf2-12ece2a4b7ee',
-        '49673659-620f-43ff-8c12-f7a6617a207d':
-          '49673659-620f-43ff-8c12-f7a6617a207d',
-        '5bc214fc-b4db-4dec-abb9-0306c1577a1b':
-          '5bc214fc-b4db-4dec-abb9-0306c1577a1b',
-        'ac3c6957-b8c4-4698-a34e-90317f407a66':
-          'ac3c6957-b8c4-4698-a34e-90317f407a66',
-        'f86f7b0a-49d6-47eb-989f-b6ca6a1ed7bf':
-          '14c20054-7b28-454e-aaf2-12ece2a4b7ee',
-        // Add more if needed
-      }
-
-      const actualFolder = folderMap[property.properties.id]
-
-      if (!actualFolder) {
-        console.warn(
-          `⚠️ No folder mapping found for property ID: ${property.properties.id}`
-        )
-        return
-      }
-
-      const folderPath = `listings/${actualFolder}`
-
+      const bucket = 'property-images';
+      const folderPath = 'listings/ac3c6957-b8c4-4698-a34e-90317f407a66';
       const { data: files, error } = await supabase.storage
         .from(bucket)
         .list(folderPath, {
           limit: 100,
           sortBy: { column: 'name', order: 'asc' },
-        })
-
+        });
       if (error) {
-        console.error(`❌ Supabase error:`, error.message)
-        return
+        console.error(`❌ Supabase error:`, error.message);
+        return;
       }
-
       if (!files || files.length === 0) {
-        console.warn(`⚠️ No images found in folder: ${folderPath}`)
-        return
+        console.warn(`⚠️ No images found in folder: ${folderPath}`);
+        return;
       }
-
-      const urls = files.map(
-        file =>
+      const urls = files
+        .filter(file => file.name.match(/\.(png|jpg|jpeg|webp)$/i))
+        .map(file =>
           supabase.storage
             .from(bucket)
             .getPublicUrl(`${folderPath}/${file.name}`).data.publicUrl
-      )
+        );
+      setImageUrls(urls);
+    };
+    fetchImages();
+  }, []);
 
-      setImageUrls(urls)
-    }
+  if (!property) return null;
 
-    fetchImages()
-  }, [property])
+  const handleContact = (method: "phone" | "email" | "message") => {
+    onContact(property, method);
+  };
 
-  if (!property) return null
-
-  const handleContact = (method: 'phone' | 'email' | 'message') => {
-    onContact(property, method)
-  }
-
-  const handleSave = () => setIsSaved(!isSaved)
+  const handleSave = () => setIsSaved(!isSaved);
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: property.property_listings.listingTitle || 'Property Listing',
+        title: property.property_listings.listingTitle || "Property Listing",
         text: `Check out this property: ${formatPrice(
-          parseFloat(property.property_listings.monthlyRent)
+          parseFloat(property.property_listings.monthlyRent),
         )}/mo`,
         url: window.location.href,
-      })
+      });
     } else {
-      navigator.clipboard.writeText(window.location.href)
+      navigator.clipboard.writeText(window.location.href);
     }
-  }
+  };
 
   const randomHighlights = loveHighlightsPool
     .sort(() => 0.5 - Math.random())
-    .slice(0, 4)
-  const rent = +property.property_listings.monthlyRent
+    .slice(0, 4);
+  const rent = +property.property_listings.monthlyRent;
+
+  // Image titles for carousel
+  const imageTitles = [
+    'Living Room',
+    'Living Room - II',
+    'Bedroom - I',
+    'Bedroom - II',
+    'Kitchen',
+    'Gallery',
+  ];
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -151,61 +130,45 @@ export default function PropertyDetailModal({
         <div className="relative overflow-hidden">
           {imageUrls.length > 0 ? (
             <div className="relative w-full h-72">
-              {/* Main Image Display */}
-              <div className="w-full h-full">
+              {/* Main Image */}
+              <div className="w-full h-full relative">
                 <img
                   src={imageUrls[currentImageIndex]}
-                  alt={`Property Image ${currentImageIndex + 1}`}
+                  alt={imageTitles[currentImageIndex] || `Property Image ${currentImageIndex + 1}`}
                   className="w-full h-full object-cover rounded-lg shadow"
                 />
+                {/* Overlay Title */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-6 py-2 rounded-full text-lg font-semibold shadow-lg pointer-events-none select-none">
+                  {imageTitles[currentImageIndex] || `Image ${currentImageIndex + 1}`}
+                </div>
               </div>
 
-              {/* Navigation Arrows */}
+              {/* Arrows */}
               {imageUrls.length > 1 && (
                 <>
                   <button
                     onClick={() =>
-                      setCurrentImageIndex(prev =>
-                        prev === 0 ? imageUrls.length - 1 : prev - 1
+                      setCurrentImageIndex((prev) =>
+                        prev === 0 ? imageUrls.length - 1 : prev - 1,
                       )
                     }
                     className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200 z-10"
                   >
-                    <svg
-                      className="w-5 h-5 text-gray-700"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                      />
+                    <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
 
                   <button
                     onClick={() =>
-                      setCurrentImageIndex(prev =>
-                        prev === imageUrls.length - 1 ? 0 : prev + 1
+                      setCurrentImageIndex((prev) =>
+                        prev === imageUrls.length - 1 ? 0 : prev + 1,
                       )
                     }
                     className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200 z-10"
                   >
-                    <svg
-                      className="w-5 h-5 text-gray-700"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
+                    <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
                 </>
@@ -218,7 +181,7 @@ export default function PropertyDetailModal({
                 </div>
               )}
 
-              {/* Thumbnail Navigation */}
+              {/* Thumbnail Dots */}
               {imageUrls.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/60 px-3 py-2 rounded-full">
                   {imageUrls.map((_, index) => (
@@ -227,8 +190,8 @@ export default function PropertyDetailModal({
                       onClick={() => setCurrentImageIndex(index)}
                       className={`w-2 h-2 rounded-full transition-all duration-200 ${
                         index === currentImageIndex
-                          ? 'bg-white'
-                          : 'bg-white/50 hover:bg-white/75'
+                          ? "bg-white"
+                          : "bg-white/50 hover:bg-white/75"
                       }`}
                     />
                   ))}
@@ -253,11 +216,11 @@ export default function PropertyDetailModal({
               onClick={handleSave}
               className={`p-2 rounded-full shadow ${
                 isSaved
-                  ? 'bg-red-500 text-white'
-                  : 'bg-white/90 text-gray-700 hover:bg-white'
+                  ? "bg-red-500 text-white"
+                  : "bg-white/90 text-gray-700 hover:bg-white"
               }`}
             >
-              <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
+              <Heart className={`w-5 h-5 ${isSaved ? "fill-current" : ""}`} />
             </button>
             <button
               onClick={handleShare}
@@ -269,10 +232,7 @@ export default function PropertyDetailModal({
           <div className="absolute bottom-4 left-4 bg-white/90 px-4 py-2 rounded-lg shadow">
             <h1 className="text-xl font-bold text-gray-900">
               {formatPrice(rent)}
-              <span className="text-base font-normal text-gray-600">
-                {' '}
-                /month
-              </span>
+              <span className="text-base font-normal text-gray-600"> /month</span>
             </h1>
           </div>
         </div>
@@ -294,7 +254,7 @@ export default function PropertyDetailModal({
                       `, ${property.properties.addressLine2}`}
                   </p>
                   <p>
-                    {property.properties.city}, {property.properties.state}{' '}
+                    {property.properties.city}, {property.properties.state}{" "}
                     {property.properties.zipCode}
                   </p>
                 </div>
@@ -398,7 +358,9 @@ export default function PropertyDetailModal({
                       </span>
                       <p className="font-semibold text-gray-900">
                         {formatPrice(
-                          parseFloat(property.property_listings.securityDeposit)
+                          parseFloat(
+                            property.property_listings.securityDeposit,
+                          ),
                         )}
                       </p>
                     </div>
@@ -414,11 +376,11 @@ export default function PropertyDetailModal({
                       </span>
                       <p className="font-semibold text-gray-900">
                         {new Date(
-                          property.property_listings.availableDate
-                        ).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
+                          property.property_listings.availableDate,
+                        ).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
                         })}
                       </p>
                     </div>
@@ -445,7 +407,7 @@ export default function PropertyDetailModal({
                         <span className="text-sm text-gray-500">Parking</span>
                         <p className="font-semibold text-gray-900">
                           {property.properties.parkingSpaces} space
-                          {property.properties.parkingSpaces > 1 ? 's' : ''}
+                          {property.properties.parkingSpaces > 1 ? "s" : ""}
                         </p>
                       </div>
                     </div>
@@ -465,21 +427,21 @@ export default function PropertyDetailModal({
               </p>
               <div className="space-y-3">
                 <button
-                  onClick={() => handleContact('message')}
+                  onClick={() => handleContact("message")}
                   className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg"
                 >
                   <MessageCircle className="w-5 h-5" />
                   Send Message
                 </button>
                 <button
-                  onClick={() => handleContact('phone')}
+                  onClick={() => handleContact("phone")}
                   className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg"
                 >
                   <Phone className="w-5 h-5" />
                   Call Now
                 </button>
                 <button
-                  onClick={() => handleContact('email')}
+                  onClick={() => handleContact("email")}
                   className="w-full flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg"
                 >
                   <Mail className="w-5 h-5" />
@@ -488,14 +450,14 @@ export default function PropertyDetailModal({
               </div>
               <div className="text-sm text-gray-500">
                 <p>
-                  ⚡ Quick Response: We typically respond within{' '}
+                  ⚡ Quick Response: We typically respond within{" "}
                   <strong>1 hour</strong>
                 </p>
                 {property.property_listings.availableDate && (
                   <p className="mt-2">
-                    📅 <strong>Available:</strong>{' '}
+                    📅 <strong>Available:</strong>{" "}
                     {new Date(
-                      property.property_listings.availableDate
+                      property.property_listings.availableDate,
                     ).toLocaleDateString()}
                   </p>
                 )}
@@ -505,7 +467,7 @@ export default function PropertyDetailModal({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function LocationBox({ title, points }: { title: string; points: string[] }) {
@@ -518,7 +480,7 @@ function LocationBox({ title, points }: { title: string; points: string[] }) {
         ))}
       </ul>
     </div>
-  )
+  );
 }
 
 function SummaryCard({
@@ -527,17 +489,17 @@ function SummaryCard({
   label,
   color,
 }: {
-  icon: 'bed' | 'bath' | 'home' | 'car'
-  value: string
-  label: string
-  color: string
+  icon: "bed" | "bath" | "home" | "car";
+  value: string;
+  label: string;
+  color: string;
 }) {
   const icons = {
     bed: <Bed className="w-6 h-6" />,
     bath: <Bath className="w-6 h-6" />,
     home: <Home className="w-6 h-6" />,
     car: <Car className="w-6 h-6" />,
-  }
+  };
 
   return (
     <div className="flex flex-col items-center border rounded-lg p-4 shadow-sm bg-white">
@@ -545,5 +507,5 @@ function SummaryCard({
       <div className="mt-2 text-lg font-bold text-gray-900">{value}</div>
       <div className="text-sm text-gray-500">{label}</div>
     </div>
-  )
+  );
 }

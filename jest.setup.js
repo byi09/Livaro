@@ -1,32 +1,32 @@
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 
 // Mock Next.js router
-jest.mock('next/router', () => ({
+jest.mock("next/router", () => ({
   useRouter: () => ({
     push: jest.fn(),
-    pathname: '/',
+    pathname: "/",
     query: {},
-    asPath: '/',
+    asPath: "/",
   }),
 }));
 
 // Mock Next.js navigation
-jest.mock('next/navigation', () => ({
+jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
     replace: jest.fn(),
-    pathname: '/',
+    pathname: "/",
     query: {},
-    asPath: '/',
+    asPath: "/",
   }),
   useSearchParams: () => ({
     get: jest.fn(),
   }),
-  usePathname: () => '/',
+  usePathname: () => "/",
 }));
 
 // Mock Supabase client
-jest.mock('./utils/supabase/client', () => ({
+jest.mock("./utils/supabase/client", () => ({
   supabase: {
     auth: {
       getUser: jest.fn(),
@@ -43,6 +43,26 @@ jest.mock('./utils/supabase/client', () => ({
   },
 }));
 
+// Mock Supabase server client
+jest.mock("./utils/supabase/server", () => ({
+  createClient: jest.fn(() =>
+    Promise.resolve({
+      from: jest.fn(() => ({
+        select: jest.fn().mockReturnThis(),
+        insert: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+        delete: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        single: jest.fn(),
+      })),
+    }),
+  ),
+}));
+
 // Mock environment variables
-process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-key'; 
+process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-key";
