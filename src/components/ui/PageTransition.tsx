@@ -79,8 +79,8 @@ const PageTransition: React.FC<PageTransitionProps> = ({
 
   return (
     <div 
-      className={`transition-all duration-300 ease-in-out ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+      className={`transition-opacity duration-300 ease-in-out ${
+        isVisible ? 'opacity-100' : 'opacity-0'
       } ${className}`}
     >
       {showContent ? children : <SkeletonLoader />}
@@ -88,4 +88,4 @@ const PageTransition: React.FC<PageTransitionProps> = ({
   );
 };
 
-export default PageTransition; 
+export default PageTransition;
