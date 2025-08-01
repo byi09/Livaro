@@ -120,15 +120,12 @@ export default function MessagesPage() {
   const loadMessages = useCallback(async (conversationId: string) => {
     setMessagesLoading(true);
     try {
-      console.log('📥 Loading messages for conversation:', conversationId);
       const response = await fetch(`/api/messaging/message?conversationId=${conversationId}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('📥 Received messages:', data);
-        console.log('📥 Messages with isDeleted:', data.filter((msg: any) => msg.isDeleted));
         setMessages(data.reverse()); // Reverse to show oldest first
       } else {
-        console.error('❌ Failed to load messages:', response.status);
+        console.error('Failed to load messages:', response.status);
       }
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -138,13 +135,13 @@ export default function MessagesPage() {
   }, []);
 
   // Handle conversation selection
-  const handleSelectConversation = (conversationId: string) => {
+  const handleSelectConversation = useCallback((conversationId: string) => {
     setSelectedConversationId(conversationId);
     loadMessages(conversationId);
-  };
+  }, [loadMessages]);
 
   // Send message
-  const handleSendMessage = async (content: string, tags?: string[]): Promise<boolean> => {
+  const handleSendMessage = useCallback(async (content: string, tags?: string[]): Promise<boolean> => {
     if (!selectedConversationId || !currentUser) return false;
 
     try {
@@ -172,10 +169,10 @@ export default function MessagesPage() {
       console.error('Error sending message:', error);
       return false;
     }
-  };
+  }, [selectedConversationId, currentUser, loadConversations]);
 
   // Create new conversation
-  const handleCreateConversation = async (data: {
+  const handleCreateConversation = useCallback(async (data: {
     participantIds: string[];
     propertyId?: string;
     conversationType: 'direct' | 'group';
@@ -198,14 +195,17 @@ export default function MessagesPage() {
         loadConversations();
         setSelectedConversationId(result.conversation.id);
         setIsCreateModalOpen(false);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to create conversation:', errorData);
       }
     } catch (error) {
       console.error('Error creating conversation:', error);
     }
-  };
+  }, [loadConversations]);
 
   // Search users for new conversation
-  const searchUsers = async (query: string): Promise<User[]> => {
+  const searchUsers = useCallback(async (query: string): Promise<User[]> => {
     try {
       const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
       if (response.ok) {
@@ -215,10 +215,10 @@ export default function MessagesPage() {
       console.error('Error searching users:', error);
     }
     return [];
-  };
+  }, []);
 
   // Search properties for new conversation
-  const searchProperties = async (query: string): Promise<Property[]> => {
+  const searchProperties = useCallback(async (query: string): Promise<Property[]> => {
     try {
       const response = await fetch(`/api/properties/search?q=${encodeURIComponent(query)}`);
       if (response.ok) {
@@ -228,7 +228,7 @@ export default function MessagesPage() {
       console.error('Error searching properties:', error);
     }
     return [];
-  };
+  }, []);
 
   // Real-time Pusher setup
   useEffect(() => {
@@ -256,15 +256,11 @@ export default function MessagesPage() {
   // Separate effect for conversation channel to avoid unnecessary resubscriptions
   useEffect(() => {
     if (!currentUser || !selectedConversationId) return;
-
-    console.log(`Subscribing to conversation channel: private-conversation-${selectedConversationId}`);
     
     // Subscribe to conversation channel
     const conversationChannel = pusherClient.subscribe(`private-conversation-${selectedConversationId}`);
     
     conversationChannel.bind('new-message', (data: any) => {
-      console.log('Received new message via Pusher:', data);
-      
       // Add the new message to the messages state
       setMessages(prev => {
         // Check if we already have this message (avoid duplicates)
@@ -278,7 +274,6 @@ export default function MessagesPage() {
 
     // Clean up conversation channel subscription when component unmounts or conversation changes
     return () => {
-      console.log(`Unsubscribing from conversation channel: private-conversation-${selectedConversationId}`);
       pusherClient.unsubscribe(`private-conversation-${selectedConversationId}`);
     };
   }, [currentUser, selectedConversationId]);

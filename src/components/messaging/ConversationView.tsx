@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, MoreVertical, Paperclip, Smile, Tag, Plus, X, MessageSquare, Info, CheckCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Send, MoreVertical, Paperclip, Smile, Tag, Plus, X, MessageSquare, Info } from 'lucide-react';
 import Spinner from '../ui/Spinner';
 import { pusherClient } from '@/src/lib/pusher';
 
@@ -12,7 +12,7 @@ interface Message {
   isEdited?: boolean;
   replyToId?: string;
   tags?: string[];
-  isDeleted?: boolean; // Added isDeleted property
+  isDeleted?: boolean;
 }
 
 interface User {
@@ -64,11 +64,10 @@ export default function ConversationView({
   const [openMessageOptions, setOpenMessageOptions] = useState<string | null>(null);
   const [deletingMessage, setDeletingMessage] = useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [messagesState, setMessagesState] = useState(messages);
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [messageSent, setMessageSent] = useState(false);
 
   // Keep messagesState in sync with messages prop
   useEffect(() => {
@@ -89,9 +88,16 @@ export default function ConversationView({
     };
   }, [conversation?.id]);
 
+  // Optimized scroll to bottom with debouncing
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   // Close options menu when clicking outside
   useEffect(() => {
@@ -107,12 +113,8 @@ export default function ConversationView({
     };
   }, [openMessageOptions]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   // Predefined message tags
-  const PREDEFINED_TAGS = [
+  const PREDEFINED_TAGS = useMemo(() => [
     { id: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-700' },
     { id: 'follow_up_needed', label: 'Follow-up Needed', color: 'bg-amber-100 text-amber-700' },
     { id: 'documents_required', label: 'Documents Required', color: 'bg-blue-100 text-blue-700' },
@@ -120,79 +122,72 @@ export default function ConversationView({
     { id: 'viewing_scheduled', label: 'Viewing Scheduled', color: 'bg-purple-100 text-purple-700' },
     { id: 'application_status', label: 'Application Status', color: 'bg-indigo-100 text-indigo-700' },
     { id: 'maintenance_request', label: 'Maintenance Request', color: 'bg-pink-100 text-pink-700' }
-  ];
+  ], []);
 
-  // Always filter out deleted messages, then apply tag filter
-  const filteredMessages = (activeTagFilter
-    ? messagesState.filter(message => message.tags?.includes(activeTagFilter))
-    : messagesState
-  ).filter(msg => !msg.isDeleted);
+  // Optimized message filtering with useMemo
+  const filteredMessages = useMemo(() => {
+    const baseMessages = activeTagFilter
+      ? messagesState.filter(message => message.tags?.includes(activeTagFilter))
+      : messagesState;
+    return baseMessages.filter(msg => !msg.isDeleted);
+  }, [messagesState, activeTagFilter]);
 
-  const handleSend = () => {
-    if (messageInput.trim()) {
-      // Set sending state
-      setSendingMessage(true);
-      setMessageSent(false);
-      
-      // Include tags with the message
-      onSendMessage(messageInput.trim(), messageTags)
-        .then((success: boolean) => {
-          setSendingMessage(false);
-          if (success) {
-            setMessageSent(true);
-            
-            // Hide success after 3 seconds
-            setTimeout(() => {
-              setMessageSent(false);
-            }, 3000);
-          }
-        })
-        .catch(() => {
-          setSendingMessage(false);
-        });
-      
-      // Clear input and tags after sending
-      setMessageInput('');
-      setMessageTags([]);
-      setShowTagInput(false);
-      
-      // Focus the input field for the next message
-      inputRef.current?.focus();
+  // Optimized send message handler
+  const handleSend = useCallback(async () => {
+    if (!messageInput.trim() || sendingMessage) return;
+
+    const messageContent = messageInput.trim();
+    const tagsToSend = [...messageTags];
+
+    // Clear input immediately for better UX
+    setMessageInput('');
+    setMessageTags([]);
+    setShowTagInput(false);
+    setSendingMessage(true);
+
+    try {
+      const success = await onSendMessage(messageContent, tagsToSend);
+      if (success) {
+        // Focus the input field for the next message
+        inputRef.current?.focus();
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setSendingMessage(false);
     }
-  };
+  }, [messageInput, messageTags, sendingMessage, onSendMessage]);
 
-  const addTag = (tag: string) => {
+  const addTag = useCallback((tag: string) => {
     if (!messageTags.includes(tag)) {
-      setMessageTags([...messageTags, tag]);
+      setMessageTags(prev => [...prev, tag]);
     }
     setNewTag('');
     setShowTagInput(false);
-  };
+  }, [messageTags]);
 
-  const removeTag = (tagToRemove: string) => {
-    setMessageTags(messageTags.filter(tag => tag !== tagToRemove));
-  };
+  const removeTag = useCallback((tagToRemove: string) => {
+    setMessageTags(prev => prev.filter(tag => tag !== tagToRemove));
+  }, []);
 
-  const handleCustomTag = () => {
+  const handleCustomTag = useCallback(() => {
     if (newTag.trim() && !messageTags.includes(newTag.trim())) {
       addTag(newTag.trim());
     }
-  };
+  }, [newTag, messageTags, addTag]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  };
+  }, [handleSend]);
 
-  const handleDeleteMessage = async (messageId: string) => {
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
     if (!confirm('Are you sure you want to delete this message?')) {
       return;
     }
 
-    console.log('🗑️ Frontend: Attempting to delete message:', messageId);
-    console.log('🗑️ Frontend: Current messages state:', messagesState);
     setDeletingMessage(messageId);
     
     try {
@@ -204,33 +199,25 @@ export default function ConversationView({
         body: JSON.stringify({ messageId }),
       });
 
-      console.log('📡 Frontend: Delete response status:', response.status);
-
       if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Frontend: Message deleted successfully:', result);
-        console.log('🗑️ Frontend: Removing message from UI immediately');
         // Optimistically remove the message from the UI
-        setMessagesState(prev => {
-          const newState = prev.filter(msg => msg.id !== messageId);
-          console.log('🗑️ Frontend: New messages state after removal:', newState);
-          return newState;
-        });
+        setMessagesState(prev => prev.filter(msg => msg.id !== messageId));
       } else {
         const errorData = await response.json();
-        console.error('❌ Frontend: Failed to delete message:', errorData);
+        console.error('Failed to delete message:', errorData);
         alert(`Failed to delete message: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('❌ Frontend: Error deleting message:', error);
+      console.error('Error deleting message:', error);
       alert('Failed to delete message. Please try again.');
     } finally {
       setDeletingMessage(null);
       setOpenMessageOptions(null);
     }
-  };
+  }, []);
 
-  const getConversationTitle = () => {
+  // Memoized helper functions
+  const getConversationTitle = useCallback(() => {
     if (!conversation) return '';
     if (conversation.title) return conversation.title;
     
@@ -238,9 +225,9 @@ export default function ConversationView({
     return otherParticipant 
       ? `${otherParticipant.user.firstName} ${otherParticipant.user.lastName}`
       : 'Unknown';
-  };
+  }, [conversation, currentUserId]);
 
-  const getConversationSubtitle = () => {
+  const getConversationSubtitle = useCallback(() => {
     if (!conversation) return '';
     const otherParticipant = conversation.participants?.find(p => p.user.id !== currentUserId);
     const role = otherParticipant?.role;
@@ -262,29 +249,29 @@ export default function ConversationView({
     }
 
     return subtitle;
-  };
+  }, [conversation, currentUserId]);
 
-  const getPropertyAddress = () => {
+  const getPropertyAddress = useCallback(() => {
     if (!conversation?.property) return '';
     
     return conversation.property.addressLine2 
       ? `${conversation.property.addressLine1}, ${conversation.property.addressLine2}`
       : conversation.property.addressLine1;
-  };
+  }, [conversation]);
 
-  const formatMessageTime = (dateString: string) => {
+  const formatMessageTime = useCallback((dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  }, []);
 
-  const getInitials = (name: string) => {
+  const getInitials = useCallback((name: string) => {
     return name
       .split(' ')
       .map(n => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
+  }, []);
 
   const title = getConversationTitle();
   const subtitle = getConversationSubtitle();
@@ -601,20 +588,11 @@ export default function ConversationView({
           >
             {sendingMessage ? (
               <Spinner size={20} />
-            ) : messageSent ? (
-              <CheckCircle className="w-5 h-5 text-white" />
             ) : (
               <Send className="w-5 h-5" />
             )}
           </button>
         </div>
-        
-        {/* Message status indicator */}
-        {messageSent && (
-          <div className="flex items-center justify-center mt-3 text-sm text-green-600 font-medium bg-green-50 py-2 px-3 rounded-lg shadow-sm border border-green-100 w-full max-w-[200px] mx-auto animate-bounce">
-            <CheckCircle className="w-4 h-4 mr-2" /> Message sent
-          </div>
-        )}
       </div>
     </div>
   );
