@@ -1,4 +1,4 @@
-import { HiCloudUpload, HiCurrencyDollar, HiPhotograph, HiUserGroup } from 'react-icons/hi';
+import { HiCloudUpload, HiCurrencyDollar, HiPhotograph, HiUserGroup, HiSparkles } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function SellPage() {
@@ -75,6 +75,57 @@ export default function SellPage() {
               <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">Get Tenants</h3>
               <p className="text-gray-600 text-center">Start receiving inquiries from qualified renters</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* One Tap Application Feature Section */}
+      <section className="py-16 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-6">
+              <HiSparkles className="w-8 h-8 text-purple-600" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              One Tap Applications
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Streamline your rental process with instant applications. Configure which fields to include in your application form and let qualified tenants apply with just one tap.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-purple-600 font-bold text-lg">1</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Configure Form Fields</h3>
+              <p className="text-gray-600">Choose which fields to include in your application form - from contact info to lease preferences.</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-purple-600 font-bold text-lg">2</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Applications</h3>
+              <p className="text-gray-600">Qualified tenants can apply instantly with only the fields you've configured.</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-purple-600 font-bold text-lg">3</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Faster Rentals</h3>
+              <p className="text-gray-600">Reduce application time and get qualified tenants into your properties faster.</p>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link
+              href="/sell/dashboard"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-200"
+            >
+              <HiSparkles className="mr-2 h-5 w-5" />
+              Configure Application Form
+            </Link>
           </div>
         </div>
       </section>

@@ -202,22 +202,13 @@ export const getNearbyProperties = async (
       .groupBy(propertyFeatures.propertyId)
   );
 
+  // Temporarily disable geographic filtering until earthdistance extension is enabled
   const results = await db
     .with(featuresSubquery)
     .select()
     .from(properties)
     .innerJoin(propertyListings, eq(properties.id, propertyListings.propertyId))
     .leftJoin(featuresSubquery, eq(properties.id, featuresSubquery.propertyId))
-    .where(
-      sql`
-      earth_box(ll_to_earth(${lat}, ${lng}), ${radius}) @> ll_to_earth(${properties.latitude}, ${properties.longitude})
-      AND earth_distance(ll_to_earth(${lat}, ${lng}), ll_to_earth(${properties.latitude}, ${properties.longitude})) <= ${radius}`
-    )
-    .orderBy(
-      asc(
-        sql`earth_distance(ll_to_earth(${lat}, ${lng}), ll_to_earth(${properties.latitude}, ${properties.longitude}))`
-      )
-    )
     .limit(limit);
 
   return results;

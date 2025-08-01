@@ -105,25 +105,29 @@ export const FormSkeleton: React.FC<{ fields?: number; className?: string }> = (
   );
 };
 
-// Dashboard skeleton
-export const DashboardSkeleton: React.FC = () => {
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-96" />
-      </div>
-      
-      {/* Cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <CardSkeleton key={i} />
-        ))}
-      </div>
+// Property card skeleton for progressive loading states
+export const PropertyCardSkeleton: React.FC = () => (
+  <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-pulse">
+    <div className="w-full h-48 bg-gray-200"></div>
+    <div className="p-6 space-y-4">
+      <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
     </div>
-  );
-};
+  </div>
+);
+
+// Dashboard skeleton
+export const DashboardSkeleton: React.FC = () => (
+  <div className="space-y-8">
+    <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <PropertyCardSkeleton key={i} />
+      ))}
+    </div>
+  </div>
+);
 
 // Map catalog skeleton
 export const MapCatalogSkeleton: React.FC = () => {
@@ -148,4 +152,4 @@ export const MapCatalogSkeleton: React.FC = () => {
   );
 };
 
-export default Skeleton; 
+export default Skeleton;

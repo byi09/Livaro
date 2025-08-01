@@ -31,6 +31,7 @@
     "@vercel/postgres": "^0.10.0",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
+    "classnames": "^2.5.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
@@ -39,6 +40,7 @@
     "lucide-react": "^0.513.0",
     "mapbox-gl": "^3.12.0",
     "next": "15.3.1",
+    "pg": "^8.16.3",
     "postgres": "^3.4.7",
     "psql": "^0.0.1",
     "pusher": "^5.2.0",
@@ -58,14 +60,14 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
+    "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/google.accounts": "^0.0.16",
     "@types/jest": "^30.0.0",
-    "@types/node": "^20",
+    "@types/node": "^20.19.9",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19",
     "@types/react-map-gl": "^6.1.7",
@@ -79,6 +81,6 @@
     "prettier": "3.6.2",
     "tailwindcss": "^3.3.0",
     "tsx": "^4.19.4",
-    "typescript": "^5"
+    "typescript": "^5.8.3"
   }
 }

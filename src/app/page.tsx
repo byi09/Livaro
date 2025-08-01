@@ -98,23 +98,21 @@ export default async function Home() {
       // Show clean loading state while checking
       return (
         <main className="relative min-h-screen overflow-hidden bg-gray-50">
-          {/* Onboarding checker overlay */}
           <OnboardingChecker />
         </main>
       );
     }
   }
 
-  // Otherwise, show improved landing page
+  // User is not logged in, show landing page
   return (
     <main className="min-h-screen font-sans antialiased">
       {/* Hero Section */}
-      <section
-        id="hero-landing"
+      <section 
+        id="hero-landing" 
         className="relative pt-32 pb-12 flex flex-col items-start justify-center min-h-screen"
         style={{
-          backgroundImage:
-            "linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url('/hero-bg.jpg')",
+          backgroundImage: "linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url('/hero-bg.jpg')",
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
@@ -122,10 +120,8 @@ export default async function Home() {
       >
         <div className="relative z-10 max-w-6xl px-8 sm:px-12 lg:px-16 w-full">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold mb-8 leading-tight text-white text-left">
-            We&apos;re excited to
-            <span className="block mt-2">
-              share our pre-launch with you
-            </span>
+            We're excited to
+            <span className="block mt-2">share our pre-launch with you</span>
           </h1>
           
           <div className="max-w-5xl mb-12">
@@ -136,28 +132,20 @@ export default async function Home() {
               Students automate the search process and spend less time scrolling listings.
             </p>
           </div>
-
-          {/* Two-column layout for Landlords and Students */}
+          
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12 max-w-4xl">
-            {/* Landlords Section */}
             <div className="space-y-6">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-white">
-                Landlords:
-              </h2>
-              <Link
+              <h2 className="text-2xl sm:text-3xl font-semibold text-white">Landlords:</h2>
+              <Link 
                 href="/sign-up"
                 className="inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg text-xl font-medium transform hover:scale-105 w-full md:w-52"
               >
                 Sign up 😊
               </Link>
             </div>
-
-            {/* Students Section */}
             <div className="space-y-6">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-white">
-                Students:
-              </h2>
-              <Link
+              <h2 className="text-2xl sm:text-3xl font-semibold text-white">Students:</h2>
+              <Link 
                 href="/waitlist"
                 className="inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg text-xl font-medium transform hover:scale-105 w-full md:w-52"
               >
@@ -168,16 +156,13 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Pre-launch Section */}
+      {/* Calendar Section */}
       <section className="py-10 bg-white">
         <div className="max-w-7xl mx-auto px-8 sm:px-12 lg:px-16">
           <div className="grid lg:grid-cols-5 gap-6 items-start">
-            {/* Left side - Calendar (takes up 3 columns, positioned more to the left) */}
             <div className="lg:col-span-3 flex justify-start">
               <LaunchCalendar />
             </div>
-
-            {/* Right side - Content, right-aligned (takes up 2 columns) */}
             <div className="lg:col-span-2 text-right space-y-8 flex flex-col items-end">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-snug tracking-tight">
                 Launching July 16th
@@ -188,9 +173,9 @@ export default async function Home() {
               <p className="text-base text-gray-600 leading-relaxed font-light max-w-xl">
                 Be among the first to experience our platform with enhanced features for both landlords and tenants.
               </p>
-
+              
               <div className="space-y-8 pt-8 w-full max-w-xl">
-                <h3 className="text-xl font-bold text-gray-900 tracking-tight text-center mb-4">What&apos;s Coming</h3>
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight text-center mb-4">What's Coming</h3>
                 <div className="space-y-8">
                   <div className="flex items-center space-x-6 justify-start">
                     <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center">
@@ -203,6 +188,7 @@ export default async function Home() {
                       <p className="text-base text-gray-600 leading-relaxed font-light">Browse properties with detailed listings and neighborhood insights.</p>
                     </div>
                   </div>
+                  
                   <div className="flex items-center space-x-6 justify-start">
                     <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl flex items-center justify-center">
                       <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,6 +200,7 @@ export default async function Home() {
                       <p className="text-base text-gray-600 leading-relaxed font-light">Connect with verified tenants through intelligent referrals.</p>
                     </div>
                   </div>
+                  
                   <div className="flex items-center space-x-6 justify-start">
                     <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center">
                       <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,14 +214,13 @@ export default async function Home() {
                   </div>
                 </div>
               </div>
-              <div className="pt-8 w-full max-w-xl">
-              </div>
             </div>
+            <div className="pt-8 w-full max-w-xl"></div>
           </div>
         </div>
       </section>
 
-      {/* Target Audience Section */}
+      {/* Features Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-8 sm:px-12 lg:px-16">
           <div className="text-center mb-12">
@@ -242,10 +228,10 @@ export default async function Home() {
               Built for <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Success</span>
             </h2>
             <p className="text-base text-gray-600 max-w-3xl leading-relaxed mx-auto text-center">
-              Whether you&apos;re a landlord/property manager or student renter, Livaro streamlines the rental process for everyone.
+              Whether you're a landlord/property manager or student renter, Livaro streamlines the rental process for everyone.
             </p>
           </div>
-
+          
           <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
             <div className="group">
               <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full border border-blue-100">
@@ -255,13 +241,9 @@ export default async function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                   </div>
-
                   <h3 className="text-xl font-bold mb-2 text-gray-900">Landlord/Property Manager</h3>
-                  <p className="text-gray-600 leading-relaxed mb-4 text-sm">
-                    Reduce vacancy time and find quality tenants with our comprehensive screening and management tools.
-                  </p>
+                  <p className="text-gray-600 leading-relaxed mb-4 text-sm">Reduce vacancy time and find quality tenants with our comprehensive screening and management tools.</p>
                   <Link href="/owners" className="text-blue-600 underline mt-2 block">Learn more →</Link>
-
                 </div>
                 <ul className="space-y-3 text-gray-600">
                   <li className="flex items-center">
@@ -285,7 +267,7 @@ export default async function Home() {
                 </ul>
               </div>
             </div>
-
+            
             <div className="group">
               <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full border border-green-100">
                 <div className="text-center mb-6">
@@ -295,11 +277,8 @@ export default async function Home() {
                     </svg>
                   </div>
                   <h3 className="text-xl font-bold mb-2 text-gray-900">Student Renters</h3>
-                  <p className="text-gray-600 leading-relaxed mb-4 text-sm">
-                    Stand out from other applicants and get priority access to the best rental properties.
-                  </p>
+                  <p className="text-gray-600 leading-relaxed mb-4 text-sm">Stand out from other applicants and get priority access to the best rental properties.</p>
                   <Link href="/student" className="text-blue-600 underline mt-2 block">Learn more →</Link>
-
                 </div>
                 <ul className="space-y-3 text-gray-600">
                   <li className="flex items-center">
@@ -332,18 +311,15 @@ export default async function Home() {
         <div className="max-w-7xl mx-auto px-8 sm:px-12 lg:px-16">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="text-left">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6 leading-snug tracking-tight">
-                Get in Touch
-              </h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6 leading-snug tracking-tight">Get in Touch</h2>
               <p className="text-lg sm:text-xl text-gray-700 mb-8 leading-relaxed font-light">
-                Have questions about Livaro? We&apos;d love to hear from you and help you get started.
+                Have questions about Livaro? We'd love to hear from you and help you get started.
               </p>
             </div>
-
             <ContactForm />
           </div>
         </div>
       </section>
     </main>
   );
-}  
+} 
