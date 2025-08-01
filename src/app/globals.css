@@ -99,6 +99,35 @@ html {
   outline-offset: 2px;
 }
 
+/* Header responsive fixes */
+.header-container {
+  @apply w-full overflow-hidden;
+}
+
+.header-content {
+  @apply flex justify-between items-center h-16 min-w-0;
+}
+
+.header-logo {
+  @apply flex-shrink-0;
+}
+
+.header-nav {
+  @apply hidden lg:flex items-center space-x-8 flex-shrink-0;
+}
+
+.header-actions {
+  @apply flex items-center space-x-3 lg:space-x-4 flex-shrink-0;
+}
+
+.header-user-profile {
+  @apply relative flex-shrink-0 min-w-0;
+}
+
+.header-user-name {
+  @apply hidden sm:inline font-medium text-gray-900 text-sm lg:text-base max-w-[120px] lg:max-w-[150px] truncate;
+}
+
 @layer components {
   /* Background grid pattern */
   .bg-grid-pattern {

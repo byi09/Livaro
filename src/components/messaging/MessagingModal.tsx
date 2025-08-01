@@ -148,11 +148,8 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
   };
 
   // Send message
-  const handleSendMessage = async (content: string, tags?: string[]): Promise<boolean> => {
-    console.log('Attempting to send message:', { content, selectedConversationId, currentUser: currentUser?.id });
-    
+  const handleSendMessage = useCallback(async (content: string, tags?: string[]): Promise<boolean> => {
     if (!selectedConversationId || !currentUser) {
-      console.error('Cannot send message - missing selectedConversationId or currentUser');
       return false;
     }
 
@@ -175,9 +172,11 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
       });
 
       if (response.ok) {
-        console.log('Message sent successfully');
         // Message will be added via Pusher real-time event
-        loadConversations(); // Refresh conversation list to update last message
+        // Only refresh conversations if needed
+        if (conversations.length > 0) {
+          loadConversations();
+        }
         return true;
       } else {
         const errorData = await response.json();
@@ -188,17 +187,16 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
       console.error('Error sending message:', error);
       return false;
     }
-  };
+  }, [selectedConversationId, currentUser, conversations.length, loadConversations]);
 
   // Create new conversation
-  const handleCreateConversation = async (data: {
+  const handleCreateConversation = useCallback(async (data: {
     participantIds: string[];
     propertyId?: string;
     conversationType: 'direct' | 'group';
     title?: string;
   }) => {
     try {
-      console.log('Creating conversation with data:', data);
       const response = await fetch('/api/messaging/conversation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,7 +210,6 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Conversation created:', result);
         
         // Reload conversations and wait for them to load
         await loadConversations();
@@ -220,7 +217,6 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
         // Set the selected conversation after a short delay to ensure conversations are loaded
         setTimeout(() => {
           setSelectedConversationId(result.conversation.id);
-          console.log('Selected conversation set to:', result.conversation.id);
         }, 500);
         
         setIsCreateModalOpen(false);
@@ -231,10 +227,10 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
     } catch (error) {
       console.error('Error creating conversation:', error);
     }
-  };
+  }, [loadConversations]);
 
   // Search users for new conversation
-  const searchUsers = async (query: string): Promise<User[]> => {
+  const searchUsers = useCallback(async (query: string): Promise<User[]> => {
     try {
       const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
       if (response.ok) {
@@ -244,10 +240,10 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
       console.error('Error searching users:', error);
     }
     return [];
-  };
+  }, []);
 
   // Search properties for new conversation
-  const searchProperties = async (query: string): Promise<Property[]> => {
+  const searchProperties = useCallback(async (query: string): Promise<Property[]> => {
     try {
       const response = await fetch(`/api/properties/search?q=${encodeURIComponent(query)}`);
       if (response.ok) {
@@ -257,7 +253,7 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
       console.error('Error searching properties:', error);
     }
     return [];
-  };
+  }, []);
 
   // Real-time Pusher setup
   useEffect(() => {
@@ -271,12 +267,8 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
     });
 
     userChannel.bind('message-deleted', (data: any) => {
-      console.log('📡 Frontend: Received message-deleted event:', data);
       if (data.conversationId === selectedConversationId) {
-        console.log('✅ Frontend: Removing message from UI:', data.messageId);
         setMessages(prev => prev.filter(msg => msg.id !== data.messageId));
-      } else {
-        console.log('⚠️ Frontend: Message deleted in different conversation:', data.conversationId, 'vs', selectedConversationId);
       }
     });
 
@@ -289,15 +281,11 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
   // Separate effect for conversation channel to avoid unnecessary resubscriptions
   useEffect(() => {
     if (!currentUser || !selectedConversationId || !isOpen) return;
-
-    console.log(`Subscribing to conversation channel: private-conversation-${selectedConversationId}`);
     
     // Subscribe to conversation channel
     const conversationChannel = pusherClient.subscribe(`private-conversation-${selectedConversationId}`);
     
     conversationChannel.bind('new-message', (data: any) => {
-      console.log('Received new message via Pusher:', data);
-      
       // Add the new message to the messages state
       setMessages(prev => {
         // Check if we already have this message (avoid duplicates)
@@ -311,7 +299,6 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
 
     // Clean up conversation channel subscription when component unmounts or conversation changes
     return () => {
-      console.log(`Unsubscribing from conversation channel: private-conversation-${selectedConversationId}`);
       pusherClient.unsubscribe(`private-conversation-${selectedConversationId}`);
     };
   }, [currentUser, selectedConversationId, isOpen]);

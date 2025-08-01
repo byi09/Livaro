@@ -128,8 +128,8 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
   return (
     <header className="fixed top-0 z-50 w-full bg-white text-gray-900 shadow-sm border-b border-gray-200">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link href="/" className="flex items-center">
+        <div className="flex items-center h-16">
+          <Link href="/" className="flex items-center flex-shrink-0">
             <div className="flex items-center space-x-3">
               <img
                 src="/logo.png"
@@ -141,7 +141,7 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-10">
+          <nav className="hidden md:flex items-center space-x-6 mx-auto">
             <Link
               href="/map"
               className="font-medium transition-colors text-base text-gray-700 hover:text-gray-900"
@@ -172,6 +172,13 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
                 </Link>
               </DropdownItem>
             </Dropdown>
+            {/* Student Dashboard Link */}
+            <Link
+              href="/student-dashboard"
+              className="font-medium transition-colors text-base text-gray-700 hover:text-blue-600 relative"
+            >
+              Student Dashboard
+            </Link>
             {/* Messages Nav Link */}
             <Link
               href="/messages"
@@ -182,7 +189,7 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
             </Link>
           </nav>
 
-          <div className="flex items-center space-x-5">
+          <div className="flex items-center space-x-5 flex-shrink-0">
             <NotificationBell />
 
             <div className="relative">
