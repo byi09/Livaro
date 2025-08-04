@@ -88,10 +88,10 @@ export default function ConversationView({
     };
   }, [conversation?.id]);
 
-  // Optimized scroll to bottom with debouncing
+  // Optimized scroll to bottom with immediate response
   const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
     }
   }, []);
 
@@ -132,13 +132,26 @@ export default function ConversationView({
     return baseMessages.filter(msg => !msg.isDeleted);
   }, [messagesState, activeTagFilter]);
 
-  // Optimized send message handler
+  // Optimized send message handler with optimistic updates
   const handleSend = useCallback(async () => {
     if (!messageInput.trim() || sendingMessage) return;
 
     const messageContent = messageInput.trim();
     const tagsToSend = [...messageTags];
 
+    // Create optimistic message for immediate UI feedback
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      content: messageContent,
+      createdAt: new Date().toISOString(),
+      senderId: currentUserId,
+      messageType: 'text',
+      tags: tagsToSend,
+    };
+
+    // Add optimistic message immediately
+    setMessagesState(prev => [...prev, optimisticMessage]);
+    
     // Clear input immediately for better UX
     setMessageInput('');
     setMessageTags([]);
@@ -150,13 +163,20 @@ export default function ConversationView({
       if (success) {
         // Focus the input field for the next message
         inputRef.current?.focus();
+        // Remove optimistic message as real message will be added via props
+        setMessagesState(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      } else {
+        // Remove optimistic message on failure
+        setMessagesState(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      // Remove optimistic message on error
+      setMessagesState(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
     } finally {
       setSendingMessage(false);
     }
-  }, [messageInput, messageTags, sendingMessage, onSendMessage]);
+  }, [messageInput, messageTags, sendingMessage, onSendMessage, currentUserId]);
 
   const addTag = useCallback((tag: string) => {
     if (!messageTags.includes(tag)) {
@@ -327,7 +347,7 @@ export default function ConversationView({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white via-gray-50 to-white">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gradient-to-b from-white via-gray-50 to-white">
         {isLoading && (
           <div className="text-center py-4">
             <Spinner size={24} />
@@ -460,7 +480,7 @@ export default function ConversationView({
                   )}
                 </div>
                 {showTimestamp && (
-                  <div className={`text-xs text-gray-400 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'} font-medium`}>
+                  <div className={`text-xs text-gray-400 mt-0.5 ${isOwnMessage ? 'text-right' : 'text-left'} font-medium`}>
                     {formatMessageTime(message.createdAt)}
                   </div>
                 )}
