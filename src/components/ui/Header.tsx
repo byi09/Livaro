@@ -134,24 +134,24 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
               <img
                 src="/logo.png"
                 alt="Livaro Logo"
-                className="w-9 h-9 mr-3 object-contain transition-transform duration-200 group-hover:scale-110"
+                className="w-8 h-8 mr-2 object-contain transition-transform duration-200 group-hover:scale-110"
               />
-              <span className="text-2xl font-bold">Livaro</span>
+              <span className="text-xl font-bold text-gray-800">Livaro</span>
             </div>
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-6 mx-auto">
+          <nav className="hidden md:flex items-center space-x-8 mx-auto">
             <Link
               href="/map"
-              className="font-medium transition-colors text-base text-gray-700 hover:text-gray-900"
+              className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900"
             >
               Rent
             </Link>
             {/* Property Management Dropdown */}
             <Dropdown
               trigger="Manage Rentals"
-              triggerClassName="font-medium transition-colors text-base text-gray-700 hover:text-gray-900 border-none bg-transparent shadow-none hover:bg-gray-50 px-3 py-1"
+              triggerClassName="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 border-none bg-transparent shadow-none hover:bg-gray-50 px-3 py-1.5 rounded-md"
             >
               <DropdownItem>
                 <Link href="/sell/create" className="w-full block">
@@ -175,21 +175,21 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
             {/* Student Dashboard Link */}
             <Link
               href="/student-dashboard"
-              className="font-medium transition-colors text-base text-gray-700 hover:text-blue-600 relative"
+              className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 relative"
             >
               Student Dashboard
             </Link>
             {/* Messages Nav Link */}
             <Link
               href="/messages"
-              className="font-medium transition-colors text-base text-gray-700 hover:text-blue-600 relative"
+              className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 relative"
             >
               Messages
               {/* Optionally, add a badge for unread messages here in the future */}
             </Link>
           </nav>
 
-          <div className="flex items-center space-x-5 flex-shrink-0">
+          <div className="flex items-center space-x-4 flex-shrink-0">
             <NotificationBell />
 
             <div className="relative">
@@ -197,10 +197,10 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors focus:outline-none"
               >
-                <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center">
-                  <HiUser className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <HiUser className="w-4 h-4 text-white" />
                 </div>
-                <span className="hidden sm:inline font-medium text-gray-900 text-base">
+                <span className="hidden sm:inline font-medium text-gray-800 text-sm">
                   {getDisplayName()}
                 </span>
                 <HiChevronDown
