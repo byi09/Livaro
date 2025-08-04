@@ -315,22 +315,25 @@ export default function AISearchOverlay({
 
         {/* Input Form */}
         <div className="border-t border-gray-200 p-6">
-          <form onSubmit={handleSubmit} className="flex space-x-3">
-            <Input
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask me about properties, neighborhoods, or specific requirements..."
-              disabled={isLoading}
-              className="flex-1 text-base text-black"
-            />
-            <Button
-              type="submit"
-              disabled={!inputValue.trim() || isLoading}
-              className="px-6"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
+          <form onSubmit={handleSubmit}>
+            <div className="relative">
+              <Input
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Ask me about properties, neighborhoods, or specific requirements..."
+                disabled={isLoading}
+                className="w-full text-base text-black pr-12 py-3"
+              />
+              <Button
+                type="submit"
+                disabled={!inputValue.trim() || isLoading}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 rounded-md"
+                size="sm"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
           </form>
         </div>
       </div>
