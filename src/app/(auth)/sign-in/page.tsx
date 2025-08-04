@@ -7,7 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { useToast } from '@/src/components/ui/Toast';
-import Spinner, { LoadingOverlay } from '@/src/components/ui/Spinner';
+import { LoadingOverlay } from '@/src/components/ui/Spinner';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
 
 export default function SignIn() {
@@ -16,47 +16,46 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{email?: string; password?: string}>({});
-  const [checking, setChecking] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [showContent, setShowContent] = useState(false);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const isVerified = searchParams.get('verified') === 'true';
   const { success, error: showError } = useToast();
 
-  // Check if user is already authenticated and onboarded
+  // Streamlined auth check
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        try {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
           const res = await fetch('/api/onboarding/check-status');
           if (res.ok) {
-            const { onboarded } = await res.json();
-            if (onboarded) {
-              router.push('/');
-              return;
-            }
-            // Logged in but not onboarded -> go to landing for onboarding flow
-            router.push('/');
+            router.replace('/');
             return;
           }
-        } catch (error) {
-          console.error('Error checking onboarding status:', error);
         }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      } finally {
+        setAuthChecking(false);
+        // Small delay to prevent flash
+        setTimeout(() => setShowContent(true), 50);
       }
-      setChecking(false);
     };
-
+    
     checkAuth();
   }, [router]);
 
   // Show success message for email verification
   useEffect(() => {
-    if (isVerified) {
+    if (isVerified && showContent) {
       success('Email verified successfully!', 'You can now sign in with your account.');
     }
-  }, [isVerified, success]);
+  }, [isVerified, success, showContent]);
 
   const validateForm = () => {
     const newErrors: {email?: string; password?: string} = {};
@@ -77,77 +76,83 @@ export default function SignIn() {
     return Object.keys(newErrors).length === 0;
   };
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+    
     setLoading(true);
-    
-    if (!validateForm()) {
-      setLoading(false);
-      return;
-    }
-    
     setErrors({});
     
-    const supabase = createClient();
-    const {error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    setLoading(false);
-    
-    if (error) {
-      showError('Sign in failed', error.message);
-    } else {
-      success('Welcome back!', 'Redirecting...');
-      // Full page reload so that onboarding status and header sync correctly
-      window.location.href = '/';
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        showError('Sign in failed', error.message);
+      } else {
+        success('Welcome back!', 'Redirecting...');
+        router.push('/');
+      }
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     setErrors({});
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/callback`
-      }
-    });
     
-    if (error) {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/callback`
+        }
+      });
+      
+      if (error) {
+        showError('Google sign in failed', error.message);
+        setGoogleLoading(false);
+      }
+    } catch (error) {
       setGoogleLoading(false);
-      showError('Google sign in failed', error.message);
     }
   };
 
-  if (checking) {
+  // Show minimal loading only during auth check
+  if (authChecking) {
     return (
-      <LoadingOverlay
-        show={true}
-        message="Checking authentication..."
-        subtitle="Please wait while we verify your session"
-        size={40}
-        opacity="heavy"
-      />
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
     );
   }
 
   const isFormLoading = loading || googleLoading;
 
   return (
-    <div className="flex min-h-screen relative">
-      {/* Loading Overlay */}
+    <div 
+      className={`flex min-h-screen relative transition-opacity duration-300 ${
+        showContent ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {/* Loading Overlay - only show during form submission */}
       <LoadingOverlay
-        show={loading}
-        message="Signing you in..."
-        subtitle="Please wait while we authenticate your account"
+        show={isFormLoading}
+        message={loading ? "Signing you in..." : googleLoading ? "Signing in with Google..." : ""}
+        subtitle={isFormLoading ? "Please wait while we authenticate your account" : ""}
         container={false}
         opacity="heavy"
       />
-
-      {/* Back button - positioned at the top left */}
+      
+      {/* Back button */}
       <Button
         variant="ghost"
         size="sm"
@@ -158,10 +163,10 @@ export default function SignIn() {
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to home
       </Button>
-
+      
       {/* Left side - Login form */}
       <div className="w-full lg:w-1/2 flex flex-col p-6 lg:p-10 justify-center bg-white">
-        <div className="max-w-md mx-auto w-full space-consistent">
+        <div className="max-w-md mx-auto w-full">
           {/* Logo */}
           <div className="flex items-center justify-center mb-8">
             <div className="relative w-10 h-10 mr-2">
@@ -174,12 +179,12 @@ export default function SignIn() {
             </div>
             <span className="text-xl font-bold text-gray-900">Livaro</span>
           </div>
-
+          
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
             <p className="text-gray-600">Sign in to your account to continue</p>
           </div>
-
+          
           <form className="space-y-6" onSubmit={handleSubmit}>
             <Input
               label="Email Address"
@@ -192,7 +197,6 @@ export default function SignIn() {
               disabled={isFormLoading}
               required
             />
-
             <Input
               label="Password"
               type="password"
@@ -204,7 +208,6 @@ export default function SignIn() {
               disabled={isFormLoading}
               required
             />
-
             <Button
               type="submit"
               loading={loading}
@@ -215,7 +218,7 @@ export default function SignIn() {
               Sign in
             </Button>
           </form>
-
+          
           <div className="mt-8 space-y-4">
             <p className="text-center text-sm text-gray-600">
               New to Livaro?{' '}
@@ -223,7 +226,6 @@ export default function SignIn() {
                 Create account
               </Link>
             </p>
-            
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -232,7 +234,6 @@ export default function SignIn() {
                 <span className="px-4 bg-white text-sm text-gray-500">OR</span>
               </div>
             </div>
-
             <Button
               variant="outline"
               onClick={handleGoogleSignIn}
@@ -253,7 +254,7 @@ export default function SignIn() {
           </div>
         </div>
       </div>
-
+      
       {/* Right side - Image */}
       <div className="hidden lg:block lg:w-1/2 relative">
         <Image

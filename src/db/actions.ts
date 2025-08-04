@@ -2,8 +2,22 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { db } from ".";
-import { customers, userPreferences, users } from "./schema";
-import { eq } from "drizzle-orm";
+import { 
+  customers, 
+  userPreferences, 
+  users, 
+  landlords, 
+  properties, 
+  propertyListings,
+  apartmentBuildings,
+  conversationParticipants,
+  messages,
+  groupInvitations,
+  renters,
+  likedProperties,
+  notifications
+} from "./schema";
+import { eq, or } from "drizzle-orm";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { NotificationPreferences } from "@/lib/types";
 
@@ -367,10 +381,129 @@ export const deleteAccount = async () => {
       };
     }
 
-    // delete user from Supabase auth
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(
-      data.user.id
-    );
+    const userId = data.user.id;
+
+    // Step 1: Get customer ID to find associated landlord/renter profiles
+    const customerRecord = await db.query.customers.findFirst({
+      where: eq(customers.userId, userId),
+      columns: { id: true }
+    });
+
+    if (customerRecord) {
+      // Step 2: Delete landlord-related data first (since it has the most dependencies)
+      const landlordRecord = await db.query.landlords.findFirst({
+        where: eq(landlords.customerId, customerRecord.id),
+        columns: { id: true }
+      });
+
+      if (landlordRecord) {
+        console.log(`Deleting landlord data for user ${userId}`);
+        
+        // Get all properties owned by this landlord
+        const userProperties = await db.query.properties.findMany({
+          where: eq(properties.landlordId, landlordRecord.id),
+          columns: { id: true }
+        });
+
+        // Delete property listings for each property (explicit deletion for clarity)
+        for (const property of userProperties) {
+          await db.delete(propertyListings)
+            .where(eq(propertyListings.propertyId, property.id));
+        }
+
+        // Delete properties (this will cascade delete property_images, property_features, etc.)
+        await db.delete(properties)
+          .where(eq(properties.landlordId, landlordRecord.id));
+
+        // Delete apartment buildings owned by this landlord
+        await db.delete(apartmentBuildings)
+          .where(eq(apartmentBuildings.landlordId, landlordRecord.id));
+
+        // Delete landlord record
+        await db.delete(landlords)
+          .where(eq(landlords.id, landlordRecord.id));
+      }
+
+      // Step 3: Delete renter profile if exists
+      const renterRecord = await db.query.renters.findFirst({
+        where: eq(renters.customerId, customerRecord.id),
+        columns: { id: true }
+      });
+
+      if (renterRecord) {
+        console.log(`Deleting renter data for user ${userId}`);
+        
+        // Note: propertyViews and renterSearches will be cleaned up 
+        // when the renterId becomes null (they reference renters.id)
+        await db.delete(renters)
+          .where(eq(renters.id, renterRecord.id));
+      }
+    }
+
+    // Step 4: Delete user-related data
+    console.log(`Deleting user-related data for user ${userId}`);
+    
+    // Delete notifications sent to or by this user
+    await db.delete(notifications)
+      .where(or(
+        eq(notifications.senderId, userId),
+        eq(notifications.receiverId, userId)
+      ));
+
+    // Delete user preferences
+    await db.delete(userPreferences)
+      .where(eq(userPreferences.userId, userId));
+
+    // Note: oneTapApplicationPreferences references landlord.id, so it will be 
+    // cleaned up when we delete the landlord profile (cascade delete)
+
+    // Delete saved/liked properties
+    await db.delete(likedProperties)
+      .where(eq(likedProperties.userId, userId));
+    
+    // Note: savedProperties, propertyViews, renterSearches, and renterSearchPreferences
+    // reference renter.id (not user.id directly), so they'll be cleaned up when we delete the renter profile
+
+    // Delete renter searches and preferences (these actually reference renter.id, not user.id)
+    // So they should be cleaned up automatically when the renter profile is deleted
+
+    // Step 5: Handle messaging data
+    console.log(`Deleting messaging data for user ${userId}`);
+    
+    // Get all conversations where user is a participant
+    const userConversations = await db.query.conversationParticipants.findMany({
+      where: eq(conversationParticipants.userId, userId),
+      columns: { conversationId: true }
+    });
+
+    // Delete user's messages (soft delete may already be handled, but ensure cleanup)
+    await db.delete(messages)
+      .where(eq(messages.senderId, userId));
+
+    // Delete group invitations sent by this user
+    await db.delete(groupInvitations)
+      .where(eq(groupInvitations.invitedBy, userId));
+
+    // Remove user from conversation participants
+    await db.delete(conversationParticipants)
+      .where(eq(conversationParticipants.userId, userId));
+
+    // Step 6: Delete core user records
+    console.log(`Deleting core user records for user ${userId}`);
+    
+    // Delete customer record (this should cascade to any remaining related data)
+    if (customerRecord) {
+      await db.delete(customers)
+        .where(eq(customers.id, customerRecord.id));
+    }
+
+    // Delete user record
+    await db.delete(users)
+      .where(eq(users.id, userId));
+
+    // Step 7: Delete user from Supabase auth (do this last)
+    console.log(`Deleting user from Supabase auth: ${userId}`);
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
     if (deleteError) {
       return {
         success: false,
@@ -378,10 +511,7 @@ export const deleteAccount = async () => {
       };
     }
 
-    // delete user data from the database
-    await db.delete(users).where(eq(users.id, data.user.id));
-    await db.delete(customers).where(eq(customers.userId, data.user.id));
-
+    console.log(`Successfully deleted user account: ${userId}`);
     return {
       success: true
     };
