@@ -1,4 +1,4 @@
-import Spinner from '@/src/components/ui/Spinner'
+
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Edit, Trash2, Building, MapPin } from 'lucide-react'
@@ -119,7 +119,7 @@ export default function BuildingCard({
         {/* Action Text */}
         <div className="flex items-center text-xs text-blue-600 font-medium">
           {isLoading && (
-            <Spinner size={12} variant="primary" className="mr-2" />
+                            <div className="animate-pulse text-blue-600 text-xs mr-2">...</div>
           )}
           <span data-testid={isLoading ? "loading-text" : "action-text"}>
             {isLoading ? 'Loading...' : 'Click to manage building'}

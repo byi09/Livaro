@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { useToast } from '@/src/components/ui/Toast';
-import Spinner from '@/src/components/ui/Spinner';
+
 
 interface ExistingImage {
   id: string;
@@ -116,7 +116,7 @@ export default function SortImagesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-40">
-            <Spinner size={24} className="text-blue-600" />
+            <div className="animate-pulse text-blue-600">Saving...</div>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">

@@ -6,7 +6,7 @@ import { signUpNewUser } from '@/utils/supabase/actions';
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/src/components/ui/button';
-import { LoadingOverlay } from '@/src/components/ui/Spinner';
+
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -91,14 +91,7 @@ export default function SignUpPage() {
       </Button>
 
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 relative">
-        {/* Loading Overlay */}
-        <LoadingOverlay
-          show={loading}
-          message="Creating your account..."
-          subtitle="This may take a few moments"
-          container={true}
-          opacity="heavy"
-        />
+
 
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">

@@ -1,4 +1,4 @@
-import Spinner from '@/src/components/ui/Spinner'
+
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Edit, Trash2, Bed, Bath, Square, Zap } from 'lucide-react'
@@ -144,7 +144,7 @@ export default function ListingCard({
         {/* Action Text */}
         <div className="flex items-center text-xs text-blue-600 font-medium">
           {isLoading && (
-            <Spinner size={12} variant="primary" className="mr-2" />
+                            <div className="animate-pulse text-blue-600 text-xs mr-2">...</div>
           )}
           {isLoading ? 'Loading...' : getActionText(property)}
         </div>

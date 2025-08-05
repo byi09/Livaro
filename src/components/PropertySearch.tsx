@@ -7,10 +7,10 @@ import { useGeolocationContext } from "../contexts/GeolocationContext";
 import { useRouter } from "next/navigation";
 import { geocode } from "@/utils/geocoding";
 import { Button } from "./ui/button";
-import { Skeleton } from "./ui/LoadingSkeleton";
+
 import { Search, SlidersHorizontal } from "lucide-react";
 import React from "react";
-import Spinner from "./ui/Spinner";
+
 import AISearchOverlay from "./AISearchOverlay";
 import { handleAISearchQuery } from "@/src/lib/ai-search-actions";
 
@@ -69,15 +69,11 @@ function PropertySearch() {
     formState: { errors },
     setValue,
   } = useForm<SearchFormValues>({ resolver });
+  // Cache location field registration to reuse handlers consistently
+  const locationField = register("location", { required: true });
   const { location, isLoading } = useGeolocationContext();
-  const router = useRouter();
-  const [isSearching, setIsSearching] = useState(false);
-  const [showMoreFilters, setShowMoreFilters] = useState(false);
-  const [useAISearch, setUseAISearch] = useState(false);
-  const [showAIOverlay, setShowAIOverlay] = useState(false);
-  const [aiSearchQuery, setAISearchQuery] = useState("");
 
-  // Memoize default location to prevent unnecessary re-renders
+  // Compute default location derived from geolocation
   const defaultLocation = useMemo(() => {
     if (isLoading) return "";
     return location?.city && location?.state
@@ -85,11 +81,25 @@ function PropertySearch() {
       : "";
   }, [isLoading, location?.city, location?.state]);
 
+  // Initialize with placeholder, update smoothly when geolocation arrives
+  const [locationInput, setLocationInput] = useState("Mountain View, CA");
+
+  // Smooth transition when geolocation data arrives
   useEffect(() => {
-    if (defaultLocation) {
+    if (!isLoading && defaultLocation && defaultLocation !== locationInput) {
+      // Smooth update with transition
+      setLocationInput(defaultLocation);
       setValue("location", defaultLocation);
     }
-  }, [defaultLocation, setValue]);
+  }, [isLoading, defaultLocation, locationInput, setValue]);
+  const router = useRouter();
+  const [isSearching, setIsSearching] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [useAISearch, setUseAISearch] = useState(false);
+  const [showAIOverlay, setShowAIOverlay] = useState(false);
+  const [aiSearchQuery, setAISearchQuery] = useState("");
+
+
 
   const onSubmit = useCallback(
     async (data: SearchFormValues) => {
@@ -139,31 +149,8 @@ function PropertySearch() {
     [router, useAISearch, setShowAIOverlay, setAISearchQuery],
   );
 
-  if (isLoading) {
-    return (
-      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="md:col-span-2">
-            <Skeleton className="h-12 w-full rounded-lg" />
-          </div>
-          <Skeleton className="h-12 w-full rounded-lg" />
-          <Skeleton className="h-12 w-full rounded-lg" />
-        </div>
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex flex-wrap gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-6 w-24 rounded" />
-            ))}
-            <Skeleton className="h-6 w-20 rounded" />
-          </div>
-          <Skeleton className="h-12 w-24 rounded-lg" />
-        </div>
-        <div className="flex justify-center py-8">
-          <Spinner size={48} variant="primary" />
-        </div>
-      </div>
-    );
-  }
+
+
 
   return (
     // dont delete this fragment, it will cause hydration issues
@@ -176,9 +163,13 @@ function PropertySearch() {
           {/* Location Input */}
           <div className="md:col-span-2">
             <LocationSearchInput
-              {...register("location", { required: true })}
-              key={`location-${defaultLocation}`} // Add key to prevent animation issues
-              defaultValue={defaultLocation}
+              {...locationField}
+              value={locationInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setLocationInput(value);
+                locationField.onChange(e);
+              }}
             >
               {errors.location && (
                 <p className="text-red-500 text-sm mt-1 absolute">

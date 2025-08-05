@@ -9,7 +9,7 @@ import { Search, Filter, Plus, MessageSquare, Archive, Users, Building, X, Minim
 import ConversationList from '@/src/components/messaging/ConversationList';
 import ConversationView from '@/src/components/messaging/ConversationView';
 import CreateConversationModal from '@/src/components/messaging/CreateConversationModal';
-import Spinner from '@/src/components/ui/Spinner';
+
 
 interface User {
   id: string;
@@ -368,7 +368,7 @@ export default function MessagingModal({ isOpen, onClose, onUnreadCountChange }:
           <div className="flex-1 flex overflow-hidden">
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
-                <Spinner size={40} />
+                <div className="animate-pulse text-gray-600">Loading...</div>
               </div>
             ) : (
               <>

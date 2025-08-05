@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { useToast } from '@/src/components/ui/Toast';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
-import Spinner from '@/src/components/ui/Spinner';
+
 import { Upload, Image as ImageIcon, Trash2, RotateCcw, CheckCircle, AlertCircle, Eye, Edit3, X } from 'lucide-react';
 import ImageLightbox from '@/src/components/ui/ImageLightbox';
 import ImageEditor from '@/src/components/ImageEditor';
@@ -824,7 +824,7 @@ export default function MediaPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <div className="relative">
-                    <Spinner size={32} className="text-blue-600 mx-auto mb-4" />
+                    <div className="animate-pulse text-blue-600 mx-auto mb-4">Loading...</div>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <ImageIcon className="w-4 h-4 text-blue-400" />
                     </div>
@@ -929,7 +929,7 @@ export default function MediaPage() {
                             title="Delete image"
                           >
                             {deleting === image.id ? (
-                              <Spinner size={14} variant="white" />
+                              <div className="animate-pulse text-white text-xs">...</div>
                             ) : (
                               <Trash2 className="w-4 h-4" />
                             )}
@@ -983,7 +983,7 @@ export default function MediaPage() {
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-gray-800">Processing Photos</h3>
                   <div className="flex items-center space-x-2 text-sm text-blue-600">
-                    <Spinner size={16} className="text-blue-600" />
+                    <div className="animate-pulse text-blue-600 text-sm">...</div>
                     <span className="font-medium">{photos.length} remaining</span>
                   </div>
                 </div>
@@ -1026,7 +1026,7 @@ export default function MediaPage() {
                                   {photo.progress && photo.progress > 90 ? 'Finalizing...' : `Uploading ${photo.progress || 0}%`}
                                 </span>
                                 <div className="flex items-center space-x-2">
-                                  <Spinner size={14} className="text-blue-600" />
+                                  <div className="animate-pulse text-blue-600 text-xs">...</div>
                                   <CheckCircle className={`w-4 h-4 transition-all duration-300 ${photo.progress === 100 ? 'text-green-500 scale-110' : 'text-gray-300'}`} />
                                 </div>
                               </div>
@@ -1112,7 +1112,7 @@ export default function MediaPage() {
                 
                 {tourFile.uploading && (
                   <div className="mt-3 flex items-center">
-                    <Spinner size={16} className="text-blue-600 mr-2" />
+                    <div className="animate-pulse text-blue-600 text-sm mr-2">...</div>
                     <p className="text-sm text-blue-600 font-medium">Uploading 3D tour...</p>
                   </div>
                 )}

@@ -6,6 +6,8 @@ import { NotificationSettingProvider } from "@/src/contexts/NotificationSettingC
 import { AccountSettingProvider } from "@/src/contexts/AccountSettingContext";
 import { GlobalLoaderProvider } from "@/src/contexts/GlobalLoaderContext";
 import ClientLayout from "@/src/components/ClientLayout";
+import MotionLayout from "@/src/components/MotionLayout";
+import RouteProgress from "@/src/components/RouteProgress";
 import PropertyModalHandler from "@/src/components/PropertyModalHandler";
 import { Analytics } from "@vercel/analytics/next"
 import MessagingHandler from "@/src/components/messaging/MessagingHandler"
@@ -28,9 +30,12 @@ export default function RootLayout({
             <AccountSettingProvider>
               <GlobalLoaderProvider>
                 <ClientLayout>
-                  {children}
+                  <MotionLayout>
+                    {children}
+                  </MotionLayout>
                   <PropertyModalHandler />
                   <MessagingHandler />
+                  <RouteProgress />
                 </ClientLayout>
                 <Analytics />
               </GlobalLoaderProvider>

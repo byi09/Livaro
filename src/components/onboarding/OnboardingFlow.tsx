@@ -7,7 +7,7 @@ import { OnboardingData } from '@/src/types/onboarding';
 import LocationInfoStep from './LocationInfoStep';
 import UserTypeStep from './UserTypeStep';
 import NotificationPreferencesStep from './NotificationPreferencesStep';
-import Spinner from '@/src/components/ui/Spinner';
+
 import { createRoot } from 'react-dom/client';
 
 // New Step order (ContactInfoStep removed)
@@ -42,7 +42,7 @@ const OnboardingFlow: React.FC = () => {
       const root = createRoot(container);
       root.render(
         <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white">
-          <Spinner size={32} label="Signing out…" />
+          <p className="text-gray-600">Signing out…</p>
         </div>
       );
 
@@ -146,11 +146,8 @@ const OnboardingFlow: React.FC = () => {
         {submitting && (
           <div className="absolute inset-0 bg-white/95 backdrop-blur-md flex items-center justify-center">
             <div className="text-center p-8">
-              <div className="mb-6">
-                <Spinner size={32} className="mx-auto" />
-              </div>
               <h3 className="text-2xl font-semibold text-gray-800 mb-2">Almost there!</h3>
-              <p className="text-lg text-gray-600">Saving your profile and setting up your account...</p>
+              <p className="text-lg text-gray-600 animate-pulse">Saving your profile and setting up your account...</p>
             </div>
           </div>
         )}
