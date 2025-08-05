@@ -175,6 +175,44 @@ export const landlords = pgTable('landlords', {
     updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// ==================== STUDENT PROFILES TABLE ====================
+
+export const studentProfiles = pgTable('student_profiles', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    customerId: uuid('customer_id')
+        .notNull()
+        .references(() => customers.id, { onDelete: 'cascade' }),
+
+    // Academic information
+    university: varchar('university', { length: 255 }).notNull(),
+    major: varchar('major', { length: 255 }).notNull(),
+    graduationYear: varchar('graduation_year', { length: 4 }).notNull(),
+    studentId: varchar('student_id', { length: 100 }),
+    gpa: decimal('gpa', { precision: 3, scale: 2 }),
+
+    // Housing preferences
+    budgetMin: decimal('budget_min', { precision: 8, scale: 2 }),
+    budgetMax: decimal('budget_max', { precision: 8, scale: 2 }),
+    preferredAreas: json('preferred_areas'), // ["University Area", "North Berkeley"]
+    moveInDate: date('move_in_date'),
+    leaseLength: varchar('lease_length', { length: 50 }), // "12 months", "6 months"
+
+    // Lifestyle preferences
+    pets: boolean('pets').default(false),
+    parking: boolean('parking').default(false),
+    roommates: boolean('roommates').default(false),
+    furnished: boolean('furnished').default(false),
+    utilitiesIncluded: boolean('utilities_included').default(false),
+
+    // Additional preferences
+    smoking: boolean('smoking').default(false),
+    quietStudy: boolean('quiet_study').default(false),
+    proximityToCampus: boolean('proximity_to_campus').default(true),
+
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // ==================== PROPERTY TABLES ====================
 
 export const properties = pgTable('properties', {
@@ -765,6 +803,14 @@ export const landlordsRelations = relations(landlords, ({ one, many }) => ({
     applications: many(rentalApplications),
     tours: many(propertyTours),
     oneTapPreferences: many(oneTapApplicationPreferences),
+}));
+
+// Student profile relations
+export const studentProfilesRelations = relations(studentProfiles, ({ one }) => ({
+    customer: one(customers, {
+        fields: [studentProfiles.customerId],
+        references: [customers.id],
+    }),
 }));
 
 // Property relations

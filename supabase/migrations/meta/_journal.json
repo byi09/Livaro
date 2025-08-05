@@ -8,6 +8,13 @@
       "when": 1753202531659,
       "tag": "0000_pink_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1754358467,
+      "tag": "0014_add_student_profiles",
+      "breakpoints": true
     }
   ]
 }
