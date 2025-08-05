@@ -86,70 +86,39 @@ export default function StudentDashboard() {
         setLikedProperties(likedData.properties || [])
       }
 
-      // Fetch applications (using mock data for now)
-      const mockApplications: RentalApplication[] = [
-        {
-          id: '1',
-          propertyId: 'prop-1',
-          property: {
-            addressLine1: '123 University Ave',
-            city: 'Berkeley',
-            state: 'CA',
-            bedrooms: 2,
-            bathrooms: 1
-          },
-          listing: {
-            listingTitle: 'Cozy 2BR near UC Berkeley',
-            monthlyRent: 2800
-          },
-          applicationStatus: 'pending',
-          appliedAt: '2024-01-15T10:30:00Z',
-          proposedMoveInDate: '2024-08-01',
-          proposedRent: 2800,
-          coverLetter: 'I am a responsible student looking for a quiet place to study...'
-        },
-        {
-          id: '2',
-          propertyId: 'prop-2',
-          property: {
-            addressLine1: '456 College Blvd',
-            city: 'Berkeley',
-            state: 'CA',
-            bedrooms: 1,
-            bathrooms: 1
-          },
-          listing: {
-            listingTitle: 'Studio Apartment - Perfect for Students',
-            monthlyRent: 2200
-          },
-          applicationStatus: 'approved',
-          appliedAt: '2024-01-10T14:20:00Z',
-          proposedMoveInDate: '2024-07-15',
-          proposedRent: 2200,
-          coverLetter: 'I am a graduate student with excellent rental history...'
-        },
-        {
-          id: '3',
-          propertyId: 'prop-3',
-          property: {
-            addressLine1: '789 Student St',
-            city: 'Berkeley',
-            state: 'CA',
-            bedrooms: 3,
-            bathrooms: 2
-          },
-          listing: {
-            listingTitle: 'Spacious 3BR House - Great for Roommates',
-            monthlyRent: 4200
-          },
-          applicationStatus: 'rejected',
-          appliedAt: '2024-01-05T09:15:00Z',
-          proposedMoveInDate: '2024-08-01',
-          proposedRent: 4200,
-          coverLetter: 'We are three students looking for a house to share...'
+      // Fetch applications from API
+      const applicationsResponse = await fetch('/api/applications')
+      if (applicationsResponse.ok) {
+        const applicationsData = await applicationsResponse.json()
+        if (applicationsData.applications && applicationsData.applications.length > 0) {
+          const transformedApplications: RentalApplication[] = applicationsData.applications.map((app: any) => ({
+            id: app.id,
+            propertyId: app.propertyId,
+            property: {
+              addressLine1: app.propertyAddressLine1 || '',
+              city: app.propertyCity || '',
+              state: app.propertyState || '',
+              bedrooms: app.propertyBedrooms || 0,
+              bathrooms: app.propertyBathrooms || 0
+            },
+            listing: {
+              listingTitle: app.listingTitle || 'Property Listing',
+              monthlyRent: Number(app.monthlyRent) || 0
+            },
+            applicationStatus: app.applicationStatus || 'pending',
+            appliedAt: app.appliedAt || new Date().toISOString(),
+            proposedMoveInDate: app.proposedMoveInDate || '',
+            proposedRent: Number(app.proposedRent) || 0,
+            coverLetter: app.coverLetter || ''
+          }))
+          setApplications(transformedApplications)
+        } else {
+          setApplications([])
         }
-      ]
-      setApplications(mockApplications)
+      } else {
+        console.error('Failed to fetch applications:', applicationsResponse.status)
+        setApplications([])
+      }
 
       // Check if student profile exists
       const profileResponse = await fetch('/api/student/profile')
@@ -451,9 +420,9 @@ export default function StudentDashboard() {
             {!studentProfile ? (
               <div className="text-center py-12">
                 <HiUser className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No profile set up</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Complete Your Student Profile</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Set up your student profile to get personalized recommendations.
+                  Tell us about your university, major, and housing preferences to get personalized property recommendations.
                 </p>
                 <div className="mt-6">
                   <button
@@ -461,7 +430,7 @@ export default function StudentDashboard() {
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                   >
                     <HiUser className="w-4 h-4 mr-2" />
-                    Set Up Profile
+                    Create Profile
                   </button>
                 </div>
               </div>
@@ -507,15 +476,21 @@ export default function StudentDashboard() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-500">University</label>
-                        <p className="mt-1 text-sm text-gray-900">{studentProfile.university}</p>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {studentProfile.university || <span className="text-gray-400 italic">Not specified</span>}
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-500">Major</label>
-                        <p className="mt-1 text-sm text-gray-900">{studentProfile.major}</p>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {studentProfile.major || <span className="text-gray-400 italic">Not specified</span>}
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-500">Expected Graduation</label>
-                        <p className="mt-1 text-sm text-gray-900">{studentProfile.graduationYear}</p>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {studentProfile.graduationYear || <span className="text-gray-400 italic">Not specified</span>}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -533,12 +508,17 @@ export default function StudentDashboard() {
                       <div>
                         <label className="block text-sm font-medium text-gray-500">Budget Range</label>
                         <p className="mt-1 text-sm text-gray-900">
-                          {formatCurrency(studentProfile.budget.min)} - {formatCurrency(studentProfile.budget.max)}/month
+                          {studentProfile.budget.min > 0 && studentProfile.budget.max > 0 
+                            ? `${formatCurrency(studentProfile.budget.min)} - ${formatCurrency(studentProfile.budget.max)}/month`
+                            : <span className="text-gray-400 italic">Not specified</span>
+                          }
                         </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-500">Preferred Lease Length</label>
-                        <p className="mt-1 text-sm text-gray-900">{studentProfile.leaseLength}</p>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {studentProfile.leaseLength || <span className="text-gray-400 italic">Not specified</span>}
+                        </p>
                       </div>
                       {studentProfile.moveInDate && (
                         <div>
@@ -549,11 +529,15 @@ export default function StudentDashboard() {
                       <div>
                         <label className="block text-sm font-medium text-gray-500">Preferred Areas</label>
                         <div className="mt-1 flex flex-wrap gap-2">
-                          {studentProfile.preferredAreas.map((area, index) => (
-                            <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {area}
-                            </span>
-                          ))}
+                          {studentProfile.preferredAreas && studentProfile.preferredAreas.length > 0 ? (
+                            studentProfile.preferredAreas.map((area, index) => (
+                              <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {area}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 italic text-sm">Not specified</span>
+                          )}
                         </div>
                       </div>
                     </div>
