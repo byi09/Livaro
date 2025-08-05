@@ -78,7 +78,7 @@ export async function handleAISearchQuery(
       const propertyListings = await getPropertyListings(filters);
 
       if (propertyListings.length === 0) {
-        const response = `I couldn't find any properties matching your criteria. Try adjusting your search parameters.`;
+        const response = `I couldn't find any properties matching your criteria. Please add more details.`;
 
         if (conversationId) {
           await logAIResponse(conversationId, response, [], filters);
