@@ -17,6 +17,59 @@ import {
   getChatResponse,
 } from "@/src/app/(main-layout)/llm-search/actions";
 
+// File processing utility
+async function processUploadedFiles(files: File[]): Promise<string> {
+  const fileDescriptions: string[] = [];
+
+  for (const file of files) {
+    const fileType = file.type;
+    const fileName = file.name;
+    const fileSize = (file.size / 1024).toFixed(2); // KB
+
+    let content = "";
+
+    // Handle text files
+    if (fileType.includes("text") || fileName.endsWith(".txt")) {
+      try {
+        content = await file.text();
+      } catch {
+        content = "Could not read text content";
+      }
+    }
+
+    // Handle image files (describe what type of image it is)
+    else if (fileType.includes("image")) {
+      content = `Image file (${fileType}) - likely contains property photos, floor plans, or documents`;
+    }
+
+    // Handle document files
+    else if (
+      fileType.includes("pdf") ||
+      fileType.includes("document") ||
+      fileName.includes(".doc")
+    ) {
+      content =
+        "Document file - likely contains property listings, rental agreements, or property information";
+    }
+
+    // Handle spreadsheet files
+    else if (
+      fileType.includes("spreadsheet") ||
+      fileName.includes(".csv") ||
+      fileName.includes(".xls")
+    ) {
+      content =
+        "Spreadsheet file - likely contains property data, pricing information, or rental listings";
+    }
+
+    fileDescriptions.push(
+      `File: ${fileName} (${fileSize}KB, ${fileType || "unknown type"}) - ${content}`,
+    );
+  }
+
+  return fileDescriptions.join("\n");
+}
+
 export async function handleAISearchQuery(
   formData: FormData,
   chatHistory?: ChatMessage[],
@@ -29,16 +82,34 @@ export async function handleAISearchQuery(
   if (!prompt) return { error: "Prompt is required" };
 
   try {
+    // Process uploaded files if any
+    const files: File[] = [];
+    const entries = Array.from(formData.entries());
+
+    for (const [key, value] of entries) {
+      if (key.startsWith("file_") && value instanceof File) {
+        files.push(value);
+      }
+    }
+
+    let enhancedPrompt = prompt;
+
+    // If files are uploaded, enhance the prompt with file context
+    if (files.length > 0) {
+      const fileInfo = await processUploadedFiles(files);
+      enhancedPrompt = `${prompt}\n\n[File Context]: ${fileInfo}`;
+    }
+
     const conversationId = await getOrCreateAISearchConversation();
 
     if (conversationId) {
-      await logUserQuery(conversationId, prompt);
+      await logUserQuery(conversationId, enhancedPrompt);
     }
 
-    const action = await decideChatOrFilter(chatHistory || [], prompt);
+    const action = await decideChatOrFilter(chatHistory || [], enhancedPrompt);
 
     if (action === "search") {
-      const filtersResult = await getFilters(prompt, chatHistory);
+      const filtersResult = await getFilters(enhancedPrompt, chatHistory);
 
       if (!filtersResult.response) {
         const errorResponse = {
@@ -106,7 +177,10 @@ export async function handleAISearchQuery(
         propertyListings: propertyListings,
       };
     } else {
-      const chatResponse = await getChatResponse(chatHistory || [], prompt);
+      const chatResponse = await getChatResponse(
+        chatHistory || [],
+        enhancedPrompt,
+      );
 
       if (!chatResponse.response) {
         const errorResponse = { error: "Failed to get chat response" };
