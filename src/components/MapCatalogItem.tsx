@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@supabase/supabase-js'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, memo } from 'react'
 import { PropertyListing } from '@/lib/types'
 import {
   capitalizeFirstLetter,
@@ -26,7 +26,7 @@ const useSafeMapContext = () => {
   }
 }
 
-export default function MapCatalogItem({
+function MapCatalogItem({
   item,
   initialLiked = false,
   onUnlike,
@@ -41,37 +41,54 @@ export default function MapCatalogItem({
   const [isLiked, setIsLiked] = useState(initialLiked)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
 
-  // Fetch Random Image from Supabase Storage
+  // Fetch Random Image from Supabase Storage with optimization
   useEffect(() => {
+    let isCancelled = false;
+    
     const fetchRandomImage = async () => {
-      const { data, error } = await supabase
-        .storage
-        .from('property-images')
-        .list('listings/ac3c6957-b8c4-4698-a34e-90317f407a66', {
-          limit: 100,
-        })
-
-      if (error) {
-        console.error('Error fetching images:', error)
-        return
-      }
-
-      if (data && data.length > 0) {
-        const randomIndex = Math.floor(Math.random() * data.length)
-        const fileName = data[randomIndex].name
-
-        const { data: publicUrlData } = supabase
+      try {
+        // Add a small delay to prevent excessive API calls during rapid scrolling
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        if (isCancelled) return;
+        
+        const { data, error } = await supabase
           .storage
           .from('property-images')
-          .getPublicUrl(`listings/ac3c6957-b8c4-4698-a34e-90317f407a66/${fileName}`)
+          .list('listings/ac3c6957-b8c4-4698-a34e-90317f407a66', {
+            limit: 20, // Reduced limit for better performance
+          })
 
-        if (publicUrlData?.publicUrl) {
-          setImageUrl(publicUrlData.publicUrl)
+        if (error || isCancelled) {
+          console.error('Error fetching images:', error)
+          return
+        }
+
+        if (data && data.length > 0) {
+          const randomIndex = Math.floor(Math.random() * data.length)
+          const fileName = data[randomIndex].name
+
+          const { data: publicUrlData } = supabase
+            .storage
+            .from('property-images')
+            .getPublicUrl(`listings/ac3c6957-b8c4-4698-a34e-90317f407a66/${fileName}`)
+
+          if (publicUrlData?.publicUrl && !isCancelled) {
+            setImageUrl(publicUrlData.publicUrl)
+          }
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Error in fetchRandomImage:', error);
         }
       }
     }
 
     fetchRandomImage()
+    
+    return () => {
+      isCancelled = true;
+    }
   }, [])
 
   useEffect(() => {
@@ -107,8 +124,9 @@ export default function MapCatalogItem({
         setIsLiked(false)
         onUnlike?.(propertyId)
       }
-    } catch (err: any) {
-      error('Failed to update like status', err.message)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      error('Failed to update like status', errorMessage)
       console.error(err)
     }
   }
@@ -174,3 +192,13 @@ export default function MapCatalogItem({
     </div>
   )
 }
+
+// Memoize the component to prevent unnecessary re-renders
+export default memo(MapCatalogItem, (prevProps, nextProps) => {
+  // Custom comparison function for better performance
+  return (
+    prevProps.item.properties.id === nextProps.item.properties.id &&
+    prevProps.initialLiked === nextProps.initialLiked &&
+    prevProps.item.property_listings.monthlyRent === nextProps.item.property_listings.monthlyRent
+  );
+});

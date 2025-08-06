@@ -13,7 +13,7 @@ export default function AmenitiesPage() {
   
   const [customAmenities, setCustomAmenities] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Page transition hook

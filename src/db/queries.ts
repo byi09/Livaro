@@ -36,10 +36,10 @@ export const searchPropertiesWithFilter = async (
     if (isActive) propertyTypes.push(sql`${type.toLowerCase()}`);
 
   // ---------------------------
-  // |   Prep-work for query   |
+  // |   Optimized query setup |
   // ---------------------------
 
-  // build subqueries
+  // Simplified features subquery for better performance
   const featuresSubquery = db.$with("features_subquery").as(
     db
       .select({
@@ -50,14 +50,17 @@ export const searchPropertiesWithFilter = async (
       .groupBy(propertyFeatures.propertyId)
   );
 
-  // append subqueries
+  // Start with the main query - properties with active listings only
   const qWith = db.with(featuresSubquery);
   const qSelect = qWith.select().from(properties);
 
-  // append joins
+  // Join only active listings for better performance
   const qJoinListings = qSelect.innerJoin(
     propertyListings,
-    eq(properties.id, propertyListings.propertyId)
+    and(
+      eq(properties.id, propertyListings.propertyId),
+      eq(propertyListings.listingStatus, 'active') // Filter at join level
+    )
   );
 
   const qJoinFeatures = qJoinListings.leftJoin(
@@ -167,7 +170,7 @@ export const searchPropertiesWithFilter = async (
       throw new Error(`Unknown sort option: ${sortOption}`);
   }
 
-  const q = qData.orderBy(sql.join(orderBy, sql.raw(", "))).limit(100); // Limit to 100 results for performance
+  const q = qData.orderBy(sql.join(orderBy, sql.raw(", "))).limit(50); // Limit to 50 results for better performance and faster loading
 
   // uncomment to debug generated SQL
   // console.log(q.toSQL().sql);
@@ -189,9 +192,10 @@ export const searchPropertiesWithFilter = async (
 export const getNearbyProperties = async (
   lat: number,
   lng: number,
-  radius: number = 10000, // default to 10km
-  limit: number = 3
+  _radius: number = 10000, // default to 10km (but we'll ignore this for closest search)
+  limit: number = 6
 ): Promise<PropertyListing[]> => {
+  // Use a more efficient approach with simplified subquery
   const featuresSubquery = db.$with("features_subquery").as(
     db
       .select({
@@ -202,13 +206,26 @@ export const getNearbyProperties = async (
       .groupBy(propertyFeatures.propertyId)
   );
 
-  // Temporarily disable geographic filtering until earthdistance extension is enabled
+  // Modified to always return closest properties regardless of distance
   const results = await db
     .with(featuresSubquery)
     .select()
     .from(properties)
     .innerJoin(propertyListings, eq(properties.id, propertyListings.propertyId))
     .leftJoin(featuresSubquery, eq(properties.id, featuresSubquery.propertyId))
+    .where(
+      and(
+        // Only show active listings
+        eq(propertyListings.listingStatus, 'active'),
+        // Ensure we have valid coordinates
+        sql`${properties.latitude} IS NOT NULL`,
+        sql`${properties.longitude} IS NOT NULL`
+      )
+    )
+    .orderBy(
+      // Order by distance approximation - closest first, regardless of how far
+      sql`ABS(${properties.latitude} - ${lat}) + ABS(${properties.longitude} - ${lng})`
+    )
     .limit(limit);
 
   return results;

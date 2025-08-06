@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { HiX, HiUser, HiAcademicCap, HiHome, HiCurrencyDollar, HiCalendar, HiCheck } from 'react-icons/hi'
+import { HiX, HiUser, HiAcademicCap, HiHome, HiCurrencyDollar, HiCheck } from 'react-icons/hi'
 import Spinner from '@/src/components/ui/Spinner'
 
 interface StudentProfileFormProps {
@@ -56,7 +56,6 @@ export default function StudentProfileForm({ isOpen, onClose, onSuccess }: Stude
   })
 
   const [isSaving, setIsSaving] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 4
@@ -87,7 +86,7 @@ export default function StudentProfileForm({ isOpen, onClose, onSuccess }: Stude
     }
   }
 
-  const handleInputChange = (field: keyof StudentProfile, value: any) => {
+  const handleInputChange = (field: keyof StudentProfile, value: string | number | boolean | string[] | { min: number; max: number }) => {
     setProfile(prev => ({
       ...prev,
       [field]: value
@@ -389,7 +388,7 @@ export default function StudentProfileForm({ isOpen, onClose, onSuccess }: Stude
             onChange={(e) => handleInputChange('roommates', e.target.checked)}
             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
-          <span className="ml-2 text-sm text-gray-700">I'm open to roommates</span>
+          <span className="ml-2 text-sm text-gray-700">I&apos;m open to roommates</span>
         </label>
         <label className="flex items-center">
           <input

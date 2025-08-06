@@ -31,12 +31,25 @@ export default function MapControls() {
       const bounds = e.target.getBounds();
       if (!bounds) return;
 
-      // Update filter options with the new bounds
-      setFilterOptions((prev) => ({
-        ...prev,
-        swBounds: bounds.getSouthWest(),
-        neBounds: bounds.getNorthEast()
-      }));
+      // Update filter options only if bounds actually changed to avoid redundant fetches
+      setFilterOptions((prev) => {
+        const newSw = bounds.getSouthWest();
+        const newNe = bounds.getNorthEast();
+        const sameBounds =
+          prev.swBounds &&
+          prev.neBounds &&
+          Math.abs(prev.swBounds.lat - newSw.lat) < 0.0001 &&
+          Math.abs(prev.swBounds.lng - newSw.lng) < 0.0001 &&
+          Math.abs(prev.neBounds.lat - newNe.lat) < 0.0001 &&
+          Math.abs(prev.neBounds.lng - newNe.lng) < 0.0001;
+
+        if (sameBounds) return prev;
+        return {
+          ...prev,
+          swBounds: newSw,
+          neBounds: newNe,
+        };
+      });
       
       // Mark bounds as ready for property fetching
       setMapBoundsReady(true);

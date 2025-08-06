@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, X, Minimize2 } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { usePathname } from 'next/navigation';
 
@@ -12,7 +12,7 @@ interface FloatingMessagingIconProps {
 
 export default function FloatingMessagingIcon({ onOpenMessaging, unreadCount = 0 }: FloatingMessagingIconProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; email?: string } | null>(null);
   const pathname = usePathname();
 
   // Check if user is authenticated

@@ -7,7 +7,7 @@ import { usePageTransition } from '@/src/hooks/usePageTransition'
 import { useAutoSave } from '@/src/hooks/useAutoSave'
 import { useImageAutofill } from '@/src/hooks/useImageAutoFill'
 import ApartmentBuildingSelector from './ApartmentBuildingSelector'
-import { Button } from '@/src/components/ui/button'
+// Removed unused Button import
 
 const FORM_STORAGE_KEY = 'sell-create-form-data'
 
@@ -22,7 +22,7 @@ export default function CreateListingPage() {
   const [propertyType, setPropertyType] = useState('apartment')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [landlordId, setLandlordId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [, setIsLoading] = useState(true)
 
   // Additional form fields for autosave
   const [addressLine1, setAddressLine1] = useState('')

@@ -5,6 +5,18 @@ import type { FilterOptions, PropertyListing, SortOption } from "@/lib/types";
 import { searchPropertiesWithFilter } from "@/src/db/queries";
 import { useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useState, useMemo } from "react";
+// Lightweight deep equality check to avoid unnecessary state updates
+const filtersAreEqual = (a: any, b: any) => {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
+// Simple cache for property results
+const propertyCache = new Map<string, { data: PropertyListing[], timestamp: number }>();
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache
 
 // Global Property Modal Context
 interface PropertyModalContextProps {
@@ -113,13 +125,51 @@ export const MapContextProvider = ({
     let isCancelled = false;
     
     const fetchProperties = async () => {
-      setFetchingListings(true);
+      // Generate cache key based on filters and sort
+      const cacheKey = JSON.stringify({
+        bounds: {
+          sw: filterOptions.swBounds,
+          ne: filterOptions.neBounds
+        },
+        sort: sortOption,
+        filters: {
+          priceRange: filterOptions.priceRange,
+          bedrooms: filterOptions.bedrooms,
+          bathrooms: filterOptions.bathrooms,
+          propertyTypes: filterOptions.propertyTypes
+        }
+      });
+      
+      // Check cache first
+      const cached = propertyCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setCatalog(cached.data);
+        if (!initialLoadComplete) {
+          setInitialLoadComplete(true);
+        }
+        return;
+      }
+      
+      // Don't show loading for very quick subsequent requests
+      const loadingTimeout = setTimeout(() => {
+        if (!isCancelled) {
+          setFetchingListings(true);
+        }
+      }, 100);
       
       try {
         const optionsBundle = JSON.parse(JSON.stringify(filterOptions));
         const properties = await searchPropertiesWithFilter(optionsBundle, sortOption);
         
         if (!isCancelled) {
+          clearTimeout(loadingTimeout);
+          
+          // Cache the results
+          propertyCache.set(cacheKey, {
+            data: properties,
+            timestamp: Date.now()
+          });
+          
           setCatalog(properties);
           if (!initialLoadComplete) {
             setInitialLoadComplete(true);
@@ -128,6 +178,7 @@ export const MapContextProvider = ({
       } catch (error) {
         console.error('Error fetching properties:', error);
         if (!isCancelled) {
+          clearTimeout(loadingTimeout);
           setCatalog([]);
         }
       } finally {
@@ -137,14 +188,27 @@ export const MapContextProvider = ({
       }
     };
 
-    // Optimized debounce for responsive map interactions
-    const timeoutId = setTimeout(fetchProperties, 150);
+    // Smart debouncing based on change type
+    // No debounce on the very first load so results appear ASAP
+    let debounceTime = initialLoadComplete ? 200 : 0;
+    
+    // Longer debounce for map movements to prevent excessive API calls
+    if (filterOptions.swBounds && filterOptions.neBounds) {
+      debounceTime = 500;
+    }
+    
+    // Shorter debounce for filter changes (more responsive)
+    if (sortOption !== 'priceAsc') {
+      debounceTime = 150;
+    }
+    
+    const timeoutId = setTimeout(fetchProperties, debounceTime);
     
     return () => {
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [filterOptions, sortOption, paramsLoaded]);
+  }, [filterOptions, sortOption, paramsLoaded, initialLoadComplete]);
 
   // Initialize on mount - ensure params are always loaded
   useEffect(() => {
@@ -174,7 +238,11 @@ export const MapContextProvider = ({
       leaseType: params.leaseType || "rent"
     };
 
-    setFilterOptions(newFilterOptions);
+    setFilterOptions(prev => {
+      // Preserve existing map bounds so zoom/pan updates are not lost
+      const merged = { ...prev, ...newFilterOptions } as FilterOptions;
+      return filtersAreEqual(prev, merged) ? prev : merged;
+    });
     setParamsLoaded(true);
   }, []); // Run once on mount
 
@@ -206,7 +274,11 @@ export const MapContextProvider = ({
       leaseType: params.leaseType || "rent"
     };
 
-    setFilterOptions(newFilterOptions);
+    setFilterOptions(prev => {
+      // Preserve existing map bounds so zoom/pan updates are not lost
+      const merged = { ...prev, ...newFilterOptions } as FilterOptions;
+      return filtersAreEqual(prev, merged) ? prev : merged;
+    });
   }, [searchParams, paramsLoaded]);
 
   const contextValue = useMemo(() => ({

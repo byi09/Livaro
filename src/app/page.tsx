@@ -120,7 +120,7 @@ export default async function Home() {
       >
         <div className="relative z-10 max-w-6xl px-8 sm:px-12 lg:px-16 w-full">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold mb-8 leading-tight text-white text-left">
-            We're excited to
+            We&apos;re excited to
             <span className="block mt-2">share our pre-launch with you</span>
           </h1>
           
@@ -175,7 +175,7 @@ export default async function Home() {
               </p>
               
               <div className="space-y-8 pt-8 w-full max-w-xl">
-                <h3 className="text-xl font-bold text-gray-900 tracking-tight text-center mb-4">What's Coming</h3>
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight text-center mb-4">What&apos;s Coming</h3>
                 <div className="space-y-8">
                   <div className="flex items-center space-x-6 justify-start">
                     <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center">
@@ -228,7 +228,7 @@ export default async function Home() {
               Built for <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Success</span>
             </h2>
             <p className="text-base text-gray-600 max-w-3xl leading-relaxed mx-auto text-center">
-              Whether you're a landlord/property manager or student renter, Livaro streamlines the rental process for everyone.
+                              Whether you&apos;re a landlord/property manager or student renter, Livaro streamlines the rental process for everyone.
             </p>
           </div>
           
@@ -313,7 +313,7 @@ export default async function Home() {
             <div className="text-left">
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6 leading-snug tracking-tight">Get in Touch</h2>
               <p className="text-lg sm:text-xl text-gray-700 mb-8 leading-relaxed font-light">
-                Have questions about Livaro? We'd love to hear from you and help you get started.
+                Have questions about Livaro? We&apos;d love to hear from you and help you get started.
               </p>
             </div>
             <ContactForm />

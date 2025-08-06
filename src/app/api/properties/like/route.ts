@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { db } from '@/src/db';
 import { likedProperties } from '@/src/db/schema';
-import { eq, inArray,and } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {

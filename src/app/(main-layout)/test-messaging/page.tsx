@@ -212,7 +212,7 @@ export default function TestMessagingPage() {
           <div className="border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">1. Test Supabase Connection</h2>
             <p className="text-gray-600 mb-4">
-              Verify that Supabase is properly configured and you're authenticated.
+              Verify that Supabase is properly configured and you&apos;re authenticated.
             </p>
             <button
               onClick={testSupabaseConnection}
@@ -309,7 +309,7 @@ export default function TestMessagingPage() {
         <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h3 className="font-semibold text-blue-800 mb-2">Testing Instructions:</h3>
           <ol className="list-decimal list-inside text-blue-700 space-y-2">
-            <li>First, test the Supabase connection to ensure you're authenticated</li>
+            <li>First, test the Supabase connection to ensure you&apos;re authenticated</li>
             <li>Check the Pusher configuration for real-time messaging</li>
             <li>Create demo data to have conversations to test with</li>
             <li>Test message sending functionality with the direct API test</li>

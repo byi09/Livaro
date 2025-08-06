@@ -71,27 +71,26 @@ function PropertySearch() {
   } = useForm<SearchFormValues>({ resolver });
   // Cache location field registration to reuse handlers consistently
   const locationField = register("location", { required: true });
-  const { location, isLoading } = useGeolocationContext();
+  const { location } = useGeolocationContext();
 
   // Compute default location derived from geolocation
   const defaultLocation = useMemo(() => {
-    if (isLoading) return "";
     return location?.city && location?.state
       ? `${location.city.long_name}, ${location.state.short_name}`
       : "";
-  }, [isLoading, location?.city, location?.state]);
+  }, [location?.city, location?.state]);
 
   // Initialize with placeholder, update smoothly when geolocation arrives
   const [locationInput, setLocationInput] = useState("Mountain View, CA");
 
   // Smooth transition when geolocation data arrives
   useEffect(() => {
-    if (!isLoading && defaultLocation && defaultLocation !== locationInput) {
+    if (defaultLocation && defaultLocation !== locationInput) {
       // Smooth update with transition
       setLocationInput(defaultLocation);
       setValue("location", defaultLocation);
     }
-  }, [isLoading, defaultLocation, locationInput, setValue]);
+  }, [defaultLocation, locationInput, setValue]);
   const router = useRouter();
   const [isSearching, setIsSearching] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);

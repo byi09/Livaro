@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { HiX, HiUser, HiHome, HiQuestionMarkCircle, HiCheck, HiCog, HiFilter, HiChevronDown, HiChevronUp } from 'react-icons/hi'
+import { HiX, HiUser, HiHome, HiQuestionMarkCircle, HiCheck, HiFilter } from 'react-icons/hi'
 import Spinner from '@/src/components/ui/Spinner'
 
 interface OneTapApplicationFormProps {

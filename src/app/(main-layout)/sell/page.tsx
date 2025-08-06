@@ -107,7 +107,7 @@ export default function SellPage() {
                 <span className="text-purple-600 font-bold text-lg">2</span>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Applications</h3>
-              <p className="text-gray-600">Qualified tenants can apply instantly with only the fields you've configured.</p>
+                              <p className="text-gray-600">Qualified tenants can apply instantly with only the fields you&apos;ve configured.</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">

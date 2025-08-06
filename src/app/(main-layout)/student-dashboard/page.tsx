@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import { LoadingOverlay } from '@/src/components/ui/Spinner'
+
 import PropertyCard from '@/src/components/MapCatalogItem'
-import PropertyDetailModal from '@/src/components/map/PropertyDetail
-import { HiHeart, HiDocumentText, HiUser, HiSparkles, HiX, HiPencil,
-import { HiMapPin } from 'react-icons/hi2'
+import PropertyDetailModal from '@/src/components/map/PropertyDetailModal'
+import { HiHeart, HiDocumentText, HiUser, HiSparkles, HiXMark, HiPencil, HiHome, HiAcademicCap, HiCurrencyDollar, HiMapPin } from 'react-icons/hi2'
 import type { PropertyListing } from '@/lib/types'
 import StudentProfileForm from '@/src/components/StudentProfileForm'
 
@@ -185,6 +184,31 @@ export default function StudentDashboard() {
     }).format(amount)
   }
 
+  // Calculate profile completion progress
+  const calculateProfileCompletion = () => {
+    if (!studentProfile) return { percentage: 0, completedFields: 0, totalFields: 0 }
+    
+    const fields = [
+      { name: 'firstName', value: studentProfile.firstName },
+      { name: 'lastName', value: studentProfile.lastName },
+      { name: 'university', value: studentProfile.university },
+      { name: 'major', value: studentProfile.major },
+      { name: 'graduationYear', value: studentProfile.graduationYear },
+      { name: 'budget', value: studentProfile.budget.min > 0 && studentProfile.budget.max > 0 },
+      { name: 'preferredAreas', value: studentProfile.preferredAreas?.length > 0 },
+      { name: 'moveInDate', value: studentProfile.moveInDate },
+      { name: 'leaseLength', value: studentProfile.leaseLength },
+    ]
+    
+    const completedFields = fields.filter(field => field.value && field.value !== '').length
+    const totalFields = fields.length
+    const percentage = Math.round((completedFields / totalFields) * 100)
+    
+    return { percentage, completedFields, totalFields }
+  }
+
+  const profileProgress = calculateProfileCompletion()
+
   // Don't show separate loading state - let GlobalLoaderOverlay handle it
   if (isLoading) {
     return <div className="min-h-screen bg-gray-50" />;
@@ -234,7 +258,7 @@ export default function StudentDashboard() {
                     onClick={() => setShowProfileSetup(true)}
                     className="ml-4 flex-shrink-0 text-blue-400 hover:text-blue-600 transition-colors"
                   >
-                    <HiX className="w-5 h-5" />
+                    <HiXMark className="w-5 h-5" />
                   </button>
                 </div>
                 <div className="mt-3">
@@ -263,23 +287,75 @@ export default function StudentDashboard() {
           </div>
         </div>
 
+        {/* Profile Completion Progress */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Profile Completion</h3>
+              <p className="text-sm text-gray-600">Complete your profile to get better matches</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-blue-600">{profileProgress.percentage}%</div>
+              <div className="text-xs text-gray-500">{profileProgress.completedFields}/{profileProgress.totalFields} fields</div>
+            </div>
+          </div>
+          
+          <div className="relative">
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 rounded-full transition-all duration-700 ease-out relative"
+                style={{ width: `${profileProgress.percentage}%` }}
+              >
+                <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full"></div>
+              </div>
+            </div>
+            
+            {/* Progress milestones */}
+            <div className="flex justify-between mt-2 text-xs text-gray-500">
+              <span className={profileProgress.percentage >= 25 ? 'text-blue-600 font-medium' : ''}>25%</span>
+              <span className={profileProgress.percentage >= 50 ? 'text-purple-600 font-medium' : ''}>50%</span>
+              <span className={profileProgress.percentage >= 75 ? 'text-purple-600 font-medium' : ''}>75%</span>
+              <span className={profileProgress.percentage >= 100 ? 'text-green-600 font-medium' : ''}>Complete!</span>
+            </div>
+          </div>
+          
+          {profileProgress.percentage < 100 && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                {profileProgress.percentage < 50 ? 'Complete basic info to unlock features' : 
+                 profileProgress.percentage < 75 ? 'Almost there! Add preferences for better matches' :
+                 'Just a few more details to complete your profile'}
+              </div>
+              <button
+                onClick={() => setShowProfileSetup(true)}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Complete Profile
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300">
+            <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <HiUser className="w-5 h-5 text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <HiUser className="w-6 h-6 text-white" />
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Preferences Set
+                      Profile Status
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {studentProfile ? 'Complete' : 'Incomplete'}
+                    <dd className="text-xl font-bold text-gray-900 mt-1">
+                      {profileProgress.percentage}% Complete
+                    </dd>
+                    <dd className="text-xs text-gray-500 mt-1">
+                      {studentProfile ? `${profileProgress.completedFields}/${profileProgress.totalFields} fields` : 'Set up your profile'}
                     </dd>
                   </dl>
                 </div>
@@ -287,12 +363,12 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300">
+            <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                    <HiHeart className="w-5 h-5 text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <HiHeart className="w-6 h-6 text-white" />
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
@@ -300,8 +376,11 @@ export default function StudentDashboard() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Liked Properties
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">
+                    <dd className="text-xl font-bold text-gray-900 mt-1">
                       {likedProperties.length}
+                    </dd>
+                    <dd className="text-xs text-gray-500 mt-1">
+                      {likedProperties.length === 0 ? 'Start browsing' : 'Properties saved'}
                     </dd>
                   </dl>
                 </div>
@@ -309,12 +388,12 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300">
+            <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <HiDocumentText className="w-5 h-5 text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <HiDocumentText className="w-6 h-6 text-white" />
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
@@ -322,8 +401,11 @@ export default function StudentDashboard() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Applications
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">
+                    <dd className="text-xl font-bold text-gray-900 mt-1">
                       {applications.length}
+                    </dd>
+                    <dd className="text-xs text-gray-500 mt-1">
+                      {applications.length === 0 ? 'No applications yet' : 'Total submitted'}
                     </dd>
                   </dl>
                 </div>
@@ -331,12 +413,12 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300">
+            <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-semibold">
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <span className="text-white text-lg font-bold">
                       {applications.filter(app => app.applicationStatus === 'approved').length}
                     </span>
                   </div>
@@ -346,8 +428,11 @@ export default function StudentDashboard() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Approved
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">
+                    <dd className="text-xl font-bold text-gray-900 mt-1">
                       {applications.filter(app => app.applicationStatus === 'approved').length}
+                    </dd>
+                    <dd className="text-xs text-gray-500 mt-1">
+                      {applications.filter(app => app.applicationStatus === 'approved').length === 0 ? 'None yet' : 'Applications approved'}
                     </dd>
                   </dl>
                 </div>

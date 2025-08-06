@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
-import { rentalApplications, properties, propertyListings, landlords, customers, users, renters } from '@/src/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { rentalApplications, properties, propertyListings, landlords, customers, renters } from '@/src/db/schema'
+import { eq } from 'drizzle-orm'
 
 export async function GET() {
   const supabase = await createClient()
