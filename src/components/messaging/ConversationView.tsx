@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Send, MoreVertical, Paperclip, Smile, Tag, Plus, X, MessageSquare, Info } from 'lucide-react';
-import Spinner from '../ui/Spinner';
+
 import { pusherClient } from '@/src/lib/pusher';
 
 interface Message {
@@ -302,7 +302,7 @@ export default function ConversationView({
       {/* Loading Overlay */}
       {isLoading && (
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-20">
-          <Spinner size={40} />
+          <div className="animate-pulse text-gray-600">Loading...</div>
         </div>
       )}
 
@@ -350,7 +350,7 @@ export default function ConversationView({
       <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gradient-to-b from-white via-gray-50 to-white">
         {isLoading && (
           <div className="text-center py-4">
-            <Spinner size={24} />
+            <div className="animate-pulse text-gray-600 text-sm">...</div>
           </div>
         )}
         
@@ -394,7 +394,7 @@ export default function ConversationView({
                     style={{ marginRight: '-2.5rem' }}
                     title="Delete message"
                   >
-                    {deletingMessage === message.id ? <Spinner size={12} /> : <X className="w-3 h-3" />}
+                    {deletingMessage === message.id ? <div className="animate-pulse text-xs">...</div> : <X className="w-3 h-3" />}
                   </button>
                 )}
               </div>
@@ -444,7 +444,7 @@ export default function ConversationView({
                           >
                             {deletingMessage === message.id ? (
                               <>
-                                <Spinner size={12} />
+                                <div className="animate-pulse text-xs">...</div>
                                 <span className="ml-2">Deleting...</span>
                               </>
                             ) : (
@@ -607,7 +607,7 @@ export default function ConversationView({
             className="btn-gradient flex items-center justify-center rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed shadow-lg px-4 py-2 min-w-[40px] relative"
           >
             {sendingMessage ? (
-              <Spinner size={20} />
+              <div className="animate-pulse text-sm">...</div>
             ) : (
               <Send className="w-5 h-5" />
             )}

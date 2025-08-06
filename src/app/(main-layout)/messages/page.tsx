@@ -9,7 +9,7 @@ import { Search, Filter, Plus, MessageSquare, Archive, Users, Building, Tag, X }
 import ConversationList from '@/src/components/messaging/ConversationList';
 import ConversationView from '@/src/components/messaging/ConversationView';
 import CreateConversationModal from '@/src/components/messaging/CreateConversationModal';
-import Spinner from '@/src/components/ui/Spinner';
+
 
 interface User {
   id: string;
@@ -296,11 +296,7 @@ export default function MessagesPage() {
   });
 
   if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <Spinner size={40} />
-      </div>
-    );
+    return <div className="h-screen bg-white" />;
   }
 
   // Available message tags for filtering

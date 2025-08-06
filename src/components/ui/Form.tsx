@@ -11,24 +11,27 @@ import { useState } from "react";
 
 export function LocationSearchInput({
   children,
+  value,
   defaultValue = "San Francisco, CA",
   placeholder = "Enter city, neighborhood, or address",
   className,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & { children?: React.ReactNode }) {
+  const inputProps = value !== undefined ? { value } : { defaultValue };
+
   return (
     <div className="relative">
       <HiLocationMarker className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
       <input
         type="text"
         placeholder={placeholder}
-        defaultValue={defaultValue}
-        className={clsx("w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900", className)}
+        className={clsx("w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 transition-all duration-200", className)}
+        {...inputProps}
         {...props}
       />
       {children}
     </div>
-  )
+  );
 }
 
 export function SearchInput({

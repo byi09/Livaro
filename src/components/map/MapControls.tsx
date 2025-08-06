@@ -14,8 +14,8 @@ export default function MapControls() {
       "Map instance is not available. MapControls must be used within a Map component."
     );
 
-  const { setFilterOptions, setReady } = useMapContext();
-  const { isLoading, coords } = useGeolocationContext();
+  const { setFilterOptions, setReady, setMapBoundsReady } = useMapContext();
+  const { coords } = useGeolocationContext(); // Removed isLoading dependency
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -37,8 +37,11 @@ export default function MapControls() {
         swBounds: bounds.getSouthWest(),
         neBounds: bounds.getNorthEast()
       }));
+      
+      // Mark bounds as ready for property fetching
+      setMapBoundsReady(true);
     },
-    [setFilterOptions]
+    [setFilterOptions, setMapBoundsReady]
   );
 
   // helper function to set the initial map center and zoom
@@ -98,10 +101,9 @@ export default function MapControls() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (centerLoaded) return; // prevent multiple initializations
-    if (isLoading) return; // wait for geolocation to load
     setCenterLoaded(true);
     initializeMapState();
-  }, [centerLoaded, initializeMapState, isLoading]);
+  }, [centerLoaded, initializeMapState]); // Removed isLoading dependency
 
   // add event listeners on map load (and set initial bounds)
   useEffect(() => {

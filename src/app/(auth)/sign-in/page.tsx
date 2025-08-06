@@ -7,7 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { useToast } from '@/src/components/ui/Toast';
-import Spinner, { LoadingOverlay } from '@/src/components/ui/Spinner';
+
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
 
 export default function SignIn() {
@@ -123,29 +123,14 @@ export default function SignIn() {
   };
 
   if (checking) {
-    return (
-      <LoadingOverlay
-        show={true}
-        message="Checking authentication..."
-        subtitle="Please wait while we verify your session"
-        size={40}
-        opacity="heavy"
-      />
-    );
+    return <div className="min-h-screen bg-gray-50" />;
   }
 
   const isFormLoading = loading || googleLoading;
 
   return (
     <div className="flex min-h-screen relative">
-      {/* Loading Overlay */}
-      <LoadingOverlay
-        show={loading}
-        message="Signing you in..."
-        subtitle="Please wait while we authenticate your account"
-        container={false}
-        opacity="heavy"
-      />
+
 
       {/* Back button - positioned at the top left */}
       <Button

@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar'
-import PageTransition from '@/src/components/ui/PageTransition'
 import { usePageTransition } from '@/src/hooks/usePageTransition'
 import { useAutoSave } from '@/src/hooks/useAutoSave'
 import { useImageAutofill } from '@/src/hooks/useImageAutoFill'
@@ -418,7 +417,7 @@ export default function CreateListingPage() {
   }
 
   return (
-    <PageTransition isLoading={isLoading}>
+    
       <main className="min-h-screen bg-gradient-to-br from-gray-50 to-white pt-28 pb-12 px-6 sm:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -708,7 +707,7 @@ export default function CreateListingPage() {
                     />
                     {isProcessing && (
                       <div className="mt-2 flex items-center text-sm text-blue-600">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                        <div className="animate-pulse mr-2">...</div>
                         Processing media files...
                       </div>
                     )}
@@ -755,6 +754,6 @@ export default function CreateListingPage() {
           </form>
         </div>
       </main>
-    </PageTransition>
+    
   )
 }

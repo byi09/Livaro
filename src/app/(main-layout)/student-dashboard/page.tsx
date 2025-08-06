@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { LoadingOverlay } from '@/src/components/ui/Spinner'
 import PropertyCard from '@/src/components/MapCatalogItem'
-import PropertyDetailModal from '@/src/components/map/PropertyDetailModal'
-import { HiHeart, HiDocumentText, HiUser, HiSparkles, HiX, HiPencil, HiAcademicCap, HiHome, HiCurrencyDollar } from 'react-icons/hi'
+import PropertyDetailModal from '@/src/components/map/PropertyDetail
+import { HiHeart, HiDocumentText, HiUser, HiSparkles, HiX, HiPencil,
 import { HiMapPin } from 'react-icons/hi2'
 import type { PropertyListing } from '@/lib/types'
 import StudentProfileForm from '@/src/components/StudentProfileForm'
@@ -185,16 +185,9 @@ export default function StudentDashboard() {
     }).format(amount)
   }
 
+  // Don't show separate loading state - let GlobalLoaderOverlay handle it
   if (isLoading) {
-    return (
-      <LoadingOverlay
-        show={true}
-        message="Loading your dashboard..."
-        subtitle="Please wait while we fetch your data"
-        size={48}
-        opacity="heavy"
-      />
-    )
+    return <div className="min-h-screen bg-gray-50" />;
   }
 
   if (error) {

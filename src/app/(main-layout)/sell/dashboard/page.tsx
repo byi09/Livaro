@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import Spinner, { LoadingOverlay } from '@/src/components/ui/Spinner'
+
 import ListingCard from './listing-card'
 import BuildingCard from './building-card'
 import OneTapApplicationBanner from '@/src/components/OneTapApplicationBanner'
@@ -534,15 +534,7 @@ export default function PropertyDashboard() {
   }
 
   if (isLoading) {
-    return (
-      <LoadingOverlay
-        show={true}
-        message="Loading your properties..."
-        subtitle="Please wait while we fetch your listings"
-        size={48}
-        opacity="heavy"
-      />
-    )
+    return <div className="min-h-screen bg-gray-50" />;
   }
 
   if (error) {
@@ -953,7 +945,7 @@ export default function PropertyDashboard() {
                             </p>
                             <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
                               {clickingPropertyId === property.id && (
-                                <Spinner size={12} className="text-blue-600" />
+                                <div className="animate-pulse text-blue-600 text-xs">...</div>
                               )}
                               {clickingPropertyId === property.id
                                 ? 'Loading...'
@@ -1133,7 +1125,7 @@ export default function PropertyDashboard() {
                           </p>
                           <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
                             {clickingBuildingId === building.id && (
-                              <Spinner size={12} className="text-blue-600" />
+                              <div className="animate-pulse text-blue-600 text-xs">...</div>
                             )}
                             {clickingBuildingId === building.id
                               ? 'Loading...'
@@ -1304,7 +1296,7 @@ export default function PropertyDashboard() {
                   >
                     {showDeleteConfirm && isDeleting(showDeleteConfirm!) ? (
                       <>
-                        <Spinner size={16} variant="white" className="mr-2" />
+                        <div className="animate-pulse text-white text-sm mr-2">...</div>
                         Deleting...
                       </>
                     ) : (

@@ -4,7 +4,7 @@
 import CatalogComingSoon from "./CatalogComingSoon";
 import { FaCogs } from "react-icons/fa";
 import { ENABLE_CATALOG } from "@/lib/config";
-import NearbyProperties from "./NearbyProperties";
+import NearbyPropertiesOptimized from "./NearbyPropertiesOptimized";
 
 export default function Catalog() {
   
@@ -16,7 +16,7 @@ export default function Catalog() {
           {/* Heading removed as per design update */}
 
           {ENABLE_CATALOG ? (
-            <NearbyProperties />
+            <NearbyPropertiesOptimized />
           ) : (
             <CatalogComingSoon icon={<FaCogs className="text-3xl" />}>
               <p className="text-center">

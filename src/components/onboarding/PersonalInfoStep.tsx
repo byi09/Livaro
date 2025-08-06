@@ -7,7 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/utils/styles";
 import { StepProps } from "@/src/types/onboarding";
-import Spinner from "@/src/components/ui/Spinner";
+
 
 const PersonalInfoStep: React.FC<StepProps> = ({ data, onUpdate, onNext, onPrevious }) => {
   const handleBack = () => {
@@ -128,7 +128,7 @@ const PersonalInfoStep: React.FC<StepProps> = ({ data, onUpdate, onNext, onPrevi
               />
               {checkingUsername && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Spinner size={16} />
+                  <div className="animate-pulse">...</div>
                 </div>
               )}
             </div>
@@ -251,7 +251,7 @@ const PersonalInfoStep: React.FC<StepProps> = ({ data, onUpdate, onNext, onPrevi
             >
               {checkingUsername ? (
                 <>
-                  <Spinner size={16} className="mr-2" />
+    
                   Checking...
                 </>
               ) : (

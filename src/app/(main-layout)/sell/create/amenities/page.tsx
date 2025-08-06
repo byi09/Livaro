@@ -3,8 +3,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
-import PageTransition from '@/src/components/ui/PageTransition';
 import { usePageTransition } from '@/src/hooks/usePageTransition';
+import PageTransitionOptimized from '@/src/components/ui/PageTransitionOptimized';
 
 export default function AmenitiesPage() {
   const router = useRouter();
@@ -335,7 +335,7 @@ export default function AmenitiesPage() {
   }
 
   return (
-    <PageTransition isLoading={isLoading}>
+    <PageTransitionOptimized>
       <main className="min-h-screen bg-white pt-28 pb-8 px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -773,7 +773,7 @@ export default function AmenitiesPage() {
         </form>
       </div>
     </main>
-    </PageTransition>
+    </PageTransitionOptimized>
   );
 }
 

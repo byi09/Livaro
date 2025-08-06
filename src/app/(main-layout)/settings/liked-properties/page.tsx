@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PropertyListing } from '@/lib/types';
 import PropertyCard from '@/src/components/MapCatalogItem';
-import Spinner from '@/src/components/ui/Spinner';
+
 import PropertyDetailModal from '@/src/components/map/PropertyDetailModal';
 
 const LikedPropertiesPage = () => {
@@ -45,7 +45,7 @@ const LikedPropertiesPage = () => {
 
       {loading ? (
         <div className="flex justify-center items-center h-32">
-          <Spinner />
+          <div className="animate-pulse">Loading...</div>
         </div>
       ) : properties.length === 0 ? (
         <p className="text-gray-600">You haven’t liked any properties yet.</p>

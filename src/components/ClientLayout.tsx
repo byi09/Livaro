@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import Header from "./ui/Header";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import Spinner from "./ui/Spinner";
+
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -69,15 +69,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const isSellPage = pathname?.includes("/sell");
   const isStudentDashboardPage = pathname?.includes("/student-dashboard");
 
+  // No longer show spinner here - GlobalLoaderOverlay handles all loading states
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="text-center space-y-4">
-          <Spinner size={48} />
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <div className="min-h-screen bg-white" />;
   }
 
   return (
