@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-
+import { LoadingOverlay } from '@/src/components/ui/Spinner'
 import PropertyCard from '@/src/components/MapCatalogItem'
-import PropertyDetailModal from '@/src/components/map/PropertyDetailModal'
-import { HiHeart, HiDocumentText, HiUser, HiSparkles, HiX, HiPencil, HiAcademicCap, HiHome, HiCurrencyDollar } from 'react-icons/hi'
+import PropertyDetailModal from '@/src/components/map/PropertyDetail
+import { HiHeart, HiDocumentText, HiUser, HiSparkles, HiX, HiPencil,
+import { HiMapPin } from 'react-icons/hi2'
 import type { PropertyListing } from '@/lib/types'
 import StudentProfileForm from '@/src/components/StudentProfileForm'
 
@@ -62,7 +63,7 @@ export default function StudentDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null)
   const [showProfileSetup, setShowProfileSetup] = useState(false)
-  const [activeTab, setActiveTab] = useState<'profile' | 'liked' | 'applications'>('profile')
+  const [activeTab, setActiveTab] = useState<'preferences' | 'liked' | 'applications'>('preferences')
 
   useEffect(() => {
     fetchDashboardData()
@@ -91,7 +92,7 @@ export default function StudentDashboard() {
       if (applicationsResponse.ok) {
         const applicationsData = await applicationsResponse.json()
         if (applicationsData.applications && applicationsData.applications.length > 0) {
-          const transformedApplications: RentalApplication[] = applicationsData.applications.map((app: any) => ({
+          const transformedApplications: RentalApplication[] = applicationsData.applications.map((app: Record<string, unknown>) => ({
             id: app.id,
             propertyId: app.propertyId,
             property: {
@@ -221,11 +222,11 @@ export default function StudentDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-medium text-blue-800">
-                      ⚡ Complete Your Student Profile
+                      ⚡ Set Up Your Housing Preferences
                     </h3>
                     <div className="mt-1 text-sm text-blue-700">
                       <p>
-                        Set up your profile to get personalized property recommendations and faster application processing.
+                        Tell us about your housing needs to get personalized property recommendations.
                       </p>
                     </div>
                   </div>
@@ -242,7 +243,7 @@ export default function StudentDashboard() {
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                   >
                     <HiUser className="w-4 h-4 mr-2" />
-                    Set Up Profile
+                    Set Preferences
                   </button>
                 </div>
               </div>
@@ -256,7 +257,7 @@ export default function StudentDashboard() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
               <p className="mt-2 text-gray-600">
-                Manage your profile, liked properties and rental applications
+                Manage your housing preferences, liked properties and rental applications
               </p>
             </div>
           </div>
@@ -275,7 +276,7 @@ export default function StudentDashboard() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Profile Status
+                      Preferences Set
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {studentProfile ? 'Complete' : 'Incomplete'}
@@ -359,15 +360,15 @@ export default function StudentDashboard() {
         <div className="mb-6">
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
-              onClick={() => setActiveTab('profile')}
+              onClick={() => setActiveTab('preferences')}
               className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'profile'
+                activeTab === 'preferences'
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               <HiUser className="w-4 h-4 mr-2" />
-              Profile
+              Housing Preferences
             </button>
             <button
               onClick={() => setActiveTab('liked')}
@@ -395,16 +396,16 @@ export default function StudentDashboard() {
         </div>
 
         {/* Content */}
-        {activeTab === 'profile' ? (
+        {activeTab === 'preferences' ? (
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg leading-6 font-medium text-gray-900">
-                    Student Profile
+                    Your Housing Preferences
                   </h3>
                   <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                    Your saved preferences and information
+                    Your saved housing requirements and preferences
                   </p>
                 </div>
                 <button
@@ -412,7 +413,7 @@ export default function StudentDashboard() {
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <HiPencil className="w-4 h-4 mr-2" />
-                  Edit Profile
+                  Edit Preferences
                 </button>
               </div>
             </div>
@@ -420,9 +421,9 @@ export default function StudentDashboard() {
             {!studentProfile ? (
               <div className="text-center py-12">
                 <HiUser className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Complete Your Student Profile</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Set Up Your Housing Preferences</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Tell us about your university, major, and housing preferences to get personalized property recommendations.
+                  Tell us about your university, budget, and housing preferences to get personalized property recommendations.
                 </p>
                 <div className="mt-6">
                   <button
@@ -430,148 +431,192 @@ export default function StudentDashboard() {
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                   >
                     <HiUser className="w-4 h-4 mr-2" />
-                    Create Profile
+                    Set Preferences
                   </button>
                 </div>
               </div>
             ) : (
               <div className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-8">
                   {/* Personal Information */}
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <HiUser className="w-5 h-5 text-blue-600" />
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-3 bg-blue-100 rounded-xl">
+                        <HiUser className="w-6 h-6 text-blue-600" />
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900">Personal Information</h4>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">Personal Information</h4>
+                        <p className="text-sm text-gray-600">Your basic contact details</p>
+                      </div>
                     </div>
                     
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Full Name</label>
-                        <p className="mt-1 text-sm text-gray-900">{studentProfile.firstName} {studentProfile.lastName}</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Email</label>
-                        <p className="mt-1 text-sm text-gray-900">{studentProfile.email}</p>
+                    <div className="space-y-5">
+                      <div className="bg-white rounded-lg p-4 border border-blue-100">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                        <p className="text-lg font-medium text-gray-900">
+                          {studentProfile.firstName && studentProfile.lastName 
+                            ? `${studentProfile.firstName} ${studentProfile.lastName}`
+                            : <span className="text-gray-400 italic">Not specified</span>
+                          }
+                        </p>
                       </div>
                       {studentProfile.phone && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Phone</label>
-                          <p className="mt-1 text-sm text-gray-900">{studentProfile.phone}</p>
+                        <div className="bg-white rounded-lg p-4 border border-blue-100">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+                          <p className="text-lg font-medium text-gray-900">{studentProfile.phone}</p>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Academic Information */}
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <HiAcademicCap className="w-5 h-5 text-green-600" />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                        {/* Academic Information */}
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-sm">
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="p-3 bg-green-100 rounded-xl">
+                          <HiAcademicCap className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-xl font-bold text-gray-900">Academic Information</h4>
+                          <p className="text-sm text-gray-600">Your educational background</p>
+                        </div>
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900">Academic Information</h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white rounded-lg p-4 border border-green-100">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">University</label>
+                          <p className="text-lg font-medium text-gray-900">
+                            {studentProfile.university || <span className="text-gray-400 italic">Not specified</span>}
+                          </p>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-green-100">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Major</label>
+                          <p className="text-lg font-medium text-gray-900">
+                            {studentProfile.major || <span className="text-gray-400 italic">Not specified</span>}
+                          </p>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-green-100">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Expected Graduation</label>
+                          <p className="text-lg font-medium text-gray-900">
+                            {studentProfile.graduationYear || <span className="text-gray-400 italic">Not specified</span>}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">University</label>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {studentProfile.university || <span className="text-gray-400 italic">Not specified</span>}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Major</label>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {studentProfile.major || <span className="text-gray-400 italic">Not specified</span>}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Expected Graduation</label>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {studentProfile.graduationYear || <span className="text-gray-400 italic">Not specified</span>}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                </div>
 
-                  {/* Housing Preferences */}
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <HiCurrencyDollar className="w-5 h-5 text-purple-600" />
+                  {/* Budget & Timeline */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-3 bg-purple-100 rounded-xl">
+                        <HiCurrencyDollar className="w-6 h-6 text-purple-600" />
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900">Housing Preferences</h4>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">Budget & Timeline</h4>
+                        <p className="text-sm text-gray-600">Your housing budget and timeline</p>
+                      </div>
                     </div>
                     
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Budget Range</label>
-                        <p className="mt-1 text-sm text-gray-900">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-white rounded-lg p-4 border border-purple-100">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Budget Range</label>
+                        <p className="text-lg font-medium text-gray-900">
                           {studentProfile.budget.min > 0 && studentProfile.budget.max > 0 
                             ? `${formatCurrency(studentProfile.budget.min)} - ${formatCurrency(studentProfile.budget.max)}/month`
                             : <span className="text-gray-400 italic">Not specified</span>
                           }
                         </p>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Preferred Lease Length</label>
-                        <p className="mt-1 text-sm text-gray-900">
+                      <div className="bg-white rounded-lg p-4 border border-purple-100">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Lease Length</label>
+                        <p className="text-lg font-medium text-gray-900">
                           {studentProfile.leaseLength || <span className="text-gray-400 italic">Not specified</span>}
                         </p>
                       </div>
-                      {studentProfile.moveInDate && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-500">Preferred Move-in Date</label>
-                          <p className="mt-1 text-sm text-gray-900">{formatDate(studentProfile.moveInDate)}</p>
+                      {studentProfile.moveInDate ? (
+                        <div className="bg-white rounded-lg p-4 border border-purple-100">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Move-in Date</label>
+                          <p className="text-lg font-medium text-gray-900">{formatDate(studentProfile.moveInDate)}</p>
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-lg p-4 border border-purple-100">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Move-in Date</label>
+                          <p className="text-lg font-medium text-gray-400 italic">Not specified</p>
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Location Preferences */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-3 bg-indigo-100 rounded-xl">
+                        <HiMapPin className="w-6 h-6 text-indigo-600" />
+                      </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-500">Preferred Areas</label>
-                        <div className="mt-1 flex flex-wrap gap-2">
-                          {studentProfile.preferredAreas && studentProfile.preferredAreas.length > 0 ? (
-                            studentProfile.preferredAreas.map((area, index) => (
-                              <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {area}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-gray-400 italic text-sm">Not specified</span>
-                          )}
-                        </div>
+                        <h4 className="text-xl font-bold text-gray-900">Location Preferences</h4>
+                        <p className="text-sm text-gray-600">Your preferred neighborhoods</p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg p-4 border border-indigo-100">
+                      <label className="block text-sm font-semibold text-gray-700 mb-3">Preferred Areas</label>
+                      <div className="flex flex-wrap gap-2">
+                        {studentProfile.preferredAreas && studentProfile.preferredAreas.length > 0 ? (
+                          studentProfile.preferredAreas.map((area, index) => (
+                            <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
+                              {area}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 italic">Not specified</span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Additional Preferences */}
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-orange-100 rounded-lg">
-                        <HiHome className="w-5 h-5 text-orange-600" />
+                  {/* Additional Requirements */}
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-3 bg-orange-100 rounded-xl">
+                        <HiHome className="w-6 h-6 text-orange-600" />
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900">Additional Preferences</h4>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">Additional Requirements</h4>
+                        <p className="text-sm text-gray-600">Your housing preferences</p>
+                      </div>
                     </div>
                     
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full ${studentProfile.pets ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                        <span className="ml-3 text-sm text-gray-900">I have pets</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white rounded-lg p-4 border border-orange-100">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-5 h-5 rounded-full ${studentProfile.pets ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          <span className="text-sm font-medium text-gray-900">I have pets</span>
+                        </div>
                       </div>
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full ${studentProfile.parking ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                        <span className="ml-3 text-sm text-gray-900">I need parking</span>
+                      <div className="bg-white rounded-lg p-4 border border-orange-100">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-5 h-5 rounded-full ${studentProfile.parking ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          <span className="text-sm font-medium text-gray-900">I need parking</span>
+                        </div>
                       </div>
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full ${studentProfile.roommates ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                        <span className="ml-3 text-sm text-gray-900">I'm open to roommates</span>
+                      <div className="bg-white rounded-lg p-4 border border-orange-100">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-5 h-5 rounded-full ${studentProfile.roommates ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          <span className="text-sm font-medium text-gray-900">I&apos;m open to roommates</span>
+                        </div>
                       </div>
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full ${studentProfile.furnished ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                        <span className="ml-3 text-sm text-gray-900">I prefer furnished</span>
+                      <div className="bg-white rounded-lg p-4 border border-orange-100">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-5 h-5 rounded-full ${studentProfile.furnished ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          <span className="text-sm font-medium text-gray-900">I prefer furnished</span>
+                        </div>
                       </div>
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full ${studentProfile.utilitiesIncluded ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                        <span className="ml-3 text-sm text-gray-900">I prefer utilities included</span>
+                      <div className="bg-white rounded-lg p-4 border border-orange-100 md:col-span-2">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-5 h-5 rounded-full ${studentProfile.utilitiesIncluded ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          <span className="text-sm font-medium text-gray-900">I prefer utilities included</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -587,7 +632,7 @@ export default function StudentDashboard() {
                   Liked Properties
                 </h3>
                 <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                  Properties you've saved for later
+                  Properties you&apos;ve saved for later
                 </p>
               </div>
             </div>
@@ -596,9 +641,9 @@ export default function StudentDashboard() {
               <div className="text-center py-12">
                 <HiHeart className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No liked properties</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Start browsing properties and like the ones you're interested in.
-                </p>
+                                  <p className="mt-1 text-sm text-gray-500">
+                    Start browsing properties and like the ones you&apos;re interested in.
+                  </p>
                 <div className="mt-6">
                   <button
                     onClick={() => router.push('/map')}

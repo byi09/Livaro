@@ -102,6 +102,18 @@ export async function POST(req: Request) {
       .where(eq(studentProfiles.customerId, customer.id))
       .limit(1)
 
+    // Update customer name if provided
+    if (body.firstName || body.lastName) {
+      await db
+        .update(customers)
+        .set({
+          firstName: body.firstName || customer.firstName,
+          lastName: body.lastName || customer.lastName,
+          phoneNumber: body.phone || customer.phoneNumber,
+        })
+        .where(eq(customers.id, customer.id))
+    }
+
     const profileData = {
       customerId: customer.id,
       university: body.university,
