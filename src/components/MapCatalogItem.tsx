@@ -11,7 +11,6 @@ import {
 import Image from 'next/image'
 import { useMapContext } from '@/src/contexts/MapContext'
 import { useToast } from '@/src/components/ui/Toast'
-import { usePropertyModal } from '@/src/contexts/MapContext'
 
 // Initialize Supabase Client using environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -37,9 +36,12 @@ function MapCatalogItem({
 }) {
   const mapContext = useSafeMapContext()
   const { success, error } = useToast()
-  const { setSelectedProperty } = usePropertyModal()
+  const { setSelectedProperty, selectedProperty } = mapContext || { setSelectedProperty: () => {}, selectedProperty: null }
   const [isLiked, setIsLiked] = useState(initialLiked)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+
+  // Check if this property is currently selected
+  const isSelected = selectedProperty?.properties.id === item.properties.id
 
   // Fetch Random Image from Supabase Storage with optimization
   useEffect(() => {
@@ -97,9 +99,6 @@ function MapCatalogItem({
 
   const handleClick = () => {
     setSelectedProperty(item)
-    if (mapContext) {
-      mapContext.setSelectedProperty(item)
-    }
   }
 
   const toggleLike = async (propertyId: string) => {
@@ -131,15 +130,12 @@ function MapCatalogItem({
     }
   }
 
-  const isSelected =
-    mapContext?.selectedProperty?.properties.id === item.properties.id
-
   return (
     <div
-      className={`rounded-md shadow-md w-full overflow-hidden cursor-pointer hover:shadow-xl border transition-all duration-200 ${
+      className={`rounded-md shadow-md w-full overflow-hidden cursor-pointer hover:shadow-xl border transition-all duration-300 ${
         isSelected
-          ? 'border-blue-500 ring-2 ring-blue-200 shadow-lg'
-          : 'border-gray-200'
+          ? 'border-blue-500 ring-2 ring-blue-200 shadow-xl bg-blue-50 scale-[1.02]'
+          : 'border-gray-200 hover:border-blue-300'
       }`}
       onClick={handleClick}
     >

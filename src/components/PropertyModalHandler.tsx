@@ -1,13 +1,17 @@
 'use client';
 
-import { usePropertyModal } from "@/src/contexts/MapContext";
+import { useMapContext } from "@/src/contexts/MapContext";
 import PropertyDetailModal from "@/src/components/map/PropertyDetailModal";
 import { PropertyListing } from "@/lib/types";
 
 export default function PropertyModalHandler() {
-  const { selectedProperty, setSelectedProperty } = usePropertyModal();
+  const { selectedProperty, setSelectedProperty } = useMapContext();
+
+  // Debug logging
+  console.log('🎭 PropertyModalHandler render - selectedProperty:', selectedProperty);
 
   const handleCloseModal = () => {
+    console.log('❌ Closing property modal');
     setSelectedProperty(null);
   };
 
@@ -76,10 +80,14 @@ export default function PropertyModalHandler() {
   };
 
   return (
-    <PropertyDetailModal
-      property={selectedProperty}
-      onClose={handleCloseModal}
-      onContact={handleContact}
-    />
+    <>
+      {selectedProperty && (
+        <PropertyDetailModal
+          property={selectedProperty}
+          onClose={handleCloseModal}
+          onContact={handleContact}
+        />
+      )}
+    </>
   );
 } 

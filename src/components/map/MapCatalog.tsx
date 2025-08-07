@@ -22,7 +22,7 @@ const sortOptions: { value: SortOption; label: string }[] = [
 const sortLabelMap = listToMap(sortOptions, "value");
 
 export default function MapCatalog() {
-  const { catalog, sortOption, setSortOption, fetchingListings, mapBoundsReady, initialLoadComplete } = useMapContext();
+  const { catalog, sortOption, setSortOption, fetchingListings, mapBoundsReady, initialLoadComplete, selectedProperty } = useMapContext();
 
   // Memoize sorted catalog for performance
   const sortedCatalog = useMemo(() => {
