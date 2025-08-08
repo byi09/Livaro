@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, Send } from "lucide-react";
+import { X, Send, Paperclip } from "lucide-react";
 import {
   ChatMessage,
   PropertyListing,
@@ -117,8 +117,10 @@ export default function AISearchOverlay({
   const [propertyListings, setPropertyListings] = useState<PropertyListing[]>(
     [],
   );
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -147,9 +149,19 @@ export default function AISearchOverlay({
       setChatHistory([]);
       setPropertyListings([]);
       setInputValue("");
+      setUploadedFiles([]);
       setIsLoading(false);
     }
   }, [isOpen]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setUploadedFiles((prev) => [...prev, ...files]);
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +181,19 @@ export default function AISearchOverlay({
     try {
       const formData = new FormData();
       formData.append("prompt", userMessage.text);
+
+      // Add files to form data if any are uploaded
+      uploadedFiles.forEach((file, index) => {
+        formData.append(`file_${index}`, file);
+      });
+
+      // Add file context to prompt if files are present
+      let enhancedPrompt = userMessage.text;
+      if (uploadedFiles.length > 0) {
+        const fileNames = uploadedFiles.map((f) => f.name).join(", ");
+        enhancedPrompt = `[Files uploaded: ${fileNames}] ${userMessage.text}. Please analyze the uploaded files in context of this housing-related query.`;
+        formData.set("prompt", enhancedPrompt);
+      }
 
       const result = await onSubmit(formData, chatHistory);
 
@@ -192,6 +217,12 @@ export default function AISearchOverlay({
           setPropertyListings(result.propertyListings);
         }
       }
+
+      // Clear uploaded files after successful submission
+      setUploadedFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (error) {
       console.error("Error submitting chat:", error);
       const errorMessage: ChatMessage = {
@@ -208,11 +239,11 @@ export default function AISearchOverlay({
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
       onWheel={(e) => e.preventDefault()}
     >
-      <div 
+      <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col"
         onWheel={(e) => e.stopPropagation()}
       >
@@ -274,9 +305,12 @@ export default function AISearchOverlay({
                     />
                   </svg>
                 </div>
-                <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  Start a conversation
+                </h3>
                 <p className="text-sm">
-                  Ask me about properties, neighborhoods, or specific requirements
+                  Ask me about properties, neighborhoods, or specific
+                  requirements
                 </p>
               </div>
             )}
@@ -296,10 +330,7 @@ export default function AISearchOverlay({
             <h3 className="text-lg font-semibold mb-4">
               Properties Found ({propertyListings.length})
             </h3>
-            <ScrollArea 
-              className="h-60"
-              onWheel={(e) => e.stopPropagation()}
-            >
+            <ScrollArea className="h-60" onWheel={(e) => e.stopPropagation()}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {propertyListings.map((listing, index) => (
                   <PropertyCard
@@ -315,22 +346,67 @@ export default function AISearchOverlay({
 
         {/* Input Form */}
         <div className="border-t border-gray-200 p-6">
-          <form onSubmit={handleSubmit} className="flex space-x-3">
-            <Input
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask me about properties, neighborhoods, or specific requirements..."
-              disabled={isLoading}
-              className="flex-1 text-base text-black"
-            />
-            <Button
-              type="submit"
-              disabled={!inputValue.trim() || isLoading}
-              className="px-6"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
+          {/* File Upload Area */}
+          {uploadedFiles.length > 0 && (
+            <div className="mb-4">
+              <div className="flex flex-wrap gap-2">
+                {uploadedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm"
+                  >
+                    <Paperclip className="w-3 h-3 mr-1" />
+                    <span className="truncate max-w-32">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      className="ml-2 text-blue-500 hover:text-blue-700"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div className="relative">
+              {/* File Upload Button */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.csv,.xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-700 z-10 flex items-center justify-center border border-gray-300"
+                size="sm"
+              >
+                <Paperclip className="w-4 h-4" />
+              </Button>
+
+              <Input
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Ask me about properties, neighborhoods, or specific requirements..."
+                disabled={isLoading}
+                className="w-full text-base text-black pl-12 pr-12 py-3"
+              />
+              <Button
+                type="submit"
+                disabled={!inputValue.trim() || isLoading}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 rounded-md"
+                size="sm"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
           </form>
         </div>
       </div>
