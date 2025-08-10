@@ -1,6 +1,6 @@
 "use server";
 
-import { asc, desc, eq, gte, inArray, or, SQL, sql, and } from "drizzle-orm";
+import { asc, desc, eq, gte, inArray, or, SQL, sql, and, ne } from "drizzle-orm";
 import { db } from ".";
 import {
   conversations,
@@ -308,6 +308,8 @@ export const getUserConversationsComplete = async (
       and(
         eq(conversationParticipants.userId, userId),
         eq(conversationParticipants.isActive, true),
+        // Exclude AI search conversations from messaging interface
+        ne(conversations.conversationType, 'ai_search'),
         options?.archived !== undefined ? eq(conversations.isArchived, options.archived) : undefined
       )
     )
@@ -344,7 +346,14 @@ export const getMessagesByConversationId = async (conversationId: string) => {
     const conversationMessages = await db
       .select()
       .from(messages)
-      .where(eq(messages.conversationId, conversationId));
+      .where(and(
+        eq(messages.conversationId, conversationId),
+        // Exclude LLM-generated messages from display
+        or(
+          ne(messages.messageType, 'ai_query'),
+          ne(messages.messageType, 'ai_response')
+        )
+      ));
 
     return conversationMessages;
   } catch (error) {

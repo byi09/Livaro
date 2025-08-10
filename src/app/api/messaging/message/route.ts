@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { db } from '@/src/db';
 import { messages, conversationParticipants, users, customers, conversations } from '@/src/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, ne, or } from 'drizzle-orm';
 import { pusherServer } from '@/src/lib/pusher';
 import { userHasConversationAccess } from '@/src/db/queries';
 
@@ -42,7 +42,15 @@ export async function GET(request: NextRequest) {
       .from(messages)
       .innerJoin(users, eq(messages.senderId, users.id))
       .innerJoin(customers, eq(users.id, customers.userId))
-      .where(and(eq(messages.conversationId, conversationId), eq(messages.isDeleted, false)))
+      .where(and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.isDeleted, false),
+        // Exclude LLM-generated messages from display
+        or(
+          ne(messages.messageType, 'ai_query'),
+          ne(messages.messageType, 'ai_response')
+        )
+      ))
       .orderBy(desc(messages.createdAt))
       .limit(50);
 
