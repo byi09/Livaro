@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { GeolocationProvider } from "../contexts/GeolocationContext";
-import { ToastProvider } from "../components/ui/Toast";
+import { GeolocationProvider } from "@/src/contexts/GeolocationContext";
+import { ToastProvider } from "@/src/components/ui/Toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
