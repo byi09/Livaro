@@ -25,7 +25,7 @@ export default function MapCatalog() {
   return (
     <div
       className={clsx(
-        "flex flex-col px-6 py-4 gap-4 shadow-xl z-10 w-[400px] xl:w-[760px] h-full min-h-0 overflow-y-auto relative",
+        "flex flex-col px-6 py-4 gap-4 shadow-xl z-10 h-full min-h-0 overflow-y-auto relative",
         fetchingListings && "pointer-events-none opacity-50"
       )}
     >
