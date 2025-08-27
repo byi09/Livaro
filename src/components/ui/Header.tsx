@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { HiUser, HiChevronDown, HiCog } from 'react-icons/hi'
 import { HiArrowRightOnRectangle, HiHeart } from 'react-icons/hi2' // ✅ Added HiHeart
 import { createClient } from '@/utils/supabase/client'
@@ -26,6 +27,7 @@ const NotificationBell = dynamic(
 )
 
 const Header = ({ toggleSidebar, user }: HeaderProps) => {
+  const router = useRouter()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -128,68 +130,72 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
   return (
     <header className="fixed top-0 z-50 w-full bg-white text-gray-900 shadow-sm border-b border-gray-200">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-16">
-          <Link href="/" className="flex items-center flex-shrink-0">
-            <div className="flex items-center space-x-3">
-              <img
-                src="/logo.png"
-                alt="Livaro Logo"
-                className="w-8 h-8 mr-2 object-contain transition-transform duration-200 group-hover:scale-110"
-              />
-              <span className="text-xl font-bold text-gray-800">Livaro</span>
-            </div>
-          </Link>
-
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-8 mx-auto">
+        <div className="flex items-center justify-between h-16">
+          {/* Left Navigation */}
+          <nav className="hidden md:flex items-center space-x-8 flex-1">
+            {/* List Dropdown */}
+            <Dropdown
+              trigger="List"
+              triggerClassName="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 border-none bg-transparent shadow-none hover:bg-gray-50 px-3 py-1.5 rounded-md"
+            >
+              <DropdownItem onClick={() => router.push('/sell/create')}>
+                List new Property
+              </DropdownItem>
+              <DropdownItem onClick={() => router.push('/sell/create/apartment-building')}>
+                List new Complex
+              </DropdownItem>
+            </Dropdown>
+            
             <Link
               href="/map"
               className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900"
             >
               Rent
             </Link>
-            {/* Property Management Dropdown */}
+            
+            <Link
+              href="/sublist"
+              className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900"
+            >
+              Sublist
+            </Link>
+            
+            {/* Management Dropdown */}
             <Dropdown
-              trigger="Manage Rentals"
+              trigger="Management"
               triggerClassName="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 border-none bg-transparent shadow-none hover:bg-gray-50 px-3 py-1.5 rounded-md"
             >
-              <DropdownItem>
-                <Link href="/sell/create" className="w-full block">
-                  List new Property
-                </Link>
+              <DropdownItem onClick={() => router.push('/sell/dashboard')}>
+                View Properties
               </DropdownItem>
-              <DropdownItem>
-                <Link
-                  href="/sell/create/apartment-building"
-                  className="w-full block"
-                >
-                  List new Apartment
-                </Link>
-              </DropdownItem>
-              <DropdownItem>
-                <Link href="/sell/dashboard" className="w-full block">
-                  View Properties
-                </Link>
+              <DropdownItem onClick={() => router.push('/student-dashboard')}>
+                Student Dashboard
               </DropdownItem>
             </Dropdown>
-            {/* Student Dashboard Link */}
-            <Link
-              href="/student-dashboard"
-              className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 relative"
-            >
-              Student Dashboard
+          </nav>
+
+          {/* Centered Logo */}
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <Link href="/" className="flex items-center">
+              <div className="flex items-center space-x-3">
+                <img
+                  src="/logo.png"
+                  alt="Livaro Logo"
+                  className="w-8 h-8 mr-2 object-contain transition-transform duration-200 group-hover:scale-110"
+                />
+                <span className="text-xl font-bold text-gray-800">Livaro</span>
+              </div>
             </Link>
-            {/* Messages Nav Link */}
+          </div>
+
+          {/* Right Navigation */}
+          <div className="flex items-center space-x-4 flex-1 justify-end">
             <Link
               href="/messages"
               className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 relative"
             >
               Messages
-              {/* Optionally, add a badge for unread messages here in the future */}
             </Link>
-          </nav>
-
-          <div className="flex items-center space-x-4 flex-shrink-0">
             <NotificationBell />
 
             <div className="relative">
