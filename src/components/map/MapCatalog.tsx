@@ -22,7 +22,7 @@ const sortOptions: { value: SortOption; label: string }[] = [
 const sortLabelMap = listToMap(sortOptions, "value");
 
 export default function MapCatalog() {
-  const { catalog, sortOption, setSortOption, fetchingListings, mapBoundsReady, initialLoadComplete, selectedProperty } = useMapContext();
+  const { catalog, sortOption, setSortOption, fetchingListings, mapBoundsReady, initialLoadComplete } = useMapContext();
 
   // Memoize sorted catalog for performance
   const sortedCatalog = useMemo(() => {
@@ -108,6 +108,7 @@ export default function MapCatalog() {
           // Use virtualization for large lists
           <List
             height={600} // Adjust based on container height
+            width="100%"
             itemCount={sortedCatalog.length}
             itemSize={280} // Approximate height of each property card
             className="scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"

@@ -5,7 +5,6 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useMemo } from "react";
 import { useGeolocationContext } from "@/src/contexts/GeolocationContext";
 import { useSearchParams } from "next/navigation";
-import { useMemo } from "react";
 
 export default function DefaultMap({
   children
