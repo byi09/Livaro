@@ -10,16 +10,43 @@ interface MotionLayoutProps {
 }
 
 const variants = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: "easeOut" } },
-  exit: { opacity: 0, y: -8, transition: { duration: 0.2, ease: "easeIn" } },
+  initial: { opacity: 0, y: 4, scale: 0.995 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.15, ease: "easeOut" },
+  },
+  exit: { opacity: 0, y: -4, scale: 0.995, transition: { duration: 0.12, ease: "easeIn" } },
+};
+
+// Even faster variant specifically for heavy pages like the student dashboard
+const fastVariants = {
+  initial: { opacity: 0, y: 2, scale: 0.997 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.1, ease: "easeOut" },
+  },
+  exit: { opacity: 0, y: -2, scale: 0.997, transition: { duration: 0.08, ease: "easeIn" } },
 };
 
 export default function MotionLayout({ children }: MotionLayoutProps) {
   const pathname = usePathname();
+  const useFast = pathname?.includes("/student-dashboard");
+  const appliedVariants = useFast ? fastVariants : variants;
   return (
-    <AnimatePresence mode="wait">
-      <motion.div key={pathname} variants={variants} initial="initial" animate="animate" exit="exit" className="min-h-screen flex flex-col">
+    // Remove "wait" mode so enter/exit overlap for snappier transitions
+    <AnimatePresence>
+      <motion.div
+        key={pathname}
+        variants={appliedVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="min-h-screen flex flex-col"
+      >
         {children}
       </motion.div>
       <GlobalLoaderOverlay />

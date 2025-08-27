@@ -1,11 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/utils/supabase/client'
 
-import PropertyCard from '@/src/components/MapCatalogItem'
-import PropertyDetailModal from '@/src/components/map/PropertyDetailModal'
+// Defer heavy components until needed to reduce initial bundle size
+const PropertyCard = dynamic(() => import('@/src/components/MapCatalogItem'), {
+  ssr: false,
+  loading: () => <div className="h-64 rounded-xl bg-gray-100 animate-pulse" />
+})
+const PropertyDetailModal = dynamic(
+  () => import('@/src/components/map/PropertyDetailModal'),
+  { ssr: false }
+)
 import { HiHeart, HiDocumentText, HiUser, HiSparkles, HiXMark, HiPencil, HiHome, HiAcademicCap, HiCurrencyDollar, HiMapPin } from 'react-icons/hi2'
 import type { PropertyListing } from '@/lib/types'
 import StudentProfileForm from '@/src/components/StudentProfileForm'
@@ -63,12 +71,16 @@ export default function StudentDashboard() {
   const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null)
   const [showProfileSetup, setShowProfileSetup] = useState(false)
   const [activeTab, setActiveTab] = useState<'preferences' | 'liked' | 'applications'>('preferences')
+  const [progressPercent, setProgressPercent] = useState<number | null>(null)
+  const [animateProgress, setAnimateProgress] = useState(false)
 
   useEffect(() => {
-    fetchDashboardData()
+    const controller = new AbortController()
+    fetchDashboardData(controller.signal)
+    return () => controller.abort()
   }, [])
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (signal?: AbortSignal) => {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -79,19 +91,24 @@ export default function StudentDashboard() {
         return
       }
 
-      // Fetch liked properties
-      const likedResponse = await fetch('/api/properties/like')
-      if (likedResponse.ok) {
-        const likedData = await likedResponse.json()
+      // Fetch all resources in parallel
+      const [likedRes, appsRes, profileRes] = await Promise.allSettled([
+        fetch('/api/properties/like', { signal, cache: 'no-store' }),
+        fetch('/api/applications', { signal, cache: 'no-store' }),
+        fetch('/api/student/profile', { signal, cache: 'no-store' }),
+      ])
+
+      if (likedRes.status === 'fulfilled' && likedRes.value.ok) {
+        const likedData = await likedRes.value.json()
         setLikedProperties(likedData.properties || [])
+      } else if (likedRes.status === 'rejected') {
+        console.warn('Liked properties fetch aborted or failed')
       }
 
-      // Fetch applications from API
-      const applicationsResponse = await fetch('/api/applications')
-      if (applicationsResponse.ok) {
-        const applicationsData = await applicationsResponse.json()
+      if (appsRes.status === 'fulfilled' && appsRes.value.ok) {
+        const applicationsData = await appsRes.value.json()
         if (applicationsData.applications && applicationsData.applications.length > 0) {
-          const transformedApplications: RentalApplication[] = applicationsData.applications.map((app: Record<string, unknown>) => ({
+          const transformedApplications: RentalApplication[] = applicationsData.applications.map((app: Record<string, any>) => ({
             id: app.id,
             propertyId: app.propertyId,
             property: {
@@ -115,15 +132,13 @@ export default function StudentDashboard() {
         } else {
           setApplications([])
         }
-      } else {
-        console.error('Failed to fetch applications:', applicationsResponse.status)
+      } else if (appsRes.status === 'rejected') {
+        console.warn('Applications fetch aborted or failed')
         setApplications([])
       }
 
-      // Check if student profile exists
-      const profileResponse = await fetch('/api/student/profile')
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json()
+      if (profileRes.status === 'fulfilled' && profileRes.value.ok) {
+        const profileData = await profileRes.value.json()
         setStudentProfile(profileData.profile)
       }
 
@@ -208,6 +223,16 @@ export default function StudentDashboard() {
   }
 
   const profileProgress = calculateProfileCompletion()
+  
+  // Avoid 0%→X% flicker by setting progress after data arrives, then enabling animation
+  useEffect(() => {
+    if (!isLoading) {
+      setProgressPercent(profileProgress.percentage)
+      // Enable animation only after first paint with correct width
+      const id = setTimeout(() => setAnimateProgress(true), 50)
+      return () => clearTimeout(id)
+    }
+  }, [isLoading, profileProgress.percentage])
 
   // Don't show separate loading state - let GlobalLoaderOverlay handle it
   if (isLoading) {
@@ -233,47 +258,7 @@ export default function StudentDashboard() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 mt-16">
-        {/* Student Profile Setup Banner */}
-        {!studentProfile && (
-          <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <HiSparkles className="w-5 h-5 text-blue-600" />
-                </div>
-              </div>
-              <div className="ml-3 flex-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-blue-800">
-                      ⚡ Set Up Your Housing Preferences
-                    </h3>
-                    <div className="mt-1 text-sm text-blue-700">
-                      <p>
-                        Tell us about your housing needs to get personalized property recommendations.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowProfileSetup(true)}
-                    className="ml-4 flex-shrink-0 text-blue-400 hover:text-blue-600 transition-colors"
-                  >
-                    <HiXMark className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="mt-3">
-                  <button
-                    onClick={() => setShowProfileSetup(true)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                  >
-                    <HiUser className="w-4 h-4 mr-2" />
-                    Set Preferences
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Student Profile Setup Banner removed per request */}
 
         {/* Header */}
         <div className="mb-8">
@@ -287,62 +272,42 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Profile Completion Progress */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Profile Completion</h3>
-              <p className="text-sm text-gray-600">Complete your profile to get better matches</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-blue-600">{profileProgress.percentage}%</div>
-              <div className="text-xs text-gray-500">{profileProgress.completedFields}/{profileProgress.totalFields} fields</div>
-            </div>
+        {/* Profile Completion Progress - cleaner UI and no initial flicker */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold text-gray-900">Profile completion</h3>
+            <span className="text-sm font-medium text-gray-700">
+              {progressPercent ?? 0}%
+            </span>
           </div>
-          
-          <div className="relative">
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 rounded-full transition-all duration-700 ease-out relative"
-                style={{ width: `${profileProgress.percentage}%` }}
-              >
-                <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full"></div>
-              </div>
-            </div>
-            
-            {/* Progress milestones */}
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
-              <span className={profileProgress.percentage >= 25 ? 'text-blue-600 font-medium' : ''}>25%</span>
-              <span className={profileProgress.percentage >= 50 ? 'text-purple-600 font-medium' : ''}>50%</span>
-              <span className={profileProgress.percentage >= 75 ? 'text-purple-600 font-medium' : ''}>75%</span>
-              <span className={profileProgress.percentage >= 100 ? 'text-green-600 font-medium' : ''}>Complete!</span>
-            </div>
+          <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={`${animateProgress ? 'transition-all duration-700 ease-out' : ''} h-full bg-blue-600 rounded-full`}
+              style={{ width: `${progressPercent ?? 0}%` }}
+            />
           </div>
-          
+          <div className="mt-2 text-xs text-gray-500">
+            {profileProgress.completedFields}/{profileProgress.totalFields} fields completed
+          </div>
           {profileProgress.percentage < 100 && (
-            <div className="mt-4 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                {profileProgress.percentage < 50 ? 'Complete basic info to unlock features' : 
-                 profileProgress.percentage < 75 ? 'Almost there! Add preferences for better matches' :
-                 'Just a few more details to complete your profile'}
-              </div>
+            <div className="mt-4 flex justify-end">
               <button
                 onClick={() => setShowProfileSetup(true)}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
               >
-                Complete Profile
+                Complete profile
               </button>
             </div>
           )}
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300">
+        {/* Stats Cards - simplified visuals */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                     <HiUser className="w-6 h-6 text-white" />
                   </div>
                 </div>
@@ -363,11 +328,11 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 bg-rose-500 rounded-lg flex items-center justify-center">
                     <HiHeart className="w-6 h-6 text-white" />
                   </div>
                 </div>
@@ -388,11 +353,11 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
                     <HiDocumentText className="w-6 h-6 text-white" />
                   </div>
                 </div>
@@ -413,11 +378,11 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
                     <span className="text-white text-lg font-bold">
                       {applications.filter(app => app.applicationStatus === 'approved').length}
                     </span>

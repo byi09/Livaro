@@ -35,7 +35,32 @@ export async function GET() {
       .limit(1)
 
     if (profileResult.length === 0) {
-      return NextResponse.json({ profile: null })
+      // No saved student profile yet – return a partially prefilled profile
+      const defaultProfile = {
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        email: user.email,
+        phone: customer.phoneNumber,
+        university: '',
+        graduationYear: '',
+        major: '',
+        budget: { min: 0, max: 0 },
+        // Seed preferred areas from onboarding location of interest if available
+        preferredAreas: [
+          [customer.interestCity, customer.interestState]
+            .filter(Boolean)
+            .join(', ')
+        ].filter((s) => s && s.trim().length > 0) as string[],
+        moveInDate: '',
+        leaseLength: '',
+        pets: false,
+        parking: false,
+        roommates: false,
+        furnished: false,
+        utilitiesIncluded: false,
+      }
+
+      return NextResponse.json({ profile: defaultProfile })
     }
 
     const profile = profileResult[0]
@@ -116,19 +141,19 @@ export async function POST(req: Request) {
 
     const profileData = {
       customerId: customer.id,
-      university: body.university,
-      major: body.major,
-      graduationYear: body.graduationYear,
+      university: body.university ?? existingProfile[0]?.university ?? '',
+      major: body.major ?? existingProfile[0]?.major ?? '',
+      graduationYear: body.graduationYear ?? existingProfile[0]?.graduationYear ?? '',
       budgetMin: body.budget?.min || 0,
       budgetMax: body.budget?.max || 0,
-      preferredAreas: body.preferredAreas || [],
-      moveInDate: body.moveInDate || null,
-      leaseLength: body.leaseLength || '',
-      pets: body.pets || false,
-      parking: body.parking || false,
-      roommates: body.roommates || false,
-      furnished: body.furnished || false,
-      utilitiesIncluded: body.utilitiesIncluded || false,
+      preferredAreas: body.preferredAreas ?? existingProfile[0]?.preferredAreas ?? [],
+      moveInDate: body.moveInDate ?? existingProfile[0]?.moveInDate ?? null,
+      leaseLength: body.leaseLength ?? existingProfile[0]?.leaseLength ?? '',
+      pets: body.pets ?? existingProfile[0]?.pets ?? false,
+      parking: body.parking ?? existingProfile[0]?.parking ?? false,
+      roommates: body.roommates ?? existingProfile[0]?.roommates ?? false,
+      furnished: body.furnished ?? existingProfile[0]?.furnished ?? false,
+      utilitiesIncluded: body.utilitiesIncluded ?? existingProfile[0]?.utilitiesIncluded ?? false,
     }
 
     let result

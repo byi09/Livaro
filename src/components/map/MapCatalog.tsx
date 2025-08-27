@@ -62,7 +62,7 @@ export default function MapCatalog() {
   }
 
   return (
-    <div className="flex flex-col px-6 py-4 gap-4 shadow-xl z-10 w-[400px] xl:w-[760px] h-full min-h-0 overflow-y-auto relative bg-white">
+    <div className="flex flex-col px-6 py-4 gap-4 shadow-xl z-10 h-full min-h-0 overflow-y-auto relative bg-white">
       <header>
         <h1 className="text-2xl font-bold text-blue-900">Rental Listings</h1>
         <div className="flex justify-between items-center">

@@ -57,6 +57,7 @@ export default function StudentProfileForm({ isOpen, onClose, onSuccess }: Stude
 
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 4
 
@@ -76,7 +77,18 @@ export default function StudentProfileForm({ isOpen, onClose, onSuccess }: Stude
       
       if (data.profile) {
         // Load saved profile if it exists
-        setProfile(data.profile)
+        setProfile((prev) => ({
+          ...prev,
+          ...data.profile,
+          // Preserve defaults for any missing fields
+          budget: {
+            min: Number(data.profile.budget?.min) || 0,
+            max: Number(data.profile.budget?.max) || 0,
+          },
+          preferredAreas: Array.isArray(data.profile.preferredAreas)
+            ? data.profile.preferredAreas
+            : [],
+        }))
       }
     } catch (error) {
       console.error('Error loading profile:', error)
@@ -142,9 +154,46 @@ export default function StudentProfileForm({ isOpen, onClose, onSuccess }: Stude
     }
   }
 
-  const nextStep = () => {
+  // Save partial progress to backend safely (only fields for the current step)
+  const savePartial = async (step: number) => {
+    try {
+      let payload: any = { partial: true }
+      if (step === 1) {
+        payload.firstName = profile.firstName
+        payload.lastName = profile.lastName
+        payload.phone = profile.phone
+      } else if (step === 2) {
+        payload.university = profile.university
+        payload.major = profile.major
+        payload.graduationYear = profile.graduationYear
+      } else if (step === 3) {
+        payload.budget = profile.budget
+        payload.leaseLength = profile.leaseLength
+        payload.moveInDate = profile.moveInDate
+        payload.preferredAreas = profile.preferredAreas
+      } else if (step === 4) {
+        payload.pets = profile.pets
+        payload.parking = profile.parking
+        payload.roommates = profile.roommates
+        payload.furnished = profile.furnished
+        payload.utilitiesIncluded = profile.utilitiesIncluded
+      }
+
+      await fetch('/api/student/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+    } catch (err) {
+      // Non-blocking; surface only in console
+      console.warn('Partial save failed (non-blocking):', err)
+    }
+  }
+
+  const nextStep = async () => {
     if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1)
+      await savePartial(currentStep)
+      setCurrentStep((s) => s + 1)
     }
   }
 
@@ -465,30 +514,42 @@ export default function StudentProfileForm({ isOpen, onClose, onSuccess }: Stude
 
           {/* Progress Bar */}
           <div className="px-6 py-4 bg-white border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              {Array.from({ length: totalSteps }, (_, i) => (
-                <div key={i} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    i + 1 < currentStep 
-                      ? 'bg-green-500 text-white' 
-                      : i + 1 === currentStep 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-gray-200 text-gray-500'
-                  }`}>
-                    {i + 1 < currentStep ? <HiCheck className="w-4 h-4" /> : i + 1}
+            <div className="relative">
+              {/* Track */}
+              <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-1 bg-gray-200 rounded" />
+              {/* Progress fill */}
+              <div
+                className="absolute left-4 top-1/2 -translate-y-1/2 h-1 bg-blue-500 rounded transition-all"
+                style={{ width: `calc(${((currentStep - 1) / (totalSteps - 1)) * 100}% )` }}
+              />
+              {/* Steps */}
+              <div className="relative flex items-center justify-between">
+                {Array.from({ length: totalSteps }, (_, i) => (
+                  <div key={i} className="relative z-10">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shadow-sm transition-colors ${
+                        i + 1 < currentStep
+                          ? 'bg-green-500 text-white'
+                          : i + 1 === currentStep
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-500'
+                      }`}
+                    >
+                      {i + 1 < currentStep ? <HiCheck className="w-4 h-4" /> : i + 1}
+                    </div>
                   </div>
-                  {i < totalSteps - 1 && (
-                    <div className={`w-12 h-1 mx-2 ${
-                      i + 1 < currentStep ? 'bg-green-500' : 'bg-gray-200'
-                    }`} />
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
+            {isLoading && (
+              <div className="flex items-center justify-center py-10">
+                <Spinner size={20} />
+              </div>
+            )}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
                 <div className="flex">
@@ -498,7 +559,7 @@ export default function StudentProfileForm({ isOpen, onClose, onSuccess }: Stude
               </div>
             )}
 
-            {renderCurrentStep()}
+            {!isLoading && renderCurrentStep()}
           </div>
 
           {/* Footer */}

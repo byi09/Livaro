@@ -243,7 +243,7 @@ function PropertySearch() {
                     d="M13 10V3L4 14h7v7l9-11h-7z"
                   />
                 </svg>
-                Search with AI
+                <span className="whitespace-nowrap">Search with AI</span>
               </label>
               <button
                 type="button"

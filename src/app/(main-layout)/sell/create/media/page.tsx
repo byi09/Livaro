@@ -898,6 +898,7 @@ export default function MediaPage() {
                             </div>
                           )}
                           
+<<<<<<< HEAD
                           {/* Edit Button - positioned on bottom left when hovering */}
                           <button
                             onClick={(e) => { 
@@ -926,6 +927,18 @@ export default function MediaPage() {
                             onClick={(e) => { e.stopPropagation(); deleteExistingImage(image.id, image.s3_key); }}
                             disabled={deleting === image.id}
                             className="absolute bottom-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:bg-gray-400 shadow-lg z-20"
+=======
+                          {/* View Hint Icon - positioned behind buttons */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition bg-opacity-0 group-hover:bg-opacity-20 pointer-events-none">
+                            <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+
+                          {/* Delete Button - positioned above overlay */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteExistingImage(image.id, image.s3_key); }}
+                            disabled={deleting === image.id}
+                            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:bg-gray-400 z-10"
+>>>>>>> 253b0c215c074e68531d07b281211bb41e3aa908
                             title="Delete image"
                           >
                             {deleting === image.id ? (
@@ -934,11 +947,6 @@ export default function MediaPage() {
                               <Trash2 className="w-4 h-4" />
                             )}
                           </button>
-
-                          {/* View Hint Icon */}
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition bg-opacity-0 group-hover:bg-opacity-20">
-                            <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
                         </div>
                         
                         {/* Image Info */}
