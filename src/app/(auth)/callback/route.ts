@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const error = searchParams.get('error')
   const next = searchParams.get('next') ?? '/'
+  const returnTo = searchParams.get('returnTo')
 
   console.log('Auth callback received:', { token_hash, type, code, error, next })
 
@@ -59,7 +60,8 @@ export async function GET(request: NextRequest) {
         console.error('Error checking onboarding status during callback:', err)
       }
 
-      const response = NextResponse.redirect(`${origin}/`)
+      const redirectUrl = returnTo || '/home'
+      const response = NextResponse.redirect(`${origin}${redirectUrl}`)
       // Set onboarding cookie so the homepage can render correctly the first time.
       response.cookies.set(ONBOARDING_COOKIE_NAME, onboarded.toString(), {
         httpOnly: true,

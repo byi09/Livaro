@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { HiUser, HiChevronDown, HiCog } from 'react-icons/hi'
 import { HiArrowRightOnRectangle, HiHeart } from 'react-icons/hi2' // ✅ Added HiHeart
 import { createClient } from '@/utils/supabase/client'
@@ -28,6 +28,7 @@ const NotificationBell = dynamic(
 
 const Header = ({ toggleSidebar, user }: HeaderProps) => {
   const router = useRouter()
+  const pathname = usePathname()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -91,6 +92,205 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
     )
   }
 
+  // Special case: /home and /map pages for unauthenticated users - show exact same header but with sign in/up buttons
+  if (!user && (pathname === '/home' || pathname === '/map')) {
+    return (
+      <header className="fixed top-0 z-50 w-full bg-white text-gray-900 shadow-sm border-b border-gray-200">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center h-16">
+            {/* Left Navigation - EXACTLY the same as authenticated */}
+            <nav className="hidden md:flex items-center space-x-8">
+              {/* List Dropdown */}
+              <Dropdown
+                trigger="List"
+                triggerClassName="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 border-none bg-transparent shadow-none hover:bg-gray-50 px-3 py-1.5 rounded-md"
+              >
+                <DropdownItem onClick={() => router.push('/sign-in?returnTo=/sell/create')}>
+                  List new Property
+                </DropdownItem>
+                <DropdownItem onClick={() => router.push('/sign-in?returnTo=/sell/create/apartment-building')}>
+                  List new Complex
+                </DropdownItem>
+              </Dropdown>
+              
+              <Link
+                href="/map"
+                className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900"
+              >
+                Rent
+              </Link>
+              
+              <Link
+                href="/sublist"
+                className="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900"
+                onClick={(e) => { e.preventDefault(); router.push('/sign-in?returnTo=/sublist'); }}
+              >
+                Sublist
+              </Link>
+              
+              {/* Management Dropdown */}
+              <Dropdown
+                trigger="Management"
+                triggerClassName="font-medium transition-colors text-sm text-gray-700 hover:text-gray-900 border-none bg-transparent shadow-none hover:bg-gray-50 px-3 py-1.5 rounded-md"
+              >
+                <DropdownItem onClick={() => router.push('/sign-in?returnTo=/sell/dashboard')}>
+                  View Properties
+                </DropdownItem>
+                <DropdownItem onClick={() => router.push('/sign-in?returnTo=/student-dashboard')}>
+                  Student Dashboard
+                </DropdownItem>
+              </Dropdown>
+            </nav>
+
+            {/* Centered Logo - EXACTLY the same */}
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <Link href="/home" className="flex items-center">
+                <div className="flex items-center space-x-3">
+                  <img
+                    src="/logo.png"
+                    alt="Livaro Logo"
+                    className="w-8 h-8 mr-2 object-contain transition-transform duration-200 group-hover:scale-110"
+                  />
+                  <span className="text-xl font-bold text-gray-800">Livaro</span>
+                </div>
+              </Link>
+            </div>
+
+            {/* Right Navigation - Sign In/Up buttons only */}
+            <div className="flex items-center space-x-3 ml-auto">
+              <Link
+                href="/sign-up"
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Sign Up
+              </Link>
+              
+              <Link
+                href="/sign-in"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Sign In
+              </Link>
+
+              {toggleSidebar && (
+                <button
+                  className="md:hidden text-gray-700 p-1 focus:outline-none"
+                  onClick={toggleSidebar}
+                  aria-label="Toggle menu"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  // Special case: Landing page (root) header
+  if (pathname === '/') {
+    return (
+      <header
+        className={`fixed top-0 z-50 w-full transition-all duration-500 ease-out ${
+          scrolled ? 'backdrop-blur-xl shadow-2xl' : 'backdrop-blur-sm'
+        }`}
+        style={{ 
+          background: scrolled 
+            ? `linear-gradient(135deg, rgba(17, 24, 39, ${Math.max(bgOpacity, 0.95)}), rgba(31, 41, 55, ${Math.max(bgOpacity, 0.85)}))` 
+            : `linear-gradient(135deg, rgba(17, 24, 39, ${Math.max(bgOpacity, 0.7)}), rgba(31, 41, 55, ${Math.max(bgOpacity, 0.5)}))`
+        }}
+      >
+        <div className="relative w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-end items-center h-16">
+            <div className="flex items-center space-x-3">
+              <Link
+                href="/home"
+                className="group relative px-6 py-2.5 rounded-xl font-medium text-white transition-all duration-300 ease-out hover:scale-105 active:scale-95"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1))',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)'
+                }}
+              >
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-500/25 to-green-500/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 rounded-xl bg-white/5 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:animate-pulse"></div>
+                <span className="relative z-10 flex items-center space-x-2">
+                  <svg className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  <span>Start Renting</span>
+                </span>
+              </Link>
+              {user && (
+                <div className="relative group">
+                  <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-emerald-500/25 cursor-pointer">
+                    <HiUser className="w-4 h-4 text-white transition-transform duration-300 group-hover:scale-110" />
+                  </div>
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse"></div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  // Check if we're on a protected route (dashboard area) 
+  const isProtectedRoute = pathname?.startsWith('/messages') || 
+                          pathname?.startsWith('/sell') || 
+                          pathname?.startsWith('/settings') || 
+                          pathname?.startsWith('/student-dashboard')
+
+  // Special header for protected routes when not authenticated
+  if (!user && isProtectedRoute) {
+    return (
+      <header className="fixed top-0 z-50 w-full bg-white text-gray-900 shadow-sm border-b border-gray-200">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Left - Logo */}
+            <div className="flex items-center">
+              <Link href="/" className="flex items-center group">
+                <img
+                  src="/logo.png"
+                  alt="Livaro Logo"
+                  className="w-8 h-8 object-contain transition-transform duration-200 group-hover:scale-110"
+                />
+                <span className="text-xl font-bold text-gray-800 ml-2">
+                  Livaro
+                </span>
+              </Link>
+            </div>
+
+            {/* Right - Sign In Button */}
+            <div className="flex items-center">
+              <Link
+                href="/sign-in"
+                className="px-6 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                Sign In
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
   if (!user) {
     return (
       <header
@@ -113,7 +313,13 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
                 </span>
               </Link>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/home"
+                className="px-6 py-2 rounded-lg font-medium border-2 border-white text-white hover:bg-white hover:text-gray-900 transition-colors"
+              >
+                Portal
+              </Link>
               <Link
                 href="/sign-in"
                 className="px-6 py-2 rounded-lg font-medium border bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
@@ -176,7 +382,7 @@ const Header = ({ toggleSidebar, user }: HeaderProps) => {
 
           {/* Centered Logo */}
           <div className="absolute left-1/2 transform -translate-x-1/2">
-            <Link href="/" className="flex items-center">
+            <Link href="/home" className="flex items-center">
               <div className="flex items-center space-x-3">
                 <img
                   src="/logo.png"

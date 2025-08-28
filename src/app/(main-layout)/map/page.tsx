@@ -13,25 +13,19 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 export default function MapPage() {
   return (
     <MapContextProvider>
-      <div className="flex flex-col h-screen">
+      <div className="absolute inset-0 top-16 flex flex-col w-full z-10">
         <MapFilters />
         <div className="flex w-full flex-1 min-h-0">
-          <PanelGroup direction="horizontal" className="w-full h-full">
-            <Panel defaultSize={65} minSize={55} maxSize={70} className="relative">
-              <div className="w-full h-full">
-                <DefaultMap>
-                  <MapControls />
-                  <MapMarkers />
-                </DefaultMap>
-              </div>
-            </Panel>
-            <PanelResizeHandle className="w-1 bg-gray-300 hover:bg-gray-400 transition-colors cursor-col-resize" />
-            <Panel defaultSize={35} minSize={30} maxSize={45} className="relative">
-              <div className="w-full h-full">
-                {ENABLE_MAP ? <MapCatalog /> : <MapCatalogComingSoon />}
-              </div>
-            </Panel>
-          </PanelGroup>
+          {/* Fixed size map on left, properties on right */}
+          <div className="w-2/3 h-full relative">
+            <DefaultMap>
+              <MapControls />
+              <MapMarkers />
+            </DefaultMap>
+          </div>
+          <div className="w-1/3 h-full relative overflow-hidden border-l border-gray-300">
+            {ENABLE_MAP ? <MapCatalog /> : <MapCatalogComingSoon />}
+          </div>
         </div>
       </div>
     </MapContextProvider>

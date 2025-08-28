@@ -82,12 +82,12 @@ export default function SignUpPage() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => router.push('/')}
+        onClick={() => router.push('/home')}
         className="absolute top-4 left-4 z-10"
         disabled={isFormLoading}
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to home
+        Back to dashboard
       </Button>
 
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 relative">

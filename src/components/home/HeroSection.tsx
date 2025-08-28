@@ -19,7 +19,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.4, ease: "easeOut" }
+    transition: { duration: 0.4 }
   }
 };
 
@@ -29,7 +29,7 @@ export default function HeroSection() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 text-white py-20 overflow-hidden"
+      className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 text-white pt-24 pb-20 overflow-hidden"
     >
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">

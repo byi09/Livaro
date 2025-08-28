@@ -20,6 +20,7 @@ export default function SignIn() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isVerified = searchParams.get('verified') === 'true';
+  const returnTo = searchParams.get('returnTo');
   const { success, error: showError } = useToast();
 
   // Check if user is already authenticated and onboarded
@@ -34,11 +35,11 @@ export default function SignIn() {
           if (res.ok) {
             const { onboarded } = await res.json();
             if (onboarded) {
-              router.push('/');
+              router.push(returnTo || '/home');
               return;
             }
             // Logged in but not onboarded -> go to landing for onboarding flow
-            router.push('/');
+            router.push('/home');
             return;
           }
         } catch (error) {
@@ -101,7 +102,7 @@ export default function SignIn() {
     } else {
       success('Welcome back!', 'Redirecting...');
       // Full page reload so that onboarding status and header sync correctly
-      window.location.href = '/';
+      window.location.href = returnTo || '/home';
     }
   }
 
@@ -112,7 +113,7 @@ export default function SignIn() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/callback`
+        redirectTo: `${window.location.origin}/callback${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`
       }
     });
     
@@ -136,12 +137,12 @@ export default function SignIn() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => router.push('/')}
+        onClick={() => router.push('/home')}
         className="absolute top-4 left-4 z-10"
         disabled={isFormLoading}
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to home
+        Back to dashboard
       </Button>
 
       {/* Left side - Login form */}

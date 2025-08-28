@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import Header from "./ui/Header";
+import AuthGuard from "./AuthGuard";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -61,10 +62,15 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   // Don't show header on auth pages unless user is authenticated
   const isAuthPage =
     pathname?.includes("/sign-") || pathname?.includes("/auth");
-  const showHeader = !isAuthPage || user;
+  
+  // Show header on landing page, home page, map page, and when authenticated
+  const isLandingPage = pathname === '/';
+  const isHomePage = pathname === '/home';
+  const isRentPage = pathname === '/map';
+  const showHeader = !isAuthPage && (isLandingPage || isHomePage || isRentPage || user);
   
   // Don't add top padding for map, messages, sell, and student dashboard pages since they have their own layouts
-  const isMapPage = pathname?.includes("/map");
+  const isMapPagePath = pathname?.includes("/map");
   const isMessagesPage = pathname?.includes("/messages");
   const isSellPage = pathname?.includes("/sell");
   const isStudentDashboardPage = pathname?.includes("/student-dashboard");
@@ -75,16 +81,18 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {showHeader && <Header user={user} />}
+    <AuthGuard>
+      <div className="min-h-screen bg-white flex flex-col">
+        {showHeader && <Header user={user} />}
 
-      {/*
-        Only offset content when the header is the solid authenticated version (i.e., a user is logged in).
-        For guests we want the hero/landing sections to sit beneath the transparent header.
-      */}
-      <main className={`${user && !isMapPage && !isMessagesPage && !isSellPage && !isStudentDashboardPage ? 'pt-16' : ''} flex-1`}>{children}</main>
+        {/*
+          Only offset content when the header is the solid authenticated version (i.e., a user is logged in).
+          For guests we want the hero/landing sections to sit beneath the transparent header.
+        */}
+        <main className={`${user && !isHomePage && !isMapPagePath && !isMessagesPage && !isSellPage && !isStudentDashboardPage ? 'pt-16' : ''} flex-1`}>{children}</main>
 
-      {/* Footer removed as per design update */}
-    </div>
+        {/* Footer removed as per design update */}
+      </div>
+    </AuthGuard>
   );
 }

@@ -50,29 +50,35 @@ export default function DefaultMap({
     };
   }, [searchParams, coords]);
 
-  // Handle container resize
+  // Handle container resize with debouncing to prevent flickering
   useEffect(() => {
-    const handleResize = () => {
-      if (mapRef.current) {
-        // Force map to resize when container size changes
-        mapRef.current.getMap().resize();
-      }
+    let resizeTimeout: NodeJS.Timeout | null = null;
+    
+    const debouncedResize = () => {
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (mapRef.current) {
+          // Force map to resize when container size changes
+          mapRef.current.getMap().resize();
+        }
+      }, 16); // ~60fps debounce
     };
 
     // Listen for window resize events
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', debouncedResize);
     
     // Create a ResizeObserver to watch for container size changes
     const container = mapRef.current?.getContainer();
     let resizeObserver: ResizeObserver | null = null;
     
     if (container && typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver = new ResizeObserver(debouncedResize);
       resizeObserver.observe(container.parentElement || container);
     }
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', debouncedResize);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
