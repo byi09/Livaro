@@ -336,45 +336,48 @@ export default function AmenitiesPage() {
 
   return (
     <PageTransitionOptimized>
-      <main className="min-h-screen bg-white pt-28 pb-8 px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-semibold">Amenities</h1>
-          <button 
-            onClick={exitToDashboard}
-            className="px-6 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-          >
-            Save and Exit
-          </button>
-        </div>
+      <main className="min-h-screen bg-gray-50 pt-20 pb-12">
+        <div className="max-w-4xl mx-auto px-6">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Step 4: Amenities</h1>
+            <button 
+              onClick={exitToDashboard}
+              className="px-6 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              Save & Exit
+            </button>
+          </div>
 
-        {/* Progress Bar */}
-        <InteractiveProgressBar currentStep={3} propertyId={propertyId} beforeNavigate={saveCurrentFormData} />
+          {/* Progress Bar */}
+          <InteractiveProgressBar currentStep={4} propertyId={propertyId} beforeNavigate={saveCurrentFormData} />
 
-        {/* Form */}
-        <form ref={formRef} onSubmit={handleSubmit}>
+          {/* Main Content Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-8 py-8">
+              <div className="text-center mb-12">
+                <h2 className="text-2xl font-bold text-blue-600 mb-2">Amenities</h2>
+                <p className="text-gray-600">Highlight the key features of your property</p>
+              </div>
 
-        {/* Main Content */}
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold mb-2">Highlight the Key Features of Your Home</h2>
-          <p className="text-gray-600 mb-8">Showcase your amenities</p>
+              {/* Form */}
+              <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Utilities */}
-            <div>
-                <h3 className="font-semibold mb-4">Utilities</h3>
-              <div className="space-y-3">
-                <label className="flex items-center space-x-3">
-                    <input 
-                      type="radio" 
-                      name="feature_utilities_laundry" 
-                      value="in_unit"
-                      className="form-radio text-blue-600" 
-                      disabled={isSubmitting}
-                    />
-                    <span>Laundry In Unit</span>
-                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {/* Utilities */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Utilities</h3>
+                    <div className="space-y-3">
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name="feature_utilities_laundry" 
+                          value="in_unit"
+                          className="form-radio text-blue-600 focus:ring-blue-500" 
+                          disabled={isSubmitting}
+                        />
+                        <span className="text-sm text-gray-700">Laundry In Unit</span>
+                      </label>
                 <label className="flex items-center space-x-3">
                     <input 
                       type="radio" 
@@ -738,41 +741,48 @@ export default function AmenitiesPage() {
             </div>
           </div>
 
-          {/* Custom Amenities */}
-          <div className="mt-8">
-            <h3 className="text-xl font-semibold mb-4">Add in any other key amenities</h3>
-            <textarea
-                name="custom_amenities"
-              value={customAmenities}
-              onChange={(e) => setCustomAmenities(e.target.value)}
-              className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Enter additional amenities..."
-                disabled={isSubmitting}
-            />
-          </div>
+                {/* Custom Amenities */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Additional Amenities</h3>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Add any other key features or amenities
+                    </label>
+                    <textarea
+                      name="custom_amenities"
+                      value={customAmenities}
+                      onChange={(e) => setCustomAmenities(e.target.value)}
+                      className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 resize-none placeholder-gray-400"
+                      placeholder="Enter additional amenities (one per line or comma-separated)..."
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between items-center mt-12">
-            <button 
-              onClick={() => handleNavigation(`/sell/create/media?property_id=${propertyId}`)}
-              className="px-6 py-3 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center"
-              type="button"
-            >
-              <span className="mr-2">←</span>
-              Back
-            </button>
-            <button 
-              onClick={() => handleNavigation(`/sell/create/screening?property_id=${propertyId}`)}
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              type="button"
-            >
-              Next
-            </button>
+              </form>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center mt-12 px-8 py-6 bg-gray-50 border-t border-gray-200">
+              <button 
+                onClick={() => handleNavigation(`/sell/create/media?property_id=${propertyId}`)}
+                className="px-6 py-3 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center shadow-sm"
+                type="button"
+              >
+                <span className="mr-2">←</span>
+                Back
+              </button>
+              <button 
+                onClick={() => handleNavigation(`/sell/create/screening?property_id=${propertyId}`)}
+                className="px-8 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                type="button"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
-        </form>
-      </div>
-    </main>
+      </main>
     </PageTransitionOptimized>
   );
 }

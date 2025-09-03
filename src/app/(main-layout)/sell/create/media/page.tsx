@@ -696,28 +696,38 @@ export default function MediaPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-white pt-28 pb-8 px-8">
-      <div className="max-w-7xl mx-auto">
+    <main className="min-h-screen bg-gray-50 pt-20 pb-12">
+      <div className="max-w-4xl mx-auto px-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-semibold">Media Upload</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Step 3: Media</h1>
           <button 
             onClick={() => router.push('/sell/dashboard')}
-            className="px-6 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            className="px-6 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
           >
-            Save and Exit
+            Save & Exit
           </button>
         </div>
 
         {/* Progress Bar */}
-        <InteractiveProgressBar currentStep={2} propertyId={propertyId} />
+        <InteractiveProgressBar currentStep={3} propertyId={propertyId} />
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Photos */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-xl font-semibold mb-2">Add Photos</h2>
-            <p className="text-gray-600 mb-6">More photos = more informed renters</p>
+        {/* Main Content Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-8 py-8">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl font-bold text-blue-600 mb-2">Media</h2>
+              <p className="text-gray-600">Add photos and videos to showcase your property</p>
+            </div>
+
+            {/* Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Photos */}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Property Photos</h3>
+                  <p className="text-sm text-gray-600 mb-6">More photos = more interested renters</p>
+                </div>
             
             {/* Upload Area */}
             <div 
@@ -1135,23 +1145,24 @@ export default function MediaPage() {
           </div>
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex justify-between items-center mt-12">
-          <button 
-            onClick={() => router.push(`/sell/create/rent-details?property_id=${propertyId}`)}
-            className="inline-flex items-center px-6 py-3 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            Back
-          </button>
-          <button 
-            onClick={() => router.push(`/sell/create/amenities?property_id=${propertyId}`)}
-            className="inline-flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-lg transition-all font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-            disabled={uploading}
-          >
-            {uploading ? 'Uploading...' : 'Next'}
-            <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </button>
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center mt-12 px-8 py-6 bg-gray-50 border-t border-gray-200">
+              <button 
+                onClick={() => router.push(`/sell/create/rent-details?property_id=${propertyId}`)}
+                className="px-6 py-3 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center shadow-sm"
+              >
+                <span className="mr-2">←</span>
+                Back
+              </button>
+              <button 
+                onClick={() => router.push(`/sell/create/amenities?property_id=${propertyId}`)}
+                className="px-8 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                disabled={uploading}
+              >
+                {uploading ? 'Uploading...' : 'Next'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       {lightboxOpen && (

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
 import { useAutoSave } from '@/src/hooks/useAutoSave';
+import { useUploadedMedia } from '@/src/hooks/useUploadedMedia';
 
 export default function RentDetailsPage() {
   const router = useRouter();
@@ -24,6 +25,12 @@ export default function RentDetailsPage() {
   const [bedrooms, setBedrooms] = useState('1');
   const [bathrooms, setBathrooms] = useState('1');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Uploaded media management hook - auto-fill from previously uploaded files
+  const { getAllExtractedData, uploadedFiles } = useUploadedMedia({
+    propertyId,
+    autoProcess: false, // Don't auto-process, just retrieve existing data
+  });
 
   // Auto-save hook for property data
   const { saveImmediately: savePropertyData } = useAutoSave({
@@ -71,6 +78,28 @@ export default function RentDetailsPage() {
   const saveAllData = async () => {
     await Promise.all([savePropertyData(), saveListingData()]);
   };
+
+  // Auto-fill from uploaded media data
+  useEffect(() => {
+    const extractedData = getAllExtractedData();
+    
+    // Only auto-fill if fields are empty and we have extracted data
+    if (extractedData.monthly_rent && !rent) {
+      setRent(extractedData.monthly_rent);
+    }
+    if (extractedData.security_deposit && !securityDeposit) {
+      setSecurityDeposit(extractedData.security_deposit);
+    }
+    if (extractedData.pet_deposit && !petDeposit) {
+      setPetDeposit(extractedData.pet_deposit);
+    }
+    if (extractedData.application_fee && !applicationFee) {
+      setApplicationFee(extractedData.application_fee);
+    }
+    if (extractedData.available_date && !availableDate) {
+      setAvailableDate(extractedData.available_date);
+    }
+  }, [getAllExtractedData, rent, securityDeposit, petDeposit, applicationFee, availableDate]);
 
   // Load existing property data if available
   useEffect(() => {
@@ -246,296 +275,222 @@ export default function RentDetailsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white pt-28 pb-8 px-8">
-      <div className="max-w-7xl mx-auto">
+    <main className="min-h-screen bg-gray-50 pt-20 pb-12">
+      <div className="max-w-4xl mx-auto px-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-semibold">Rent Details</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Step 2: Rent Details</h1>
           <button 
             onClick={() => router.push('/sell/dashboard')}
-            className="px-6 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            className="px-6 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
           >
-            Save and Exit
+            Save & Exit
           </button>
         </div>
 
         {/* Progress Bar */}
-        <InteractiveProgressBar currentStep={1} propertyId={propertyId} beforeNavigate={saveAllData} />
+        <InteractiveProgressBar currentStep={2} propertyId={propertyId} beforeNavigate={saveAllData} />
 
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
-          
-          <div className="max-w-2xl mx-auto space-y-8">
-            <h2 className="text-2xl font-semibold mb-8">Listing Details</h2>
-            
-            {/* Listing Title */}
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-3">
-                Listing Title*
-              </label>
-              <input
-                type="text"
-                name="listing_title"
-                value={listingTitle}
-                onChange={(e) => setListingTitle(e.target.value)}
-                className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                placeholder="e.g., Beautiful 2BR Apartment in Downtown"
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-
-            {/* Listing Description */}
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-3">
-                Listing Description*
-              </label>
-              <textarea
-                name="listing_description"
-                value={listingDescription}
-                onChange={(e) => setListingDescription(e.target.value)}
-                rows={4}
-                className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white resize-none"
-                placeholder="Describe what makes this property special..."
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-
-            {/* Property Details */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-lg font-medium text-gray-700 mb-3">
-                  Number of Bedrooms *
-                </label>
-                <select
-                  name="bedrooms"
-                  value={bedrooms}
-                  onChange={(e) => setBedrooms(e.target.value)}
-                  className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                  required
-                  disabled={isSubmitting}
-                >
-                  <option value="0">Studio (0 bedroom)</option>
-                  <option value="1">1 bedroom</option>
-                  <option value="2">2 bedrooms</option>
-                  <option value="3">3 bedrooms</option>
-                  <option value="4">4 bedrooms</option>
-                  <option value="5">5 bedrooms</option>
-                  <option value="6">6+ bedrooms</option>
-                </select>
+        {/* Auto-fill Notice */}
+        {uploadedFiles.length > 0 && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
               </div>
-              <div>
-                <label className="block text-lg font-medium text-gray-700 mb-3">
-                  Number of Bathrooms *
-                </label>
-                <select
-                  name="bathrooms"
-                  value={bathrooms}
-                  onChange={(e) => setBathrooms(e.target.value)}
-                  className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                  required
-                  disabled={isSubmitting}
-                >
-                  <option value="0.5">0.5 bathroom</option>
-                  <option value="1">1 bathroom</option>
-                  <option value="1.5">1.5 bathrooms</option>
-                  <option value="2">2 bathrooms</option>
-                  <option value="2.5">2.5 bathrooms</option>
-                  <option value="3">3 bathrooms</option>
-                  <option value="3.5">3.5 bathrooms</option>
-                  <option value="4">4 bathrooms</option>
-                  <option value="4.5">4.5 bathrooms</option>
-                  <option value="5">5+ bathrooms</option>
-                </select>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">
+                  📄 Using Data from Uploaded Files
+                </h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <p>
+                    Found {uploadedFiles.length} uploaded file{uploadedFiles.length !== 1 ? 's' : ''} with property data. 
+                    Fields will be auto-filled where possible.
+                  </p>
+                </div>
               </div>
-            </div>
-            
-            {/* Monthly Rent */}
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-3">
-                Monthly Rent *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                <input
-                  type="number"
-                  name="monthly_rent"
-                  value={rent}
-                  onChange={(e) => setRent(e.target.value)}
-                  className="block w-full pl-8 pr-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                  placeholder="Enter monthly rent"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Security Deposit */}
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-3">
-                Security Deposit
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                <input
-                  type="number"
-                  name="security_deposit"
-                  value={securityDeposit}
-                  onChange={(e) => setSecurityDeposit(e.target.value)}
-                  className="block w-full pl-8 pr-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                  placeholder="Enter security deposit amount"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Pet Deposit */}
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-3">
-                Pet Deposit (if pets allowed)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                <input
-                  type="number"
-                  name="pet_deposit"
-                  value={petDeposit}
-                  onChange={(e) => setPetDeposit(e.target.value)}
-                  className="block w-full pl-8 pr-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                  placeholder="Enter pet deposit amount"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Application Fee */}
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-3">
-                Application Fee
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                <input
-                  type="number"
-                  name="application_fee"
-                  value={applicationFee}
-                  onChange={(e) => setApplicationFee(e.target.value)}
-                  className="block w-full pl-8 pr-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                  placeholder="Enter application fee"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Lease Terms */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-lg font-medium text-gray-700 mb-3">
-                  Minimum Lease Term (months)
-                </label>
-                <select
-                  name="minimum_lease_term"
-                  value={minLeaseTerm}
-                  onChange={(e) => setMinLeaseTerm(e.target.value)}
-                  className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                  disabled={isSubmitting}
-                >
-                  <option value="1">1 month</option>
-                  <option value="3">3 months</option>
-                  <option value="6">6 months</option>
-                  <option value="9">9 months</option>
-                  <option value="12">12 months</option>
-                  <option value="24">24 months</option>
-                  <option value="other">Other (custom)</option>
-                </select>
-                {minLeaseTerm === 'other' && (
-                  <div className="mt-3">
-                    <input
-                      type="number"
-                      name="custom_minimum_lease_term"
-                      value={customMinLeaseTerm}
-                      onChange={(e) => setCustomMinLeaseTerm(e.target.value)}
-                      className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                      placeholder="Enter custom months"
-                      min="1"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-lg font-medium text-gray-700 mb-3">
-                  Maximum Lease Term (months)
-                </label>
-                <select
-                  name="maximum_lease_term"
-                  value={maxLeaseTerm}
-                  onChange={(e) => setMaxLeaseTerm(e.target.value)}
-                  className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                  disabled={isSubmitting}
-                >
-                  <option value="1">1 month</option>
-                  <option value="3">3 months</option>
-                  <option value="6">6 months</option>
-                  <option value="9">9 months</option>
-                  <option value="12">12 months</option>
-                  <option value="24">24 months</option>
-                  <option value="36">36 months</option>
-                  <option value="other">Other (custom)</option>
-                </select>
-                {maxLeaseTerm === 'other' && (
-                  <div className="mt-3">
-                    <input
-                      type="number"
-                      name="custom_maximum_lease_term"
-                      value={customMaxLeaseTerm}
-                      onChange={(e) => setCustomMaxLeaseTerm(e.target.value)}
-                      className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                      placeholder="Enter custom months"
-                      min="1"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Available Date */}
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-3">
-                Available Date
-              </label>
-              <input
-                type="date"
-                name="available_date"
-                value={availableDate}
-                onChange={(e) => setAvailableDate(e.target.value)}
-                className="block w-full px-4 py-3 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white"
-                disabled={isSubmitting}
-              />
             </div>
           </div>
+        )}
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between items-center mt-12">
-            <button 
-              onClick={() => handleNavigation(`/sell/create?property_id=${propertyId}`)}
-              className="px-6 py-3 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center"
-              type="button"
-            >
-              <span className="mr-2">←</span>
-              Back
-            </button>
-            <button 
-              type="submit"
-              disabled={isSubmitting}
-              className={`px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors`}
-            >
-              {isSubmitting ? 'Saving Listing...' : 'Next'}
-            </button>
+        {/* Main Content Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-8 py-8">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl font-bold text-blue-600 mb-2">Rent Details</h2>
+            </div>
+
+            {/* Form */}
+            <form id="rent-details-form" onSubmit={handleSubmit} className="space-y-8">{/* Form content will continue below */}
+              {/* Monthly Rent */}
+              <div className="space-y-2">
+                <label className="block text-base font-semibold text-gray-900">
+                  Monthly Rent *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                  <input
+                    type="number"
+                    name="monthly_rent"
+                    value={rent}
+                    onChange={(e) => setRent(e.target.value)}
+                    className="block w-full pl-8 pr-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50 placeholder-gray-400"
+                    placeholder="Enter monthly rent"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Security Deposit */}
+              <div className="space-y-2">
+                <label className="block text-base font-semibold text-gray-900">
+                  Security Deposit
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                  <input
+                    type="number"
+                    name="security_deposit"
+                    value={securityDeposit}
+                    onChange={(e) => setSecurityDeposit(e.target.value)}
+                    className="block w-full pl-8 pr-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50 placeholder-gray-400"
+                    placeholder="Enter security deposit amount"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Pet Deposit */}
+              <div className="space-y-2">
+                <label className="block text-base font-semibold text-gray-900">
+                  Pet Deposit (if pets allowed)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                  <input
+                    type="number"
+                    name="pet_deposit"
+                    value={petDeposit}
+                    onChange={(e) => setPetDeposit(e.target.value)}
+                    className="block w-full pl-8 pr-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50 placeholder-gray-400"
+                    placeholder="Enter pet deposit amount"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Application Fee */}
+              <div className="space-y-2">
+                <label className="block text-base font-semibold text-gray-900">
+                  Application Fee
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">$</span>
+                  <input
+                    type="number"
+                    name="application_fee"
+                    value={applicationFee}
+                    onChange={(e) => setApplicationFee(e.target.value)}
+                    className="block w-full pl-8 pr-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50 placeholder-gray-400"
+                    placeholder="Enter application fee"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Lease Terms Row */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-base font-semibold text-gray-900">
+                    Minimum Lease Term
+                  </label>
+                  <select
+                    name="minimum_lease_term"
+                    value={minLeaseTerm}
+                    onChange={(e) => setMinLeaseTerm(e.target.value)}
+                    className="block w-full px-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50"
+                    disabled={isSubmitting}
+                  >
+                    <option value="1">1 week</option>
+                    <option value="4">1 month</option>
+                    <option value="12">3 months</option>
+                    <option value="24">6 months</option>
+                    <option value="36">9 months</option>
+                    <option value="48">12 months</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-base font-semibold text-gray-900">
+                    Maximum Lease Term
+                  </label>
+                  <select
+                    name="maximum_lease_term"
+                    value={maxLeaseTerm}
+                    onChange={(e) => setMaxLeaseTerm(e.target.value)}
+                    className="block w-full px-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50"
+                    disabled={isSubmitting}
+                  >
+                    <option value="4">1 month</option>
+                    <option value="12">3 months</option>
+                    <option value="24">6 months</option>
+                    <option value="36">9 months</option>
+                    <option value="48">12 months</option>
+                    <option value="60">15 months</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Available Date */}
+              <div className="space-y-2">
+                <label className="block text-base font-semibold text-gray-900">
+                  Available Date
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    name="available_date"
+                    value={availableDate}
+                    onChange={(e) => setAvailableDate(e.target.value)}
+                    className="block w-full px-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50 placeholder-gray-400"
+                    placeholder="yyyy/mm/dd"
+                    disabled={isSubmitting}
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+            </form>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center mt-12 px-8 py-6 bg-gray-50 border-t border-gray-200">
+              <button 
+                onClick={() => handleNavigation(`/sell/create?property_id=${propertyId}`)}
+                className="px-6 py-3 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center shadow-sm"
+                type="button"
+              >
+                <span className="mr-2">←</span>
+                Back
+              </button>
+              <button 
+                type="submit"
+                form="rent-details-form"
+                disabled={isSubmitting}
+                className="px-8 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {isSubmitting ? 'Saving...' : 'Next'}
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </main>
   );
