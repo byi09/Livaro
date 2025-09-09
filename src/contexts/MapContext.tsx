@@ -4,7 +4,58 @@ import { ENABLE_MAP } from "@/lib/config";
 import type { FilterOptions, PropertyListing, SortOption } from "@/lib/types";
 import { searchPropertiesWithFilter } from "@/src/db/queries";
 import { useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
+// Lightweight deep equality check to avoid unnecessary state updates
+const filtersAreEqual = (a: any, b: any) => {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
+// Simple cache for property results
+const propertyCache = new Map<string, { data: PropertyListing[], timestamp: number }>();
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache
+
+// Global Property Modal Context
+interface PropertyModalContextProps {
+  selectedProperty: PropertyListing | null;
+  setSelectedProperty: React.Dispatch<React.SetStateAction<PropertyListing | null>>;
+}
+
+const PropertyModalContext = createContext<PropertyModalContextProps | null>(null);
+
+export const usePropertyModal = () => {
+  const context = useContext(PropertyModalContext);
+  if (!context) {
+    // Return a fallback context for components that need to work without the provider
+    return {
+      selectedProperty: null,
+      setSelectedProperty: () => {},
+    };
+  }
+  return context;
+};
+
+export const PropertyModalProvider = ({
+  children
+}: {
+  children: React.ReactNode;
+}) => {
+  const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null);
+
+  return (
+    <PropertyModalContext.Provider
+      value={{
+        selectedProperty,
+        setSelectedProperty
+      }}
+    >
+      {children}
+    </PropertyModalContext.Provider>
+  );
+};
 
 interface MapContextProps {
   filterOptions: FilterOptions;
@@ -14,6 +65,11 @@ interface MapContextProps {
   catalog: PropertyListing[];
   fetchingListings: boolean;
   setReady: React.Dispatch<React.SetStateAction<boolean>>;
+  selectedProperty: PropertyListing | null;
+  setSelectedProperty: React.Dispatch<React.SetStateAction<PropertyListing | null>>;
+  initialLoadComplete: boolean;
+  mapBoundsReady: boolean;
+  setMapBoundsReady: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const MapContext = createContext<MapContextProps | null>(null);
@@ -32,7 +88,7 @@ export const MapContextProvider = ({
   children: React.ReactNode;
 }) => {
   const [fetchingListings, setFetchingListings] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [, setReady] = useState(true);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     propertyTypes: {},
     priceRange: {
@@ -45,47 +101,127 @@ export const MapContextProvider = ({
     furnished: false,
     utilitiesIncluded: false,
     parking: false,
-    leaseType: "rent"
+    leaseType: "rent",
+    // Initialize with empty bounds - will be set by MapControls
+    swBounds: undefined,
+    neBounds: undefined
   });
   const [sortOption, setSortOption] = useState<SortOption>("priceAsc");
   const [catalog, setCatalog] = useState<PropertyListing[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null);
   const [paramsLoaded, setParamsLoaded] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [mapBoundsReady, setMapBoundsReady] = useState(false);
   const searchParams = useSearchParams();
 
-  // update catalog based on filter options
+  // Fetch properties only when map bounds are available
   useEffect(() => {
-    // TODO: get rid of this check when we don't need coming soon component
     if (!ENABLE_MAP) return;
-    // check that map is ready and loaded
-    if (!ready) return;
-    setFetchingListings(true);
-    (async () => {
-      // JSON stringify + parse to avoid mutating the original filterOptions object
-      // and pass deep objects to server-side function
-      const optionsBundle = JSON.parse(JSON.stringify(filterOptions));
-      const properties = await searchPropertiesWithFilter(
-        optionsBundle,
-        sortOption
-      );
-      setCatalog(properties);
-      setFetchingListings(false);
-    })();
-  }, [filterOptions, ready, sortOption]);
+    if (!paramsLoaded) return;
+    
+    // Only fetch if we have map bounds (from MapControls)
+    if (!filterOptions.swBounds || !filterOptions.neBounds) return;
+    
+    let isCancelled = false;
+    
+    const fetchProperties = async () => {
+      // Generate cache key based on filters and sort
+      const cacheKey = JSON.stringify({
+        bounds: {
+          sw: filterOptions.swBounds,
+          ne: filterOptions.neBounds
+        },
+        sort: sortOption,
+        filters: {
+          priceRange: filterOptions.priceRange,
+          bedrooms: filterOptions.bedrooms,
+          bathrooms: filterOptions.bathrooms,
+          propertyTypes: filterOptions.propertyTypes
+        }
+      });
+      
+      // Check cache first
+      const cached = propertyCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setCatalog(cached.data);
+        if (!initialLoadComplete) {
+          setInitialLoadComplete(true);
+        }
+        return;
+      }
+      
+      // Don't show loading for very quick subsequent requests
+      const loadingTimeout = setTimeout(() => {
+        if (!isCancelled) {
+          setFetchingListings(true);
+        }
+      }, 100);
+      
+      try {
+        const optionsBundle = JSON.parse(JSON.stringify(filterOptions));
+        const properties = await searchPropertiesWithFilter(optionsBundle, sortOption);
+        
+        if (!isCancelled) {
+          clearTimeout(loadingTimeout);
+          
+          // Cache the results
+          propertyCache.set(cacheKey, {
+            data: properties,
+            timestamp: Date.now()
+          });
+          
+          setCatalog(properties);
+          if (!initialLoadComplete) {
+            setInitialLoadComplete(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching properties:', error);
+        if (!isCancelled) {
+          clearTimeout(loadingTimeout);
+          setCatalog([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setFetchingListings(false);
+        }
+      }
+    };
 
+    // Smart debouncing based on change type
+    // No debounce on the very first load so results appear ASAP
+    let debounceTime = initialLoadComplete ? 200 : 0;
+    
+    // Longer debounce for map movements to prevent excessive API calls
+    if (filterOptions.swBounds && filterOptions.neBounds) {
+      debounceTime = 500;
+    }
+    
+    // Shorter debounce for filter changes (more responsive)
+    if (sortOption !== 'priceAsc') {
+      debounceTime = 150;
+    }
+    
+    const timeoutId = setTimeout(fetchProperties, debounceTime);
+    
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [filterOptions, sortOption, paramsLoaded, initialLoadComplete]);
+
+  // Initialize on mount - ensure params are always loaded
   useEffect(() => {
-    // prevent running this effect multiple times from
-    // search parameter changes as user interacts with filters and maps
     if (paramsLoaded) return;
-
+    
     const params = Object.fromEntries(searchParams.entries());
-
     const beds = parseInt(params.beds || "0", 10);
     const baths = parseInt(params.baths || "0", 10);
 
     const newFilterOptions: FilterOptions = {
       propertyTypes: {
         apartment: params.propertyType === "apartment",
-        house: params.propertyType === "house",
+        house: params.propertyType === "house", 
         condo: beds === -1 || params.propertyType === "condo",
         townhouse: params.propertyType === "townhouse"
       },
@@ -102,22 +238,66 @@ export const MapContextProvider = ({
       leaseType: params.leaseType || "rent"
     };
 
-    setFilterOptions(newFilterOptions);
+    setFilterOptions(prev => {
+      // Preserve existing map bounds so zoom/pan updates are not lost
+      const merged = { ...prev, ...newFilterOptions } as FilterOptions;
+      return filtersAreEqual(prev, merged) ? prev : merged;
+    });
     setParamsLoaded(true);
+  }, []); // Run once on mount
+
+  // Update filters when URL changes
+  useEffect(() => {
+    if (!paramsLoaded) return;
+    
+    const params = Object.fromEntries(searchParams.entries());
+    const beds = parseInt(params.beds || "0", 10);
+    const baths = parseInt(params.baths || "0", 10);
+
+    const newFilterOptions: FilterOptions = {
+      propertyTypes: {
+        apartment: params.propertyType === "apartment",
+        house: params.propertyType === "house",
+        condo: beds === -1 || params.propertyType === "condo", 
+        townhouse: params.propertyType === "townhouse"
+      },
+      priceRange: {
+        min: parseInt(params.minPrice || "0", 10),
+        max: parseInt(params.maxPrice || "0", 10)
+      },
+      bedrooms: beds > 0 ? beds : 0,
+      bathrooms: baths > 0 ? baths : 0,
+      petsAllowed: params.petFriendly === "true",
+      furnished: params.furnished === "true",
+      utilitiesIncluded: params.utilitiesIncluded === "true",
+      parking: params.parking === "true",
+      leaseType: params.leaseType || "rent"
+    };
+
+    setFilterOptions(prev => {
+      // Preserve existing map bounds so zoom/pan updates are not lost
+      const merged = { ...prev, ...newFilterOptions } as FilterOptions;
+      return filtersAreEqual(prev, merged) ? prev : merged;
+    });
   }, [searchParams, paramsLoaded]);
 
+  const contextValue = useMemo(() => ({
+    filterOptions,
+    setFilterOptions,
+    fetchingListings,
+    setReady,
+    catalog,
+    sortOption,
+    setSortOption,
+    selectedProperty,
+    setSelectedProperty,
+    initialLoadComplete,
+    mapBoundsReady,
+    setMapBoundsReady
+  }), [filterOptions, fetchingListings, catalog, sortOption, selectedProperty, initialLoadComplete, mapBoundsReady]);
+
   return (
-    <MapContext.Provider
-      value={{
-        filterOptions,
-        setFilterOptions,
-        fetchingListings,
-        setReady,
-        catalog,
-        sortOption,
-        setSortOption
-      }}
-    >
+    <MapContext.Provider value={contextValue}>
       {children}
     </MapContext.Provider>
   );

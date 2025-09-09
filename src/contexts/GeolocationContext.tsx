@@ -13,7 +13,6 @@ import {
 interface GeolocationContextProps {
   coords: LngLat | null;
   location: ClientLocation | null;
-  isLoading: boolean;
 }
 
 const GeolocationContext = createContext<GeolocationContextProps | null>(null);
@@ -33,21 +32,17 @@ export function GeolocationProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [isLoading, setIsLoading] = useState(false);
+  // Removed unused isLoading state
   const [coords, setCoords] = useState<LngLat | null>(null);
   const [location, setLocation] = useState<ClientLocation | null>(null);
 
   useEffect(() => {
     const loadGeolocation = async () => {
-      setIsLoading(true);
-      
       if (typeof window === "undefined") {
-        setIsLoading(false);
         return;
       }
 
       if (!navigator || !navigator.geolocation) {
-        setIsLoading(false);
         return;
       }
 
@@ -86,7 +81,6 @@ export function GeolocationProvider({
 
       if (!coords) {
         console.warn("Unable to retrieve geolocation coordinates.");
-        setIsLoading(false);
         return;
       }
 
@@ -104,15 +98,13 @@ export function GeolocationProvider({
       } catch (error) {
         console.warn("Reverse geocoding failed:", error);
       }
-
-      setIsLoading(false);
     };
 
     loadGeolocation();
   }, []);
 
   return (
-    <GeolocationContext.Provider value={{ coords, location, isLoading }}>
+    <GeolocationContext.Provider value={{ coords, location }}>
       {children}
     </GeolocationContext.Provider>
   );

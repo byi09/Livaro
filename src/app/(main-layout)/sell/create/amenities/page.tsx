@@ -3,37 +3,47 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
+import { usePageTransition } from '@/src/hooks/usePageTransition';
+import PageTransitionOptimized from '@/src/components/ui/PageTransitionOptimized';
 
 export default function AmenitiesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const propertyId = searchParams.get('property_id');
+  const mode = searchParams.get('mode'); // Check for sublet mode
+  const sublistingId = searchParams.get('sublisting_id');
+  const isSubletMode = mode === 'sublet';
+  const entityId = isSubletMode ? sublistingId : propertyId;
   
   const [customAmenities, setCustomAmenities] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, setIsLoading] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Page transition hook with scroll preservation
+  const { navigateWithTransition } = usePageTransition({ preserveScroll: true });
 
   // Enhanced navigation with auto-save
   const handleNavigation = async (path: string) => {
     try {
       // Save current form data before navigating
       await saveCurrentFormData();
-      router.push(path);
+      await navigateWithTransition(path);
     } catch (error) {
       console.error('Error saving data before navigation:', error);
       // Navigate anyway to prevent user from being stuck
-      router.push(path);
+      await navigateWithTransition(path);
     }
   };
 
   // Function to save current form data
   const saveCurrentFormData = useCallback(async () => {
-    if (!propertyId) return;
+    if (!entityId) return;
 
     try {
       const supabase = createClient();
       
-      const features: Array<{property_id:string;feature_name:string;feature_category:'interior'|'exterior'|'building_amenities'|'appliances'|'utilities';feature_value:string;}> = [];
+      const features: Array<{sublisting_id:string;feature_name:string;feature_category:'interior'|'exterior'|'building_amenities'|'appliances'|'utilities';feature_value:string;}> = [];
 
       if (formRef.current) {
         const formData = new FormData(formRef.current);
@@ -48,13 +58,13 @@ export default function AmenitiesPage() {
           const valid=['interior','exterior','building_amenities','appliances','utilities'];
           if (!valid.includes(category)) continue;
           const cleanName=name.replace(/([A-Z])/g,' $1').toLowerCase().replace(/^./,s=>s.toUpperCase()).replace(/\b\w/g,l=>l.toUpperCase());
-          features.push({property_id:propertyId!,feature_name:cleanName,feature_category:category as 'interior'|'exterior'|'building_amenities'|'appliances'|'utilities',feature_value:String(value)});
+          features.push({sublisting_id:entityId!,feature_name:cleanName,feature_category:category as 'interior'|'exterior'|'building_amenities'|'appliances'|'utilities',feature_value:String(value)});
         }
       }
 
       // custom amenities
       if (customAmenities && customAmenities.trim()) {
-        customAmenities.split(/[,\n]/).map(a=>a.trim()).filter(a=>a).forEach(a=>features.push({property_id:propertyId!,feature_name:a,feature_category:'building_amenities',feature_value:'available'}));
+        customAmenities.split(/[,\n]/).map(a=>a.trim()).filter(a=>a).forEach(a=>features.push({sublisting_id:entityId!,feature_name:a,feature_category:'building_amenities',feature_value:'available'}));
       }
       
       // Determine which existing feature rows need replacing
@@ -63,9 +73,9 @@ export default function AmenitiesPage() {
       // Delete existing amenity features for this property (only those we will overwrite)
       if (namesToReplace.length) {
         const { error: deleteError } = await supabase
-          .from('property_features')
+          .from(isSubletMode ? 'sublisting_features' : 'property_features') // Use sublisting_features table in sublet mode
           .delete()
-          .eq('property_id', propertyId)
+          .eq(isSubletMode ? 'sublisting_id' : 'property_id', entityId) // Use sublisting_id in sublet mode
           .in('feature_name', namesToReplace);
 
         if (deleteError) {
@@ -77,7 +87,7 @@ export default function AmenitiesPage() {
       // Insert features after previous versions (if any) have been removed
       if (features.length > 0) {
         const { error: insertError } = await supabase
-          .from('property_features')
+          .from(isSubletMode ? 'sublisting_features' : 'property_features') // Use sublisting_features table in sublet mode
           .insert(features);
 
         if (insertError) {
@@ -89,19 +99,19 @@ export default function AmenitiesPage() {
       console.error('Error in saveCurrentFormData:', error);
       throw error;
     }
-  }, [propertyId, customAmenities]);
+  }, [entityId, customAmenities, isSubletMode]);
 
   // Load existing features on mount
   useEffect(() => {
     const loadExistingFeatures = async () => {
-      if (!propertyId) return;
+      if (!entityId) return;
 
       try {
         const supabase = createClient();
         const { data: features, error } = await supabase
-          .from('property_features')
+          .from(isSubletMode ? 'sublisting_features' : 'property_features')
           .select('*')
-          .eq('property_id', propertyId);
+          .eq(isSubletMode ? 'sublisting_id' : 'property_id', entityId);
 
         if (error) {
           console.error('Error loading existing features:', error);
@@ -150,22 +160,22 @@ export default function AmenitiesPage() {
       }
     };
 
-    loadExistingFeatures();
-  }, [propertyId]);
+    loadExistingFeatures().finally(() => setIsLoading(false));
+  }, [entityId]);
 
-  // Redirect if no property ID
-  useEffect(() => {
-    if (!propertyId) {
-      router.push('/sell/create');
-    }
-  }, [propertyId, router]);
+  // Redirect guard removed to avoid bouncing back to /sell/create
+  // useEffect(() => {
+  //   if (!entityId) {
+  //     router.push('/sell/create');
+  //   }
+  // }, [entityId, router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     console.log('Amenities form submitted!');
-    console.log('Property ID:', propertyId);
+    console.log('Property ID:', entityId);
     
     try {
       const formData = new FormData(e.currentTarget);
@@ -183,7 +193,7 @@ export default function AmenitiesPage() {
       
       // Get all form fields that start with 'feature_'
       for (const [key, value] of formData.entries()) {
-        if (key.startsWith('feature_') && value && value !== '' && propertyId) {
+        if (key.startsWith('feature_') && value && value !== '' && entityId) {
           const parts = key.split('_');
           if (parts.length >= 3) {
             // Handle compound categories like "building_amenities"
@@ -216,7 +226,7 @@ export default function AmenitiesPage() {
               .replace(/\b\w/g, l => l.toUpperCase()); // Capitalize each word
             
             features.push({
-              property_id: propertyId,
+              property_id: entityId,
               feature_name: cleanFeatureName,
               feature_category: category as 'interior' | 'exterior' | 'building_amenities' | 'appliances' | 'utilities',
               feature_value: featureValue
@@ -227,13 +237,13 @@ export default function AmenitiesPage() {
 
       // Handle custom amenities
       const customAmenitiesText = formData.get('custom_amenities') as string;
-      if (customAmenitiesText && customAmenitiesText.trim() && propertyId) {
+      if (customAmenitiesText && customAmenitiesText.trim() && entityId) {
         // Split custom amenities by line or comma and add them as individual features
         const customFeatures = customAmenitiesText.split(/[,\n]/).map(amenity => amenity.trim()).filter(amenity => amenity);
         
         customFeatures.forEach(amenity => {
           features.push({
-            property_id: propertyId,
+            property_id: entityId,
             feature_name: amenity,
             feature_category: 'building_amenities' as const,
             feature_value: 'available'
@@ -249,9 +259,9 @@ export default function AmenitiesPage() {
         // Remove any existing rows for these features first to avoid unique-constraint conflicts
         if (namesToReplace.length) {
           const { error: deleteError } = await supabase
-            .from('property_features')
+            .from(isSubletMode ? 'sublisting_features' : 'property_features') // Use sublisting_features table in sublet mode
             .delete()
-            .eq('property_id', propertyId)
+            .eq(isSubletMode ? 'sublisting_id' : 'property_id', entityId) // Use sublisting_id in sublet mode
             .in('feature_name', namesToReplace);
 
           if (deleteError) {
@@ -264,7 +274,7 @@ export default function AmenitiesPage() {
 
         // Insert the property features
         const { data, error: insertError } = await supabase
-          .from('property_features')
+          .from(isSubletMode ? 'sublisting_features' : 'property_features') // Use sublisting_features table in sublet mode
           .insert(features)
           .select();
 
@@ -282,7 +292,7 @@ export default function AmenitiesPage() {
       }
       
       // Client-side redirect
-      router.push(`/sell/create/screening?property_id=${propertyId}`);
+      await navigateWithTransition(`/sell/create/screening?property_id=${entityId}`);
       
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -297,13 +307,13 @@ export default function AmenitiesPage() {
     } catch (err) {
       console.error('Error saving before exit:', err);
     } finally {
-      router.push('/');
+      router.push('/sell/dashboard');
     }
   };
 
   // ---- NEW EFFECT: auto-save on browser navigation/back/unload ----
   useEffect(() => {
-    if (!propertyId) return;
+    if (!entityId) return;
 
     const handleBeforeUnload = () => {
       // Fire and forget – we do not await here because the page is unloading
@@ -322,52 +332,56 @@ export default function AmenitiesPage() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [propertyId, saveCurrentFormData]);
+  }, [entityId, saveCurrentFormData]);
 
-  if (!propertyId) {
+  if (!entityId) {
     return <div>Loading...</div>;
   }
 
   return (
-    <main className="min-h-screen bg-white pt-28 pb-8 px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-semibold">Amenities</h1>
-          <button 
-            onClick={exitToDashboard}
-            className="px-6 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-          >
-            Save and Exit
-          </button>
-        </div>
+    <PageTransitionOptimized>
+      <main className="min-h-screen bg-gray-50 pt-20 pb-12">
+        <div className="max-w-4xl mx-auto px-6">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Step 4: Amenities</h1>
+            <button 
+              onClick={exitToDashboard}
+              className="px-6 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              Save & Exit
+            </button>
+          </div>
 
-        {/* Progress Bar */}
-        <InteractiveProgressBar currentStep={3} propertyId={propertyId} beforeNavigate={saveCurrentFormData} />
+          {/* Progress Bar */}
+          <InteractiveProgressBar currentStep={4} propertyId={entityId} mode={mode} beforeNavigate={saveCurrentFormData} />
 
-        {/* Form */}
-        <form ref={formRef} onSubmit={handleSubmit}>
+          {/* Main Content Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-8 py-8">
+              <div className="text-center mb-12">
+                <h2 className="text-2xl font-bold text-blue-600 mb-2">Amenities</h2>
+                <p className="text-gray-600">Highlight the key features of your property</p>
+              </div>
 
-        {/* Main Content */}
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold mb-2">Highlight the Key Features of Your Home</h2>
-          <p className="text-gray-600 mb-8">Showcase your amenities</p>
+              {/* Form */}
+              <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Utilities */}
-            <div>
-                <h3 className="font-semibold mb-4">Utilities</h3>
-              <div className="space-y-3">
-                <label className="flex items-center space-x-3">
-                    <input 
-                      type="radio" 
-                      name="feature_utilities_laundry" 
-                      value="in_unit"
-                      className="form-radio text-blue-600" 
-                      disabled={isSubmitting}
-                    />
-                    <span>Laundry In Unit</span>
-                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {/* Utilities */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Utilities</h3>
+                    <div className="space-y-3">
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name="feature_utilities_laundry" 
+                          value="in_unit"
+                          className="form-radio text-blue-600 focus:ring-blue-500" 
+                          disabled={isSubmitting}
+                        />
+                        <span className="text-sm text-gray-700">Laundry In Unit</span>
+                      </label>
                 <label className="flex items-center space-x-3">
                     <input 
                       type="radio" 
@@ -731,41 +745,55 @@ export default function AmenitiesPage() {
             </div>
           </div>
 
-          {/* Custom Amenities */}
-          <div className="mt-8">
-            <h3 className="text-xl font-semibold mb-4">Add in any other key amenities</h3>
-            <textarea
-                name="custom_amenities"
-              value={customAmenities}
-              onChange={(e) => setCustomAmenities(e.target.value)}
-              className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Enter additional amenities..."
-                disabled={isSubmitting}
-            />
-          </div>
+                {/* Custom Amenities */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Additional Amenities</h3>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Add any other key features or amenities
+                    </label>
+                    <textarea
+                      name="custom_amenities"
+                      value={customAmenities}
+                      onChange={(e) => setCustomAmenities(e.target.value)}
+                      className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 resize-none placeholder-gray-400"
+                      placeholder="Enter additional amenities (one per line or comma-separated)..."
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between items-center mt-12">
-            <button 
-              onClick={() => handleNavigation(`/sell/create/media?property_id=${propertyId}`)}
-              className="px-6 py-3 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center"
-              type="button"
-            >
-              <span className="mr-2">←</span>
-              Back
-            </button>
-            <button 
-              onClick={() => handleNavigation(`/sell/create/screening?property_id=${propertyId}`)}
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              type="button"
-            >
-              Next
-            </button>
+              </form>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center mt-12 px-8 py-6 bg-gray-50 border-t border-gray-200">
+              <button 
+                onClick={() => handleNavigation(`/sell/create/media?property_id=${entityId}`)}
+                className="px-6 py-3 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center shadow-sm"
+                type="button"
+              >
+                <span className="mr-2">←</span>
+                Back
+              </button>
+              <button
+                onClick={() => {
+                  const paramName = isSubletMode ? 'sublisting_id' : 'property_id';
+                  const nextPath = entityId
+                    ? `/sell/create/costs-and-fees?${paramName}=${entityId}${isSubletMode ? '&mode=sublet' : ''}`
+                    : `/sell/create/costs-and-fees${isSubletMode ? '?mode=sublet' : ''}`;
+                  handleNavigation(nextPath);
+                }}
+                className="px-8 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                type="button"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
-        </form>
-      </div>
-    </main>
+      </main>
+    </PageTransitionOptimized>
   );
 }
 

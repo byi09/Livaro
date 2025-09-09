@@ -160,6 +160,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               success && "border-green-500 focus-visible:ring-green-500",
               className
             )}
+            placeholder={placeholder}
             ref={ref}
             onChange={handleInputChange}
             {...props}

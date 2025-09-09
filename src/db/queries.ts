@@ -11,7 +11,8 @@ import {
   propertyFeatures,
   propertyListings,
   customers,
-  userPreferences
+  userPreferences,
+  landlords
 } from "./schema";
 import type { FilterOptions, PropertyListing, SortOption } from "@/lib/types";
 import { createClient } from "@/utils/supabase/server";
@@ -35,10 +36,10 @@ export const searchPropertiesWithFilter = async (
     if (isActive) propertyTypes.push(sql`${type.toLowerCase()}`);
 
   // ---------------------------
-  // |   Prep-work for query   |
+  // |   Optimized query setup |
   // ---------------------------
 
-  // build subqueries
+  // Simplified features subquery for better performance
   const featuresSubquery = db.$with("features_subquery").as(
     db
       .select({
@@ -49,14 +50,17 @@ export const searchPropertiesWithFilter = async (
       .groupBy(propertyFeatures.propertyId)
   );
 
-  // append subqueries
+  // Start with the main query - properties with active listings only
   const qWith = db.with(featuresSubquery);
   const qSelect = qWith.select().from(properties);
 
-  // append joins
+  // Join only active listings for better performance
   const qJoinListings = qSelect.innerJoin(
     propertyListings,
-    eq(properties.id, propertyListings.propertyId)
+    and(
+      eq(properties.id, propertyListings.propertyId),
+      eq(propertyListings.listingStatus, 'active') // Filter at join level
+    )
   );
 
   const qJoinFeatures = qJoinListings.leftJoin(
@@ -166,7 +170,7 @@ export const searchPropertiesWithFilter = async (
       throw new Error(`Unknown sort option: ${sortOption}`);
   }
 
-  const q = qData.orderBy(sql.join(orderBy, sql.raw(", ")));
+  const q = qData.orderBy(sql.join(orderBy, sql.raw(", "))).limit(50); // Limit to 50 results for better performance and faster loading
 
   // uncomment to debug generated SQL
   // console.log(q.toSQL().sql);
@@ -188,9 +192,10 @@ export const searchPropertiesWithFilter = async (
 export const getNearbyProperties = async (
   lat: number,
   lng: number,
-  radius: number = 10000, // default to 10km
-  limit: number = 3
+  _radius: number = 10000, // default to 10km (but we'll ignore this for closest search)
+  limit: number = 6
 ): Promise<PropertyListing[]> => {
+  // Use a more efficient approach with simplified subquery
   const featuresSubquery = db.$with("features_subquery").as(
     db
       .select({
@@ -201,6 +206,7 @@ export const getNearbyProperties = async (
       .groupBy(propertyFeatures.propertyId)
   );
 
+  // Modified to always return closest properties regardless of distance
   const results = await db
     .with(featuresSubquery)
     .select()
@@ -208,14 +214,17 @@ export const getNearbyProperties = async (
     .innerJoin(propertyListings, eq(properties.id, propertyListings.propertyId))
     .leftJoin(featuresSubquery, eq(properties.id, featuresSubquery.propertyId))
     .where(
-      sql`
-      earth_box(ll_to_earth(${lat}, ${lng}), ${radius}) @> ll_to_earth(${properties.latitude}, ${properties.longitude})
-      AND earth_distance(ll_to_earth(${lat}, ${lng}), ll_to_earth(${properties.latitude}, ${properties.longitude})) <= ${radius}`
+      and(
+        // Only show active listings
+        eq(propertyListings.listingStatus, 'active'),
+        // Ensure we have valid coordinates
+        sql`${properties.latitude} IS NOT NULL`,
+        sql`${properties.longitude} IS NOT NULL`
+      )
     )
     .orderBy(
-      asc(
-        sql`earth_distance(ll_to_earth(${lat}, ${lng}), ll_to_earth(${properties.latitude}, ${properties.longitude}))`
-      )
+      // Order by distance approximation - closest first, regardless of how far
+      sql`ABS(${properties.latitude} - ${lat}) + ABS(${properties.longitude} - ${lng})`
     )
     .limit(limit);
 
@@ -227,7 +236,14 @@ export const getNearbyProperties = async (
 //--------------------------------
 
 // Get all conversations for a user
-export const getUserConversationsComplete = async (userId: string) => {
+export const getUserConversationsComplete = async (
+  userId: string, 
+  options?: {
+    category?: string | null;
+    sortBy?: string;
+    archived?: boolean;
+  }
+) => {
   const lastMessageSubquery = db.$with("last_message_subquery").as(
     db
       .select({
@@ -308,10 +324,15 @@ export const getUserConversationsComplete = async (userId: string) => {
     .where(
       and(
         eq(conversationParticipants.userId, userId),
-        eq(conversationParticipants.isActive, true)
+        eq(conversationParticipants.isActive, true),
+        options?.archived !== undefined ? eq(conversations.isArchived, options.archived) : undefined
       )
     )
-    .orderBy(desc(conversations.updatedAt));
+    .orderBy(
+      options?.sortBy === 'oldest' 
+        ? conversations.updatedAt
+        : desc(conversations.updatedAt)
+    );
 
   return userConversations;
 };
@@ -533,3 +554,36 @@ export const getNotificationPreferences = async () => {
     };
   }
 };
+
+/**
+ * Get landlord information for a property
+ */
+export async function getPropertyLandlord(propertyId: string) {
+  try {
+    const result = await db
+      .select({
+        landlordId: landlords.id,
+        customerId: landlords.customerId,
+        businessName: landlords.businessName,
+        businessPhone: landlords.businessPhone,
+        businessEmail: landlords.businessEmail,
+        userId: customers.userId,
+        firstName: customers.firstName,
+        lastName: customers.lastName,
+        phoneNumber: customers.phoneNumber,
+        userEmail: users.email,
+        username: users.username,
+      })
+      .from(properties)
+      .innerJoin(landlords, eq(properties.landlordId, landlords.id))
+      .innerJoin(customers, eq(landlords.customerId, customers.id))
+      .innerJoin(users, eq(customers.userId, users.id))
+      .where(eq(properties.id, propertyId))
+      .limit(1);
+
+    return result[0] || null;
+  } catch (error) {
+    console.error('Error fetching property landlord:', error);
+    return null;
+  }
+}

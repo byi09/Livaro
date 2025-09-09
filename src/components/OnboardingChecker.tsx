@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingFlow from './onboarding/OnboardingFlow';
-import Spinner from './ui/Spinner';
+
 
 const OnboardingChecker: React.FC = () => {
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
@@ -71,9 +71,9 @@ const OnboardingChecker: React.FC = () => {
 
   if (loading || refreshing) {
     return (
-      <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Spinner size={40} />
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">
             {refreshing ? 'Loading your dashboard...' : 'Setting up your dashboard...'}
           </p>
@@ -86,11 +86,11 @@ const OnboardingChecker: React.FC = () => {
     return <OnboardingFlow />;
   }
 
-  // If we reach here, something went wrong - show loading
+  // If we reach here, something went wrong - show simple loading
   return (
-    <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <Spinner size={40} />
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-white">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading...</p>
       </div>
     </div>

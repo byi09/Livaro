@@ -7,61 +7,59 @@ import "react-datepicker/dist/react-datepicker.css";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/utils/styles";
 import { StepProps } from "@/src/types/onboarding";
-import Spinner from "@/src/components/ui/Spinner";
 
-const PersonalInfoStep: React.FC<StepProps> = ({ data, onUpdate, onNext }) => {
+
+const PersonalInfoStep: React.FC<StepProps> = ({ data, onUpdate, onNext, onPrevious }) => {
+  const handleBack = () => {
+    onPrevious?.();  // Go back to Welcome Screen
+  };
+
+  const handleCancel = () => {
+    window.location.href = '/';  // Go back to homepage
+  };
+
   const [formData, setFormData] = useState({
     username: data.username ?? "",
     firstName: data.firstName ?? "",
     lastName: data.lastName ?? "",
-    dateOfBirth: data.dateOfBirth
+    dateOfBirth: data.dateOfBirth,
+    phone: data.phone ?? "",
   });
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(
     data.dateOfBirth ? new Date(data.dateOfBirth) : null
   );
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checkingUsername, setCheckingUsername] = useState(false);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.username.trim()) newErrors.username = "Username is required";
-    if (!formData.firstName.trim())
-      newErrors.firstName = "First name is required";
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
     if (!selectedDate) newErrors.dateOfBirth = "Date of birth is required";
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = async () => {
     if (!validateForm()) return;
-
-    // Check username uniqueness
     setCheckingUsername(true);
     try {
-      const res = await fetch(
-        `/api/users/search?q=${encodeURIComponent(formData.username)}`
-      );
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(formData.username)}`);
       if (res.ok) {
         const users = await res.json();
         if (users && users.length > 0) {
-          setErrors((prev) => ({
-            ...prev,
-            username: "Username already taken"
-          }));
+          setErrors((prev) => ({ ...prev, username: "Username already taken" }));
           setCheckingUsername(false);
           return;
         }
       }
     } catch (err) {
       console.error("Username check failed", err);
-      // proceed anyway if API failed
     }
-
     setCheckingUsername(false);
-
     onUpdate({
       ...formData,
       dateOfBirth: selectedDate ? selectedDate.toISOString().split("T")[0] : ""
@@ -71,106 +69,129 @@ const PersonalInfoStep: React.FC<StepProps> = ({ data, onUpdate, onNext }) => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
-    }
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
   return (
-    <div className="space-y-4 md:space-y-5">
-      <div className="text-center mb-3 md:mb-4">
-        <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-1 md:mb-2">Tell us about yourself</h3>
-        <p className="text-sm md:text-base text-gray-600 max-w-md mx-auto leading-relaxed">
-          We need some basic information to create your personalized profile
-        </p>
+    <div className="min-h-screen flex flex-col justify-start bg-white px-4 py-4">
+      {/* Top Row */}
+      <div className="flex justify-between items-center mb-2">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="rounded-full p-2 hover:bg-gray-100 transition"
+          aria-label="Back"
+        >
+          <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="text-gray-500 hover:text-gray-700 text-base font-medium"
+        >
+          Cancel
+        </button>
       </div>
 
-      <div className="space-y-3 md:space-y-4 max-w-xl mx-auto">
-        <div className="relative">
-          <Label htmlFor="username" className="text-sm md:text-base font-medium text-gray-700 mb-1.5 block">
-            Username *
-          </Label>
+      {/* Center Content */}
+      <div className="flex flex-col items-center w-full max-w-lg mx-auto">
+        <div className="mb-2">
+          <img src="/logo.png" alt="Home" className="w-10 h-10 mx-auto" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-800 text-center mb-1">
+          Tell us about yourself
+        </h1>
+        <p className="text-sm text-gray-600 text-center mb-4">
+          We need some basic information to create your personalized profile
+        </p>
+
+        <form className="w-full space-y-3">
+          {/* Username */}
+          <div>
+            <Label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+              Username <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <Input
+                id="username"
+                value={formData.username}
+                onChange={(e) => handleInputChange("username", e.target.value)}
+                placeholder="Enter username"
+                className={cn(
+                  "w-full h-11 px-4 rounded-lg border-2 focus:ring-2 text-base outline-none",
+                  errors.username
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : "border-gray-200 focus:border-blue-500 focus:ring-blue-100 hover:border-gray-300"
+                )}
+              />
+              {checkingUsername && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="animate-pulse">...</div>
+                </div>
+              )}
+            </div>
+            {errors.username && (
+              <p className="text-xs text-red-500 mt-1.5 flex items-center">
+                <span className="mr-1">!</span> {errors.username}
+              </p>
+            )}
+          </div>
+
+          {/* First & Last Name */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1">
+              <Label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                First Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="firstName"
+                value={formData.firstName}
+                onChange={(e) => handleInputChange("firstName", e.target.value)}
+                placeholder="Enter first name"
+                className={cn(
+                  "w-full h-11 px-4 rounded-lg border-2 focus:ring-2 text-base outline-none",
+                  errors.firstName
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : "border-gray-200 focus:border-blue-500 focus:ring-blue-100 hover:border-gray-300"
+                )}
+              />
+              {errors.firstName && (
+                <p className="text-xs text-red-500 mt-1.5 flex items-center">
+                  <span className="mr-1">!</span> {errors.firstName}
+                </p>
+              )}
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                Last Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="lastName"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange("lastName", e.target.value)}
+                placeholder="Enter last name"
+                className={cn(
+                  "w-full h-11 px-4 rounded-lg border-2 focus:ring-2 text-base outline-none",
+                  errors.lastName
+                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                    : "border-gray-200 focus:border-blue-500 focus:ring-blue-100 hover:border-gray-300"
+                )}
+              />
+              {errors.lastName && (
+                <p className="text-xs text-red-500 mt-1.5 flex items-center">
+                  <span className="mr-1">!</span> {errors.lastName}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Date of Birth */}
           <div className="relative">
-            <Input
-              id="username"
-              value={formData.username}
-              onChange={(e) => handleInputChange("username", e.target.value)}
-              placeholder="Choose a unique username"
-              className={cn(
-                "h-9 md:h-10 lg:h-11 text-sm md:text-base px-3 md:px-4 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-blue-100",
-                errors.username 
-                  ? "border-red-400 focus:border-red-500" 
-                  : "border-gray-200 focus:border-blue-500 hover:border-gray-300"
-              )}
-            />
-            {checkingUsername && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <Spinner size={16} />
-              </div>
-            )}
-          </div>
-          {errors.username && (
-            <p className="text-xs md:text-sm text-red-500 mt-1.5 flex items-center">
-              <span className="mr-1">!</span>
-              {errors.username}
-            </p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-          <div>
-            <Label htmlFor="firstName" className="text-sm md:text-base font-medium text-gray-700 mb-1.5 block">
-              First Name *
+            <Label className="block text-sm font-medium text-gray-700 mb-1">
+              Date of Birth <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="firstName"
-              value={formData.firstName}
-              onChange={(e) => handleInputChange("firstName", e.target.value)}
-              placeholder="Enter your first name"
-              className={cn(
-                "h-9 md:h-10 lg:h-11 text-sm md:text-base px-3 md:px-4 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-blue-100",
-                errors.firstName 
-                  ? "border-red-400 focus:border-red-500" 
-                  : "border-gray-200 focus:border-blue-500 hover:border-gray-300"
-              )}
-            />
-            {errors.firstName && (
-              <p className="text-xs md:text-sm text-red-500 mt-1.5 flex items-center">
-                <span className="mr-1">!</span>
-                {errors.firstName}
-              </p>
-            )}
-          </div>
-          <div>
-            <Label htmlFor="lastName" className="text-sm md:text-base font-medium text-gray-700 mb-1.5 block">
-              Last Name *
-            </Label>
-            <Input
-              id="lastName"
-              value={formData.lastName}
-              onChange={(e) => handleInputChange("lastName", e.target.value)}
-              placeholder="Enter your last name"
-              className={cn(
-                "h-9 md:h-10 lg:h-11 text-sm md:text-base px-3 md:px-4 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-blue-100",
-                errors.lastName 
-                  ? "border-red-400 focus:border-red-500" 
-                  : "border-gray-200 focus:border-blue-500 hover:border-gray-300"
-              )}
-            />
-            {errors.lastName && (
-              <p className="text-xs md:text-sm text-red-500 mt-1.5 flex items-center">
-                <span className="mr-1">!</span>
-                {errors.lastName}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <Label className="text-sm md:text-base font-medium text-gray-700 mb-1.5 block">
-            Date of Birth *
-          </Label>
-          <div className="relative w-full">
             <DatePicker
               selected={selectedDate}
               onChange={(date: Date | null) => {
@@ -187,41 +208,71 @@ const PersonalInfoStep: React.FC<StepProps> = ({ data, onUpdate, onNext }) => {
               dropdownMode="select"
               wrapperClassName="w-full"
               className={cn(
-                "w-full h-9 md:h-10 lg:h-11 text-sm md:text-base px-3 md:px-4 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-blue-100",
-                errors.dateOfBirth 
-                  ? "border-red-400 focus:border-red-500" 
-                  : "border-gray-200 focus:border-blue-500 hover:border-gray-300"
+                "w-full h-11 px-4 pr-10 rounded-lg border-2 focus:ring-2 text-base outline-none",
+                errors.dateOfBirth
+                  ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                  : "border-gray-200 focus:border-blue-500 focus:ring-blue-100 hover:border-gray-300"
               )}
             />
-            <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-gray-400 pointer-events-none" />
+            <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+            {errors.dateOfBirth && (
+              <p className="text-xs text-red-500 mt-1.5 flex items-center">
+                <span className="mr-1">!</span> {errors.dateOfBirth}
+              </p>
+            )}
           </div>
-          {errors.dateOfBirth && (
-            <p className="text-xs md:text-sm text-red-500 mt-1.5 flex items-center">
-              <span className="mr-1">!</span>
-              {errors.dateOfBirth}
-            </p>
-          )}
-        </div>
+
+          {/* Phone Number */}
+          <div className="relative">
+            <Label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number (optional)
+            </Label>
+            <Input
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => handleInputChange("phone", e.target.value)}
+              placeholder="+1 (xxx) xxx-xxxx"
+              className="w-full h-11 px-4 pr-10 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-base outline-none"
+            />
+            <svg className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" y2="8" />
+            </svg>
+          </div>
+
+          {/* Next Button */}
+          <div>
+            <Button
+              type="button"
+              onClick={handleNext}
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all text-lg flex items-center justify-center gap-2"
+              disabled={checkingUsername}
+            >
+              {checkingUsername ? (
+                <>
+    
+                  Checking...
+                </>
+              ) : (
+                <>
+                  Next <span className="ml-2">→</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
       </div>
 
-      <div className="flex justify-center pt-4 md:pt-5">
-        <Button 
-          onClick={handleNext} 
-          className="h-9 md:h-10 lg:h-11 px-6 md:px-8 text-sm md:text-base font-semibold rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-          disabled={checkingUsername}
-        >
-          {checkingUsername ? (
-            <>
-              <Spinner size={16} className="mr-2" />
-              Checking...
-            </>
-          ) : (
-            <>
-              Continue
-              <span className="ml-2">→</span>
-            </>
-          )}
-        </Button>
+      {/* Progress Bar */}
+      <div className="w-full max-w-lg mx-auto mt-4">
+        <div className="flex justify-between text-sm text-gray-600 mb-1 px-1">
+          <span>Step 1 of 4</span>
+          <span>20% complete</span>
+        </div>
+        <div className="w-full h-2 bg-gray-200 rounded-full">
+          <div className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500" style={{ width: "20%" }} />
+        </div>
       </div>
     </div>
   );

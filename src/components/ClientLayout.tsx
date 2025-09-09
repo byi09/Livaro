@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import Header from "./ui/Header";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import Spinner from "./ui/Spinner";
+
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -62,16 +62,16 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const isAuthPage =
     pathname?.includes("/sign-") || pathname?.includes("/auth");
   const showHeader = !isAuthPage || user;
+  
+  // Don't add top padding for map, messages, sell, and student dashboard pages since they have their own layouts
+  const isMapPage = pathname?.includes("/map");
+  const isMessagesPage = pathname?.includes("/messages");
+  const isSellPage = pathname?.includes("/sell");
+  const isStudentDashboardPage = pathname?.includes("/student-dashboard");
 
+  // No longer show spinner here - GlobalLoaderOverlay handles all loading states
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="text-center space-y-4">
-          <Spinner size={48} />
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <div className="min-h-screen bg-white" />;
   }
 
   return (
@@ -82,7 +82,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         Only offset content when the header is the solid authenticated version (i.e., a user is logged in).
         For guests we want the hero/landing sections to sit beneath the transparent header.
       */}
-      <main className={`${user ? 'pt-16' : ''} flex-1`}>{children}</main>
+      <main className={`${user && !isMapPage && !isMessagesPage && !isSellPage && !isStudentDashboardPage ? 'pt-16' : ''} flex-1`}>{children}</main>
 
       {/* Footer removed as per design update */}
     </div>

@@ -4,9 +4,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { useToast } from '@/src/components/ui/Toast';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
-import Spinner from '@/src/components/ui/Spinner';
-import { Upload, Image as ImageIcon, Trash2, RotateCcw, CheckCircle, AlertCircle, Eye } from 'lucide-react';
+import { usePageTransition } from '@/src/hooks/usePageTransition';
+
+import { Upload, Image as ImageIcon, Trash2, RotateCcw, CheckCircle, AlertCircle, Eye, Edit3, X } from 'lucide-react';
 import ImageLightbox from '@/src/components/ui/ImageLightbox';
+import ImageEditor from '@/src/components/ImageEditor';
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -55,7 +57,28 @@ export default function MediaPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const propertyId = searchParams.get('property_id');
+  const sublistingId = searchParams.get('sublisting_id');
+  const mode = searchParams.get('mode'); // Check for sublet mode
   const { success, error: showError } = useToast();
+
+  // Check both URL parameter and session storage for sublet mode
+  const isSubletMode = mode === 'sublet' ||
+    (typeof window !== 'undefined' && sessionStorage.getItem('subletting_mode') === 'true');
+
+  // Use sublistingId if in sublet mode, otherwise use propertyId
+  const entityId = isSubletMode ? sublistingId : propertyId;
+
+  // Page transition hook with scroll preservation
+  const { navigateWithTransition } = usePageTransition({ preserveScroll: true });
+
+  // Auto-redirect to add mode parameter if missing but sublet mode detected
+  useEffect(() => {
+    if (isSubletMode && !mode && entityId) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('mode', 'sublet');
+      router.replace(currentUrl.pathname + currentUrl.search);
+    }
+  }, [isSubletMode, mode, entityId, router]);
   
   const [photos, setPhotos] = useState<UploadedFile[]>([]);
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
@@ -66,6 +89,9 @@ export default function MediaPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingFile, setEditingFile] = useState<File | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Local drag state for image re-ordering
   const dragItemIndex = useRef<number | null>(null);
@@ -101,17 +127,21 @@ export default function MediaPage() {
   // Load existing images from database
   useEffect(() => {
     const loadExistingImages = async () => {
-      if (!propertyId) return;
-      
+      if (!entityId) return;
+
       try {
         const supabase = createClient();
-        
-        // Fetch existing images
+
+        // Fetch existing images - use different table based on mode
+        const tableName = isSubletMode ? 'sublisting_media' : 'property_images';
+        const idField = isSubletMode ? 'sublisting_id' : 'property_id';
+        const bucketName = 'property-images'; // Always use property-images bucket
+
         const { data: images, error } = await supabase
-          .from('property_images')
+          .from(tableName)
           .select('*')
-          .eq('property_id', propertyId)
-          .order('image_order', { ascending: true });
+          .eq(idField, entityId)
+          .order(isSubletMode ? 'display_order' : 'image_order', { ascending: true });
 
         if (error) {
           console.error('Error loading existing images:', error);
@@ -121,12 +151,19 @@ export default function MediaPage() {
 
         // Generate public URLs for existing images
         const imagesWithUrls = images?.map(image => {
+          const s3Key = isSubletMode ? image.file_name : image.s3_key;
           const { data: { publicUrl } } = supabase.storage
-            .from('property-images')
-            .getPublicUrl(image.s3_key);
-          
+            .from('property-images') // Always use property-images bucket
+            .getPublicUrl(s3Key);
+
           return {
-            ...image,
+            id: image.id,
+            s3_key: s3Key,
+            image_order: isSubletMode ? image.display_order : image.image_order,
+            alt_text: image.alt_text,
+            is_primary: image.is_primary,
+            image_type: image.image_type,
+            room_type: image.room_type,
             url: publicUrl
           };
         }) || [];
@@ -141,7 +178,7 @@ export default function MediaPage() {
     };
 
     loadExistingImages();
-  }, [propertyId, showError]);
+  }, [entityId, showError, isSubletMode]);
 
   // Cleanup intervals on unmount
   useEffect(() => {
@@ -180,17 +217,23 @@ export default function MediaPage() {
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
     if (imageFiles.length > 0) {
-      handleFileUpload(imageFiles);
+      handleFilesForEditing(imageFiles);
     }
   };
 
-  const uploadFile = async (file: File, bucketName: string, folder: string): Promise<{ publicUrl: string; s3Key: string } | null> => {
+  const uploadFile = async (file: File, bucketName: string, folder: string, entityId: string, isSubletMode: boolean): Promise<{ publicUrl: string; s3Key: string } | null> => {
     try {
+      console.log('Starting upload:', { fileName: file.name, bucketName, folder, fileSize: file.size });
+
       const supabase = createClient();
       const fileExt = file.name.split('.').pop();
-      const fileName = `${folder}/${propertyId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      // Use sublistings subfolder for sublet mode
+      const subFolder = isSubletMode ? 'sublistings' : 'listings';
+      const fileName = `${folder}/${subFolder}/${entityId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-      const { error } = await supabase.storage
+      console.log('Uploading to path:', fileName);
+
+      const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file, {
           cacheControl: '3600',
@@ -198,17 +241,54 @@ export default function MediaPage() {
         });
 
       if (error) {
-        throw error;
+        console.error('Supabase storage error:', {
+          message: error.message,
+          error: error
+        });
+        
+        // Try a simpler path structure if nested folders fail
+        const simpleFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        console.log('Retrying with simple path:', simpleFileName);
+        
+        const { data: retryData, error: retryError } = await supabase.storage
+          .from(bucketName)
+          .upload(simpleFileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+          
+        if (retryError) {
+          console.error('Retry also failed:', retryError);
+          throw new Error(`Storage upload failed: ${error.message}. Retry failed: ${retryError.message}`);
+        }
+        
+        console.log('Retry successful:', retryData);
+        
+        // Get public URL for simple path
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(simpleFileName);
+          
+        return { publicUrl, s3Key: simpleFileName };
       }
+
+      console.log('Upload successful, data:', data);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from(bucketName)
         .getPublicUrl(fileName);
 
+      console.log('Generated public URL:', publicUrl);
+
       return { publicUrl, s3Key: fileName };
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Upload error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error,
+        fileName: file.name,
+        bucketName: bucketName
+      });
       throw error;
     }
   };
@@ -254,7 +334,7 @@ export default function MediaPage() {
   };
 
   const handleFileUpload = async (files: File[]) => {
-    if (!propertyId || files.length === 0) return;
+    if (!entityId || files.length === 0) return;
 
     setUploading(true);
 
@@ -275,7 +355,7 @@ export default function MediaPage() {
     });
 
     try {
-      // Step 1: Compression (5-15%)
+      // Step 1: Improved Compression with progress (5-20%)
       let processedFiles: File[] = files;
       
       try {
@@ -287,18 +367,23 @@ export default function MediaPage() {
         processedFiles = await Promise.all(
           files.map(async (file, index) => {
             const compressed = await imageCompression(file, {
-              maxSizeMB: 1,
+              maxSizeMB: 0.8, // Reduced for better performance
               maxWidthOrHeight: 1920,
               useWebWorker: true,
+              onProgress: (progress) => {
+                // Convert compression progress to upload progress (5-20%)
+                const uploadProgress = 5 + (progress * 0.15);
+                updatePhotoProgress(uploadItems[index].id, Math.round(uploadProgress));
+              }
             });
             
-            updatePhotoProgress(uploadItems[index].id, 15);
+            updatePhotoProgress(uploadItems[index].id, 20);
             return compressed;
           })
         );
       } catch (compressionErr) {
         console.warn('Image compression skipped:', compressionErr);
-        uploadItems.forEach(item => updatePhotoProgress(item.id, 15));
+        uploadItems.forEach(item => updatePhotoProgress(item.id, 20));
       }
 
       // Step 2: Upload files with proper concurrency (15-90%)
@@ -312,7 +397,8 @@ export default function MediaPage() {
             stopProgressAnimation(photoId);
             updatePhotoProgress(photoId, 20);
             
-            const result = await uploadFile(file, 'property-images', 'listings');
+            const bucketName = 'property-images'; // Always use property-images bucket
+            const result = await uploadFile(file, bucketName, 'listings', entityId, isSubletMode);
             
             // Set to 90% when upload completes
             updatePhotoProgress(photoId, 90);
@@ -341,27 +427,61 @@ export default function MediaPage() {
 
       if (successfulUploads.length > 0) {
         const startOrder = existingImages.length;
-        const rowsToInsert = successfulUploads
-          .map(({ result, index, photoId }) => {
-            if (result.status === 'fulfilled' && result.value) {
-              updatePhotoProgress(photoId, 95);
-              return {
-                property_id: propertyId,
-                s3_key: result.value.s3Key,
-                image_order: startOrder + index,
-                is_primary: startOrder === 0 && index === 0,
-                alt_text: `Property photo ${startOrder + index + 1}`,
-              };
-            }
-            return null;
-          })
-          .filter((row): row is NonNullable<typeof row> => row !== null);
+
+        let rowsToInsert;
+        let tableName;
+
+        if (isSubletMode) {
+          // Prepare data for sublisting_media table
+          rowsToInsert = successfulUploads
+            .map(({ result, index, photoId }) => {
+              if (result.status === 'fulfilled' && result.value) {
+                updatePhotoProgress(photoId, 95);
+                const originalFile = processedFiles[index];
+
+                return {
+                  sublisting_id: entityId,
+                  file_name: result.value.s3Key, // This will be like 'listings/sublistings/{id}/...'
+                  file_url: result.value.publicUrl,
+                  file_type: 'image',
+                  file_size: originalFile.size,
+                  display_order: startOrder + index,
+                };
+              }
+              return null;
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null);
+
+          tableName = 'sublisting_media';
+        } else {
+          // Prepare data for property_images table
+          rowsToInsert = successfulUploads
+            .map(({ result, index, photoId }) => {
+              if (result.status === 'fulfilled' && result.value) {
+                updatePhotoProgress(photoId, 95);
+                const originalFile = processedFiles[index];
+                const customTitle = (originalFile as any).customTitle;
+
+                return {
+                  property_id: entityId,
+                  s3_key: result.value.s3Key, // This will be like 'listings/listings/{id}/...'
+                  image_order: startOrder + index,
+                  is_primary: startOrder === 0 && index === 0,
+                  alt_text: customTitle || `Property photo ${startOrder + index + 1}`,
+                };
+              }
+              return null;
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null);
+
+          tableName = 'property_images';
+        }
 
         // Insert into database
         try {
           const supabase = createClient();
           const { error: insertErr } = await supabase
-            .from('property_images')
+            .from(tableName)
             .insert(rowsToInsert);
 
           if (insertErr) {
@@ -377,19 +497,36 @@ export default function MediaPage() {
           // Update existing images immediately
           const newImages: ExistingImage[] = rowsToInsert.map((row, idx) => {
             const uploadResult = successfulUploads[idx];
-            const publicUrl = uploadResult.result.status === 'fulfilled' ? 
+            const publicUrl = uploadResult.result.status === 'fulfilled' ?
               uploadResult.result.value?.publicUrl || '' : '';
-            
-            return {
-              id: `temp-${Date.now()}-${idx}`,
-              s3_key: row.s3_key,
-              image_order: row.image_order,
-              is_primary: row.is_primary,
-              alt_text: row.alt_text,
-              url: publicUrl,
-              image_type: 'listing',
-              room_type: undefined
-            };
+
+            if (isSubletMode) {
+              // Handle sublisting_media format
+              const sublistingRow = row as { sublisting_id: string; file_name: string; file_url: string; file_type: string; file_size: number; display_order: number; };
+              return {
+                id: `temp-${Date.now()}-${idx}`,
+                s3_key: sublistingRow.file_name,
+                image_order: sublistingRow.display_order,
+                is_primary: idx === 0 && existingImages.length === 0,
+                alt_text: `Sublisting photo ${existingImages.length + idx + 1}`,
+                url: publicUrl,
+                image_type: 'listing',
+                room_type: undefined
+              };
+            } else {
+              // Handle property_images format
+              const propertyRow = row as { property_id: string; s3_key: string; image_order: number; is_primary: boolean; alt_text: string; };
+              return {
+                id: `temp-${Date.now()}-${idx}`,
+                s3_key: propertyRow.s3_key,
+                image_order: propertyRow.image_order,
+                is_primary: propertyRow.is_primary,
+                alt_text: propertyRow.alt_text,
+                url: publicUrl,
+                image_type: 'listing',
+                room_type: undefined
+              };
+            }
           });
           
           setExistingImages(prev => [...prev, ...newImages]);
@@ -428,32 +565,90 @@ export default function MediaPage() {
     }
   };
 
+  // Handle files for editing flow
+  const handleFilesForEditing = (files: File[]) => {
+    if (files.length === 0) return;
+    
+    setPendingFiles(files);
+    setEditingFile(files[0]); // Start with first file
+    setEditorOpen(true);
+  };
+
+  // Handle edited file save
+  const handleEditedFileSave = (editedFile: File, title: string) => {
+    // Update the file with title in alt_text or similar field
+    const fileWithTitle = new File([editedFile], editedFile.name, {
+      type: editedFile.type,
+      lastModified: editedFile.lastModified,
+    });
+    
+    // Store title as a custom property (we'll handle this in upload)
+    (fileWithTitle as any).customTitle = title;
+    
+    // Remove current file from pending and process next or upload
+    const remainingFiles = pendingFiles.slice(1);
+    setPendingFiles(remainingFiles);
+    
+    // Upload the edited file
+    handleFileUpload([fileWithTitle]);
+    
+    if (remainingFiles.length > 0) {
+      // Edit next file
+      setEditingFile(remainingFiles[0]);
+    } else {
+      // Close editor, all files processed
+      setEditorOpen(false);
+      setEditingFile(null);
+    }
+  };
+
+  // Handle editor cancel
+  const handleEditedFileCancel = () => {
+    // Process next file or close
+    const remainingFiles = pendingFiles.slice(1);
+    setPendingFiles(remainingFiles);
+    
+    if (remainingFiles.length > 0) {
+      setEditingFile(remainingFiles[0]);
+    } else {
+      setEditorOpen(false);
+      setEditingFile(null);
+    }
+  };
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !propertyId) return;
+    if (!e.target.files || !entityId) return;
     
     const files = Array.from(e.target.files);
     
     // Clear the input immediately for better UX
     e.target.value = '';
     
-    // Start upload process
-    await handleFileUpload(files);
+    // Start editing flow instead of direct upload
+    handleFilesForEditing(files);
   };
 
   // Helper to refresh existing images list (used by multiple places)
   const refreshExistingImages = async () => {
-    if (!propertyId) return;
+    if (!entityId) return;
     const supabase = createClient();
+    const tableName = isSubletMode ? 'sublisting_media' : 'property_images';
+    const idField = isSubletMode ? 'sublisting_id' : 'property_id';
+    const orderField = isSubletMode ? 'display_order' : 'image_order';
+
     const { data: refreshedImages } = await supabase
-      .from('property_images')
+      .from(tableName)
       .select('*')
-      .eq('property_id', propertyId)
-      .order('image_order', { ascending: true });
+      .eq(idField, entityId)
+      .order(orderField, { ascending: true });
     if (refreshedImages) {
+      const bucketName = 'property-images'; // Always use property-images bucket
+
       const imagesWithUrls = refreshedImages.map((image) => {
+        const s3Key = isSubletMode ? image.file_name : image.s3_key;
         const { data: { publicUrl } } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(image.s3_key);
+          .from(bucketName)
+          .getPublicUrl(s3Key);
         return { ...image, url: publicUrl };
       });
       setExistingImages(imagesWithUrls);
@@ -461,7 +656,7 @@ export default function MediaPage() {
   };
 
   const handleTourUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0] || !propertyId) return;
+    if (!e.target.files || !e.target.files[0] || !entityId) return;
 
     const file = e.target.files[0];
     const newTourFile: UploadedFile = {
@@ -474,7 +669,8 @@ export default function MediaPage() {
     setUploading(true);
 
     try {
-      const uploadResult = await uploadFile(file, 'property-3d-tours', 'listings');
+      const bucketName = 'property-images'; // Always use property-images bucket
+      const uploadResult = await uploadFile(file, bucketName, 'tours', entityId, isSubletMode);
       
       if (!uploadResult) {
         throw new Error('Failed to get upload URL');
@@ -543,12 +739,17 @@ export default function MediaPage() {
     }
   };
 
-  // Redirect if no property ID
+  // Redirect if no entity ID (only when URL truly lacks both IDs)
   useEffect(() => {
-    if (!propertyId) {
-      router.push('/sell/create');
+    if (!entityId) {
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      const hasAnyId = search.includes('property_id') || search.includes('sublisting_id');
+      if (!hasAnyId) {
+        const redirectPath = isSubletMode ? '/sell/create?mode=sublet' : '/sell/create';
+        navigateWithTransition(redirectPath);
+      }
     }
-  }, [propertyId, router]);
+  }, [entityId, navigateWithTransition, isSubletMode]);
 
   // ---- Drag-and-drop re-ordering ----
   const handleDragStart = (index: number) => {
@@ -587,33 +788,43 @@ export default function MediaPage() {
 
   const lightboxImages = existingImages.map((img) => ({ src: img.url, alt: img.alt_text }));
 
-  if (!propertyId) {
+  if (!entityId) {
     return <div>Loading...</div>;
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-white pt-28 pb-8 px-8">
-      <div className="max-w-7xl mx-auto">
+    <main className="min-h-screen bg-gray-50 pt-20 pb-12">
+      <div className="max-w-4xl mx-auto px-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-semibold">Media Upload</h1>
-          <button 
-            onClick={() => router.push('/')}
-            className="px-6 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+          <h1 className="text-3xl font-bold text-gray-900">Step 3: Media</h1>
+          <button
+            onClick={() => navigateWithTransition(isSubletMode ? '/sublist/dashboard' : '/sell/dashboard')}
+            className="px-6 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
           >
-            Save and Exit
+            Save & Exit
           </button>
         </div>
 
         {/* Progress Bar */}
-        <InteractiveProgressBar currentStep={2} propertyId={propertyId} />
+        <InteractiveProgressBar currentStep={3} propertyId={propertyId} mode={mode} />
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Photos */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-xl font-semibold mb-2">Add Photos</h2>
-            <p className="text-gray-600 mb-6">More photos = more informed renters</p>
+        {/* Main Content Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-8 py-8">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl font-bold text-blue-600 mb-2">Media</h2>
+              <p className="text-gray-600">Add photos and videos to showcase your property</p>
+            </div>
+
+            {/* Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Photos */}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Property Photos</h3>
+                  <p className="text-sm text-gray-600 mb-6">More photos = more interested renters</p>
+                </div>
             
             {/* Upload Area */}
             <div 
@@ -647,43 +858,101 @@ export default function MediaPage() {
               ) : (
                 <div className="text-center">
                   <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <label
-                    htmlFor="photos"
-                    className={`inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all cursor-pointer ${
-                      uploading 
-                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg'
-                    }`}
-                  >
-                    <Upload className="w-5 h-5 mr-2" />
-                    {uploading ? 'Uploading...' : 'Upload Photos'}
-                  </label>
-                  <p className="text-sm text-gray-500 mt-3">
-                    or drag and drop images here
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Supports JPEG, PNG, WebP (max 5MB each)
-                  </p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="photos"
+                        className={`inline-flex items-center px-8 py-4 rounded-lg font-medium text-lg transition-all cursor-pointer ${
+                          uploading 
+                            ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg transform hover:scale-105'
+                        }`}
+                      >
+                        <Upload className="w-5 h-5 mr-3" />
+                        {uploading ? 'Uploading...' : 'Upload & Edit Photos'}
+                      </label>
+                      <p className="text-sm text-gray-600 font-medium">
+                        Recommended: Edit photos for the best results
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-1 h-px bg-gray-300"></div>
+                      <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">or</span>
+                      <div className="flex-1 h-px bg-gray-300"></div>
+                    </div>
+                    
+                    <input
+                      type="file"
+                      id="photos-direct"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={async (e) => {
+                        if (!e.target.files || !entityId) return;
+                        const files = Array.from(e.target.files);
+                        e.target.value = '';
+                        await handleFileUpload(files);
+                      }}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                    
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="photos-direct"
+                        className={`inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all cursor-pointer border-2 ${
+                          uploading 
+                            ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed' 
+                            : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400 hover:shadow-md transform hover:scale-102'
+                        }`}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Quick Upload (No Editing)
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Upload photos directly without editing
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-500">
+                      Drag and drop images here or click to browse
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Supports JPEG, PNG, WebP • Max 5MB each • Up to 20 photos
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Loading State */}
             {loading && (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <Spinner size={24} className="text-blue-600 mx-auto mb-3" />
-                  <p className="text-sm text-gray-600">Loading your images...</p>
+                  <div className="relative">
+                    <div className="animate-pulse text-blue-600 mx-auto mb-4">Loading...</div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <ImageIcon className="w-4 h-4 text-blue-400" />
+                    </div>
+                  </div>
+                  <p className="text-base font-medium text-gray-700 mb-1">Loading your images...</p>
+                  <p className="text-sm text-gray-500">This may take a moment</p>
                 </div>
               </div>
             )}
 
             {/* Empty State */}
             {!loading && existingImages.length === 0 && photos.length === 0 && (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-                <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                <p className="text-sm font-medium text-gray-600">No images uploaded yet</p>
-                <p className="text-xs text-gray-500 mt-1">Upload some photos to showcase your property</p>
+              <div className="text-center py-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <div className="mb-6">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                    <ImageIcon className="w-10 h-10 text-blue-500" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">Ready to add photos?</h3>
+                <p className="text-sm text-gray-600 mb-2 max-w-md mx-auto">Great photos help attract more interested renters</p>
+                <p className="text-xs text-gray-500">Use the upload area above to get started</p>
               </div>
             )}
 
@@ -696,7 +965,11 @@ export default function MediaPage() {
                   </h3>
                   {/* Link to dedicated sort page */}
                   <button
-                    onClick={() => router.push(`/sell/create/media/sort?property_id=${propertyId}`)}
+                    onClick={() => {
+                      const paramName = isSubletMode ? 'sublisting_id' : 'property_id';
+                      const sortPath = `/sell/create/media/sort?${paramName}=${entityId}&mode=sublet`;
+                      navigateWithTransition(sortPath);
+                    }}
                     className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
                   >
                     <RotateCcw className="w-4 h-4 mr-2" />
@@ -730,7 +1003,7 @@ export default function MediaPage() {
                           
                           {/* Primary Badge */}
                           {image.is_primary && (
-                            <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                            <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center z-10">
                               <CheckCircle className="w-3 h-3 mr-1" />
                               Primary
                             </div>
@@ -741,15 +1014,38 @@ export default function MediaPage() {
                             <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
 
-                          {/* Delete Button - positioned above overlay */}
+                          {/* Edit Button - positioned on bottom left when hovering */}
+                          <button
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              // Convert image URL to File for editing
+                              fetch(image.url)
+                                .then(res => res.blob())
+                                .then(blob => {
+                                  const file = new File([blob], `${image.alt_text || 'image'}.jpg`, { type: blob.type });
+                                  setEditingFile(file);
+                                  setEditorOpen(true);
+                                })
+                                .catch(error => {
+                                  console.error('Error fetching image for editing:', error);
+                                  showError('Failed to load image for editing', 'Please try again');
+                                });
+                            }}
+                            className="absolute bottom-3 left-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-lg z-20"
+                            title="Edit image"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          {/* Delete Button - positioned on bottom right when hovering */}
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteExistingImage(image.id, image.s3_key); }}
                             disabled={deleting === image.id}
-                            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:bg-gray-400 z-10"
+                            className="absolute bottom-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:bg-gray-400 shadow-lg z-20"
                             title="Delete image"
                           >
                             {deleting === image.id ? (
-                              <Spinner size={14} colorClass="text-white" />
+                              <div className="animate-pulse text-white text-xs">...</div>
                             ) : (
                               <Trash2 className="w-4 h-4" />
                             )}
@@ -775,54 +1071,96 @@ export default function MediaPage() {
               </div>
             )}
 
+            {/* Pending Files for Editing */}
+            {pendingFiles.length > 0 && (
+              <div className="space-y-3 mb-6">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Files Waiting for Edit ({pendingFiles.length} remaining)
+                </h3>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-700">
+                    📝 Currently editing: <strong>{editingFile?.name}</strong>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {pendingFiles.length - 1} more files in queue
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Currently Uploading Photos */}
             {photos.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-gray-800">Currently Uploading ({photos.length})</h3>
-                <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-gray-800">Processing Photos</h3>
+                  <div className="flex items-center space-x-2 text-sm text-blue-600">
+                    <div className="animate-pulse text-blue-600 text-sm">...</div>
+                    <span className="font-medium">{photos.length} remaining</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
                   {photos.map((photo) => (
-                    <div key={photo.id} className="relative border border-gray-200 rounded-xl p-4 bg-white">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-700 truncate flex-1">
-                          {photo.file.name}
-                        </span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); removePhoto(photo.id); }}
-                          className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full hover:bg-red-50 transition-colors"
-                          disabled={photo.uploading}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                    <div key={photo.id} className="relative border border-blue-200 rounded-xl p-4 bg-gradient-to-r from-blue-50 to-white shadow-sm">
+                      <div className="flex items-start space-x-4">
+                        {/* Preview Thumbnail */}
+                        <div className="flex-shrink-0">
+                          {photo.url ? (
+                            <img src={photo.url} alt="preview" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                              <ImageIcon className="w-6 h-6 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-medium text-gray-900 truncate">
+                              {photo.file.name}
+                            </h4>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removePhoto(photo.id); }}
+                              className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                              disabled={photo.uploading}
+                              title="Cancel upload"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          
+                          {photo.uploading && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-blue-700">
+                                  {photo.progress && photo.progress > 90 ? 'Finalizing...' : `Uploading ${photo.progress || 0}%`}
+                                </span>
+                                <div className="flex items-center space-x-2">
+                                  <div className="animate-pulse text-blue-600 text-xs">...</div>
+                                  <CheckCircle className={`w-4 h-4 transition-all duration-300 ${photo.progress === 100 ? 'text-green-500 scale-110' : 'text-gray-300'}`} />
+                                </div>
+                              </div>
+                              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-green-500 transition-all duration-500 ease-out rounded-full"
+                                  style={{ width: `${photo.progress || 0}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-gray-600">
+                                {Math.round((photo.file.size / 1024 / 1024) * 100) / 100} MB • {photo.file.type.split('/')[1].toUpperCase()}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {photo.error && (
+                            <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-2 rounded-lg">
+                              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                              <p className="text-sm font-medium">{photo.error}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      
-                      {/* Preview */}
-                      {photo.url && (
-                        <img src={photo.url} alt="preview" className="w-full h-32 object-cover mb-3 rounded-lg" />
-                      )}
-
-                      {photo.uploading && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-blue-700">
-                              Uploading {photo.progress || 0}%
-                            </span>
-                            <Spinner size={16} className="text-blue-600" />
-                          </div>
-                          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-blue-500 to-blue-700 transition-all duration-300 ease-out"
-                              style={{ width: `${photo.progress || 0}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      
-                      {photo.error && (
-                        <div className="flex items-center text-red-600">
-                          <AlertCircle className="w-4 h-4 mr-2" />
-                          <p className="text-xs">{photo.error}</p>
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -885,7 +1223,7 @@ export default function MediaPage() {
                 
                 {tourFile.uploading && (
                   <div className="mt-3 flex items-center">
-                    <Spinner size={16} className="text-blue-600 mr-2" />
+                    <div className="animate-pulse text-blue-600 text-sm mr-2">...</div>
                     <p className="text-sm text-blue-600 font-medium">Uploading 3D tour...</p>
                   </div>
                 )}
@@ -908,23 +1246,34 @@ export default function MediaPage() {
           </div>
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex justify-between items-center mt-12">
-          <button 
-            onClick={() => router.push(`/sell/create/rent-details?property_id=${propertyId}`)}
-            className="inline-flex items-center px-6 py-3 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            Back
-          </button>
-          <button 
-            onClick={() => router.push(`/sell/create/amenities?property_id=${propertyId}`)}
-            className="inline-flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-lg transition-all font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-            disabled={uploading}
-          >
-            {uploading ? 'Uploading...' : 'Next'}
-            <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </button>
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center mt-12 px-8 py-6 bg-gray-50 border-t border-gray-200">
+              <button 
+                onClick={() => {
+                  const paramName = isSubletMode ? 'sublisting_id' : 'property_id';
+                  const backPath = `/sell/create/rent-details?${paramName}=${entityId}&mode=sublet`;
+                  navigateWithTransition(backPath);
+                }}
+                className="px-6 py-3 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center shadow-sm"
+              >
+                <span className="mr-2">←</span>
+                Back
+              </button>
+              <button 
+                onClick={() => {
+                  const paramName = isSubletMode ? 'sublisting_id' : 'property_id';
+                  const nextPath = entityId
+                    ? `/sell/create/amenities?${paramName}=${entityId}${isSubletMode ? '&mode=sublet' : ''}`
+                    : `/sell/create/amenities${isSubletMode ? '?mode=sublet' : ''}`;
+                  navigateWithTransition(nextPath);
+                }}
+                className="px-8 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                disabled={uploading}
+              >
+                {uploading ? 'Uploading...' : 'Next'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       {lightboxOpen && (
@@ -932,6 +1281,16 @@ export default function MediaPage() {
           images={lightboxImages}
           startIndex={lightboxIndex}
           onClose={() => setLightboxOpen(false)}
+        />
+      )}
+
+      {/* Image Editor Modal */}
+      {editingFile && (
+        <ImageEditor
+          imageFile={editingFile}
+          onSave={handleEditedFileSave}
+          onCancel={handleEditedFileCancel}
+          isOpen={editorOpen}
         />
       )}
     </main>

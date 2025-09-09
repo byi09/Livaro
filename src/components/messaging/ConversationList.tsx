@@ -1,10 +1,12 @@
 import React from 'react';
+import { Tag } from 'lucide-react';
 
 interface Message {
   id: string;
   content: string;
   createdAt: string;
   senderId: string;
+  tags?: string[];
 }
 
 interface User {
@@ -33,6 +35,8 @@ interface Conversation {
   }>;
   lastMessage?: Message;
   unreadCount: number;
+  needsResponse?: boolean;
+  priority?: number;
 }
 
 interface ConversationListProps {
@@ -125,16 +129,32 @@ export default function ConversationList({
            (conversation.lastMessage?.content.toLowerCase().includes(query));
   });
 
+  // Get conversation tags (from the last message)
+  const getConversationTags = (conversation: Conversation) => {
+    return conversation.lastMessage?.tags || [];
+  };
+
+  // Get status indicator
+  const getStatusIndicator = (conversation: Conversation) => {
+    if (conversation.needsResponse) {
+      return { color: 'bg-amber-500', label: 'Needs Response' };
+    }
+    if (conversation.priority && conversation.priority > 8) {
+      return { color: 'bg-red-500', label: 'High Priority' };
+    }
+    return null;
+  };
+
   return (
     <div className="flex-1 overflow-y-auto">
       {filteredConversations.length === 0 ? (
         <div className="p-4 text-center text-gray-500">
-          <p>No conversations yet</p>
+          <p>No conversations found</p>
           <button
             onClick={onCreateConversation}
             className="mt-2 text-blue-600 hover:text-blue-700"
           >
-            Start your first conversation
+            Start a new conversation
           </button>
         </div>
       ) : (
@@ -142,19 +162,24 @@ export default function ConversationList({
           const title = getConversationTitle(conversation);
           const subtitle = getConversationSubtitle(conversation);
           const isSelected = conversation.id === selectedConversationId;
+          const statusIndicator = getStatusIndicator(conversation);
+          const tags = getConversationTags(conversation);
           
           return (
             <div
               key={conversation.id}
               onClick={() => onSelectConversation(conversation.id)}
-              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-              }`}
+              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}
             >
               <div className="flex items-start space-x-3">
                 {/* Avatar */}
-                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
-                  {getInitials(title)}
+                <div className="relative">
+                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
+                    {getInitials(title)}
+                  </div>
+                  {statusIndicator && (
+                    <div className={`absolute -top-1 -right-1 w-4 h-4 ${statusIndicator.color} rounded-full border-2 border-white`} title={statusIndicator.label}></div>
+                  )}
                 </div>
                 
                 {/* Content */}
@@ -182,6 +207,26 @@ export default function ConversationList({
                       )}
                     </div>
                   )}
+                  
+                  {/* Tags - temporarily disabled until DB migration is applied */}
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {tags.slice(0, 2).map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700"
+                        >
+                          <Tag className="w-2 h-2 mr-1" />
+                          {tag.replace('_', ' ')}
+                        </span>
+                      ))}
+                      {tags.length > 2 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                          +{tags.length - 2} more
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -190,4 +235,4 @@ export default function ConversationList({
       )}
     </div>
   );
-} 
+}

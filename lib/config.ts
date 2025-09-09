@@ -1,2 +1,2 @@
-export const ENABLE_CATALOG = false;
-export const ENABLE_MAP = false;
+export const ENABLE_CATALOG = true;
+export const ENABLE_MAP = true;

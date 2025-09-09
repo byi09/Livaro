@@ -79,6 +79,25 @@ export default function DefaultMap({
     };
   }, []);
 
+  // Memoize map props for better performance
+  const mapProps = useMemo(() => ({
+    mapboxAccessToken: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
+    mapStyle: "mapbox://styles/mapbox/streets-v12",
+    style: { width: '100%', height: '100%' },
+    initialViewState: { 
+      latitude: 38.795521, 
+      longitude: -122.305651, 
+      zoom: 10 
+    },
+    maxZoom: 20,
+    minZoom: 3,
+    // Performance optimizations
+    reuseMaps: true,
+    preserveDrawingBuffer: false,
+    antialias: false, // Disable for better performance on lower-end devices
+    optimizeForTerrain: true
+  }), []);
+
   return (
     <Map
       ref={mapRef}

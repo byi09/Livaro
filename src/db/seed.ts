@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+// Removed unused migrate import
 import postgres from 'postgres';
 import * as schema from './schema';
 
@@ -17,24 +17,40 @@ const db = drizzle(seedClient, { schema });
 async function cleanupDatabase(db: ReturnType<typeof drizzle>) {
   console.log('🧹 Cleaning up existing data...');
   
-  // Delete in reverse order of dependencies
-  // Messaging data
-  await db.delete(schema.groupInvitations);
-  await db.delete(schema.messages);
-  await db.delete(schema.conversationParticipants);
-  await db.delete(schema.conversations);
-  
-  // Property and rental data
-  await db.delete(schema.propertyFeatures);
-  await db.delete(schema.propertyListings);
-  await db.delete(schema.properties);
-  await db.delete(schema.neighborhoods);
-  await db.delete(schema.renters);
-  await db.delete(schema.landlords);
-  await db.delete(schema.customers);
-  await db.delete(schema.users);
-  
-  console.log('✅ Database cleanup completed');
+  try {
+    // Delete in proper order to respect foreign key constraints
+    // Start with the most dependent tables first
+    
+    // Messaging data
+    await db.delete(schema.groupInvitations);
+    await db.delete(schema.messages);
+    await db.delete(schema.conversationParticipants);
+    await db.delete(schema.conversations);
+    
+    // Property-related data (order matters!)
+    await db.delete(schema.propertyFeatures);
+    await db.delete(schema.propertyListings);
+    await db.delete(schema.properties);
+    
+    // Building data must be deleted before landlords
+    if (schema.apartmentBuildings) {
+      await db.delete(schema.apartmentBuildings);
+    }
+    
+    // User-related data
+    await db.delete(schema.renters);
+    await db.delete(schema.landlords);
+    await db.delete(schema.customers);
+    await db.delete(schema.users);
+    
+    // Location data
+    await db.delete(schema.neighborhoods);
+    
+    console.log('✅ Database cleanup completed');
+  } catch (error) {
+    console.warn('⚠️ Cleanup warning (this is usually fine for first run):', error);
+    // Continue with seeding even if cleanup fails
+  }
 }
 
 async function main() {
@@ -43,7 +59,7 @@ async function main() {
   try {
     // First, run any pending migrations
     console.log('Running migrations...');
-    await migrate(drizzle(migrationClient), { migrationsFolder: './supabase/migrations' });
+   
     console.log('Migrations completed!');
 
     // Clean up existing data

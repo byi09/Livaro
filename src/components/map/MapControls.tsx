@@ -14,8 +14,8 @@ export default function MapControls() {
       "Map instance is not available. MapControls must be used within a Map component."
     );
 
-  const { setFilterOptions, setReady } = useMapContext();
-  const { isLoading, coords } = useGeolocationContext();
+  const { setFilterOptions, setReady, setMapBoundsReady } = useMapContext();
+  const { coords } = useGeolocationContext(); // Removed isLoading dependency
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -31,14 +31,30 @@ export default function MapControls() {
       const bounds = e.target.getBounds();
       if (!bounds) return;
 
-      // Update filter options with the new bounds
-      setFilterOptions((prev) => ({
-        ...prev,
-        swBounds: bounds.getSouthWest(),
-        neBounds: bounds.getNorthEast()
-      }));
+      // Update filter options only if bounds actually changed to avoid redundant fetches
+      setFilterOptions((prev) => {
+        const newSw = bounds.getSouthWest();
+        const newNe = bounds.getNorthEast();
+        const sameBounds =
+          prev.swBounds &&
+          prev.neBounds &&
+          Math.abs(prev.swBounds.lat - newSw.lat) < 0.0001 &&
+          Math.abs(prev.swBounds.lng - newSw.lng) < 0.0001 &&
+          Math.abs(prev.neBounds.lat - newNe.lat) < 0.0001 &&
+          Math.abs(prev.neBounds.lng - newNe.lng) < 0.0001;
+
+        if (sameBounds) return prev;
+        return {
+          ...prev,
+          swBounds: newSw,
+          neBounds: newNe,
+        };
+      });
+      
+      // Mark bounds as ready for property fetching
+      setMapBoundsReady(true);
     },
-    [setFilterOptions]
+    [setFilterOptions, setMapBoundsReady]
   );
 
   // helper function to set the initial map center and zoom
@@ -98,10 +114,9 @@ export default function MapControls() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (centerLoaded) return; // prevent multiple initializations
-    if (isLoading) return; // wait for geolocation to load
     setCenterLoaded(true);
     initializeMapState();
-  }, [centerLoaded, initializeMapState, isLoading]);
+  }, [centerLoaded, initializeMapState]); // Removed isLoading dependency
 
   // add event listeners on map load (and set initial bounds)
   useEffect(() => {

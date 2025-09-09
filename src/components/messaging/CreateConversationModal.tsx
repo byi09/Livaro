@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Search, User, Building } from 'lucide-react';
-import Spinner from '../ui/Spinner';
+
 
 interface User {
   id: string;
@@ -254,7 +254,7 @@ export default function CreateConversationModal({
               {/* User Search Results */}
               {isSearchingUsers && (
                 <div className="text-center py-4">
-                  <Spinner size={24} />
+                  <div className="animate-pulse text-gray-600 text-sm">...</div>
                 </div>
               )}
 
@@ -322,7 +322,7 @@ export default function CreateConversationModal({
               {/* Property Search Results */}
               {isSearchingProperties && (
                 <div className="text-center py-4">
-                  <Spinner size={24} />
+                  <div className="animate-pulse text-gray-600 text-sm">...</div>
                 </div>
               )}
 

@@ -19,10 +19,10 @@ export default function Dropdown({
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger
         className={clsx(
-          "flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg outline-none transition-all duration-200",
-          "hover:border-gray-400 hover:shadow-sm hover:bg-gray-50",
-          "focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:border-blue-500",
-          "data-[state=open]:border-blue-500 data-[state=open]:ring-2 data-[state=open]:ring-blue-500 data-[state=open]:ring-offset-1",
+          "flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl shadow-sm outline-none transition-all duration-200",
+          "hover:border-gray-300 hover:shadow-md hover:bg-gray-50/50",
+          "focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:shadow-lg",
+          "data-[state=open]:border-blue-500 data-[state=open]:ring-2 data-[state=open]:ring-blue-500/20 data-[state=open]:shadow-lg data-[state=open]:bg-blue-50/30",
           triggerClassName
         )}
       >
@@ -41,13 +41,13 @@ export default function Dropdown({
       <DropdownMenu.Content
         align={align}
         className={clsx(
-          "z-50 min-w-[8rem] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg",
+          "z-50 min-w-[12rem] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl backdrop-blur-sm",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2",
           "data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-          "p-1 mt-2",
+          "p-2 mt-2",
           className
         )}
       >
@@ -71,8 +71,9 @@ export function DropdownItem({
   return (
     <DropdownMenu.Item
       className={clsx(
-        "relative flex cursor-default select-none items-center rounded-md px-3 py-2 text-sm outline-none transition-colors duration-150",
-        "hover:bg-gray-100 focus:bg-gray-100",
+        "relative flex cursor-default select-none items-center rounded-lg px-3 py-2.5 text-sm outline-none transition-all duration-200",
+        "hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 hover:scale-[1.02]",
+        "focus:bg-gradient-to-r focus:from-blue-50 focus:to-indigo-50 focus:text-blue-700",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         disabled && "opacity-50 pointer-events-none",
         className
