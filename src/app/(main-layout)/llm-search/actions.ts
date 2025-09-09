@@ -67,24 +67,92 @@ export async function getPropertyListings(
     )
     .eq("listing_status", "active");
 
-  // filtering individual attributes
+  // Intelligent location filtering
   if (filters.city) {
-    query = query.ilike("properties.city", `%${filters.city}%`);
+    const cityLower = filters.city.toLowerCase();
+    
+    // Special handling for Bay Area - search multiple cities
+    if (cityLower.includes('bay area')) {
+      // Search for properties in major Bay Area cities
+      query = query.or(`properties.city.ilike.%san francisco%,properties.city.ilike.%oakland%,properties.city.ilike.%san jose%,properties.city.ilike.%berkeley%,properties.city.ilike.%palo alto%,properties.city.ilike.%mountain view%,properties.city.ilike.%sunnyvale%,properties.city.ilike.%fremont%,properties.city.ilike.%hayward%,properties.city.ilike.%redwood city%`);
+    } else {
+      // Handle other city variations and abbreviations
+      const cityVariations = [];
+      
+      if (cityLower.includes('san francisco') || cityLower === 'sf' || cityLower.includes('san fran')) {
+        cityVariations.push('san francisco', 'sf', 'san fran');
+      } else if (cityLower.includes('new york') || cityLower === 'nyc' || cityLower.includes('manhattan')) {
+        cityVariations.push('new york', 'nyc', 'manhattan');
+      } else if (cityLower.includes('los angeles') || cityLower === 'la') {
+        cityVariations.push('los angeles', 'la');
+      } else {
+        // Default: just use the city as provided
+        query = query.ilike("properties.city", `%${filters.city}%`);
+      }
+      
+      // If we have variations, use OR query
+      if (cityVariations.length > 0) {
+        const orConditions = cityVariations.map(city => `properties.city.ilike.%${city}%`).join(',');
+        query = query.or(orConditions);
+      }
+    }
   }
 
   if (filters.state) {
-    query = query.ilike("properties.state", `%${filters.state}%`);
+    // Handle state abbreviations and full names
+    const stateMap: { [key: string]: string[] } = {
+      'ca': ['CA', 'California'],
+      'california': ['CA', 'California'],
+      'ny': ['NY', 'New York'],
+      'new york': ['NY', 'New York'],
+      'tx': ['TX', 'Texas'],
+      'texas': ['TX', 'Texas'],
+      'fl': ['FL', 'Florida'],
+      'florida': ['FL', 'Florida'],
+    };
+    
+    const normalizedState = filters.state.toLowerCase();
+    const stateVariations = stateMap[normalizedState] || [filters.state];
+    
+    if (stateVariations.length > 1) {
+      const orConditions = stateVariations.map(state => `properties.state.ilike.%${state}%`).join(',');
+      query = query.or(orConditions);
+    } else {
+      query = query.ilike("properties.state", `%${filters.state}%`);
+    }
   }
 
   if (filters.property_type) {
+    // Normalize property types and handle variations
+    const normalizePropertyType = (type: string) => {
+      const normalized = type.toLowerCase().trim();
+      const typeMap: { [key: string]: string[] } = {
+        'apartment': ['apartment', 'apt', 'flat', 'unit'],
+        'house': ['house', 'home', 'single family', 'detached', 'single-family'],
+        'condo': ['condo', 'condominium', 'coop', 'co-op'],
+        'townhouse': ['townhouse', 'townhome', 'row house', 'rowhouse'],
+        'studio': ['studio', 'efficiency', 'bachelor'],
+        'room': ['room', 'shared', 'roommate'],
+        'duplex': ['duplex', 'multi-family', 'multifamily']
+      };
+      
+      for (const [standard, variations] of Object.entries(typeMap)) {
+        if (variations.some(variation => normalized.includes(variation))) {
+          return standard;
+        }
+      }
+      return type; // Return original if no match found
+    };
+
     // Handle multiple property types separated by commas
     if (filters.property_type.includes(",")) {
       const propertyTypes = filters.property_type
         .split(",")
-        .map((type) => type.trim());
+        .map((type) => normalizePropertyType(type.trim()));
       query = query.in("properties.property_type", propertyTypes);
     } else {
-      query = query.eq("properties.property_type", filters.property_type);
+      const normalizedType = normalizePropertyType(filters.property_type);
+      query = query.eq("properties.property_type", normalizedType);
     }
   }
 
@@ -117,12 +185,16 @@ export async function getPropertyListings(
     query = query.gte("available_date", filters.available_from);
   }
 
+  console.log("Executing property search query with filters:", JSON.stringify(filters, null, 2));
   const { data, error } = await query.limit(20);
 
   if (error) {
     console.error("Error fetching property listings:", error);
+    console.error("Query filters were:", JSON.stringify(filters, null, 2));
     throw new Error("Failed to fetch property listings");
   }
+
+  console.log(`Query returned ${data?.length || 0} results`);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mappedData: PropertyListing[] = (data || []).map((listing: any) => {
@@ -158,8 +230,18 @@ export async function decideChatOrFilter(
   chatHistory: ChatMessage[],
   prompt: string,
 ): Promise<"search" | "chat"> {
-  // takes in chat history and prompt makes an API call to gemini to decide
-  // if the next response should be a chat response or if it should make an api call to /api/query-to-filter
+  // Fallback logic: if prompt contains location/property terms, default to search
+  const searchKeywords = [
+    'bedroom', 'bed', 'apartment', 'house', 'property', 'properties', 'rental', 'rent',
+    'berkeley', 'san francisco', 'sf', 'bay area', 'oakland', 'san jose',
+    'near', 'in', 'location', 'find', 'show', 'search', 'looking for',
+    'studio', 'condo', 'townhouse', 'duplex', 'room',
+    'cheap', 'expensive', 'budget', 'price', '$', 'under', 'around'
+  ];
+  
+  const promptLower = prompt.toLowerCase();
+  const hasSearchTerms = searchKeywords.some(keyword => promptLower.includes(keyword));
+  
   const baseURL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
   const payload: AIChatRequest = {
@@ -177,15 +259,23 @@ export async function decideChatOrFilter(
     });
 
     if (!res.ok) {
-      console.error("Failed to decide action, defaulting to chat");
-      return "chat";
+      console.error("Failed to decide action, using fallback logic");
+      return hasSearchTerms ? "search" : "chat";
     }
 
     const data = await res.json();
-    return data.action === "search" ? "search" : "chat";
+    const aiDecision = data.action === "search" ? "search" : "chat";
+    
+    // If AI says chat but we have clear search terms, override to search
+    if (aiDecision === "chat" && hasSearchTerms) {
+      console.log("AI said chat but prompt has search terms, overriding to search");
+      return "search";
+    }
+    
+    return aiDecision;
   } catch (error) {
     console.error("Error deciding action:", error);
-    return "chat"; // Default to chat on error
+    return hasSearchTerms ? "search" : "chat"; // Use fallback logic on error
   }
 }
 

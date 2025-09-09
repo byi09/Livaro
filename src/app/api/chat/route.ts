@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 IMPORTANT FORMATTING RULES:
 - NEVER use markdown formatting (no **, __, ##, -, *, etc.)
 - Use plain text only
-- Emojis are allowed and encouraged 😊
+- NO emojis - keep responses clean and professional
 - Use line breaks for readability but no special formatting
 
 ${

@@ -49,12 +49,62 @@ export async function POST(request: NextRequest) {
         thinkingConfig: {
           thinkingBudget: 0,
         },
-        systemInstruction:
-          "You are a helpful AI assistant. Your task is to assist the user in finding a suitable place to rent by converting their query into a json object with one or more of the following filters. The possible filters are as follows: 'city', 'state', 'property_type'(can be a single value like 'apartment' or multiple comma-separated values like 'apartment,house' from: apartment, condo, house, townhouse, studio, room, duplex), square_footage, bedrooms, bathrooms, price_min, price_max, parking_spaces(number of parking spaces), pet_friendly(boolean), furnished(boolean), available_from(date in YYYY-MM-DD format). If the user asks for a specific location, you should include the 'city' and 'state' filters. If they ask for a specific property type or multiple types, include the 'property_type' filter. If they mention a budget, include 'price_min' and/or 'price_max'. If they mention a specific number of bedrooms or bathrooms, include those filters as well. If they mention parking spaces, include 'parking_spaces'. If they mention pets, include 'pet_friendly' as true. Do not reply with anything other than the json object with the filters. Do not include any additional text or explanations. Don't format the output as markdown, just send the json object starting with '{' and ending with '}'. If the query is not related to housing, return 'bad_query'",
+        systemInstruction: `You are an expert rental property search assistant. Convert user queries into search filters with maximum flexibility and intelligence.
+
+PROPERTY TYPE MAPPING:
+- "apartment", "apt", "flat", "unit" → "apartment"
+- "house", "home", "single family", "detached" → "house"
+- "condo", "condominium", "coop" → "condo"
+- "townhouse", "townhome", "row house" → "townhouse"
+- "studio", "efficiency", "bachelor" → "studio"
+- "room", "shared", "roommate" → "room"
+- "duplex", "multi-family" → "duplex"
+
+LOCATION HANDLING:
+- Extract city and state from any format ("San Francisco, CA", "Boston", "NYC", "Bay Area")
+- Handle common abbreviations and nicknames
+- For vague locations like "downtown", "near campus", "city center" - use as city name
+
+BUDGET HANDLING:
+- "$2000" → price_max: 2000
+- "under $1500" → price_max: 1500
+- "$1000-2000" → price_min: 1000, price_max: 2000
+- "around $1800" → price_min: 1600, price_max: 2000 (add 10% buffer)
+- "cheap", "affordable" → price_max: 1200
+- "expensive", "luxury" → price_min: 3000
+
+BEDROOM HANDLING:
+- "studio", "0 bedroom" → bedrooms: 0
+- "1 bed", "one bedroom" → bedrooms: 1
+- "2+", "at least 2" → bedrooms: 2
+- "3+ bed" → bedrooms: 3
+
+AMENITY HANDLING:
+- "pet friendly", "allows pets", "dogs ok" → pet_friendly: true
+- "furnished", "comes with furniture" → furnished: true
+- "parking", "garage", "car space" → parking_spaces: 1
+
+BE GENEROUS WITH INTERPRETATIONS:
+- If user mentions any location, extract it
+- If user mentions any price range, include it
+- If user mentions any preferences, include them
+- Default to reasonable values when exact numbers aren't given
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON object with the filters. No markdown, no explanations.
+If the query is completely unrelated to housing, return exactly: {"error": "bad_query"}
+
+Example inputs and outputs:
+"2 bedroom apartment in San Francisco under $3000" → {"city": "San Francisco", "state": "CA", "property_type": "apartment", "bedrooms": 2, "price_max": 3000}
+"cheap studio near campus" → {"property_type": "studio", "city": "near campus", "price_max": 1200}
+"pet friendly house in Boston" → {"city": "Boston", "state": "MA", "property_type": "house", "pet_friendly": true}
+"apartment in Bay Area" → {"city": "Bay Area", "state": "CA", "property_type": "apartment"}
+"properties in the bay area under $2500" → {"city": "Bay Area", "state": "CA", "price_max": 2500}`,
       },
     });
 
     const modelOutput = modelResponse.text;
+    console.log("Query-to-filter AI response:", modelOutput, "for prompt:", prompt);
 
     if (!modelOutput) {
       return NextResponse.json(

@@ -5,13 +5,15 @@ import { useEffect, useState } from 'react';
 interface InteractiveProgressBarProps {
   currentStep: number;
   propertyId?: string | null;
+  mode?: string | null;
   /** optional callback before we change page – parent can save form */
   beforeNavigate?: () => Promise<void> | void;
 }
 
-const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({ 
-  currentStep, 
+const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
+  currentStep,
   propertyId,
+  mode,
   beforeNavigate
 }) => {
   const router = useRouter();
@@ -20,15 +22,13 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
   const [furthestStep, setFurthestStep] = useState<number>(currentStep);
 
   const steps = [
+    { label: 'Manage Media', path: '/sell/manage-media' },
     { label: 'Property Info', path: '/sell/create' },
     { label: 'Rent Details', path: '/sell/create/rent-details' },
     { label: 'Media', path: '/sell/create/media' },
     { label: 'Amenities', path: '/sell/create/amenities' },
-    { label: 'Screening', path: '/sell/create/screening' },
-    { label: 'Costs and Fees', path: '/sell/create/costs-and-fees' },
-    { label: 'Final details', path: '/sell/create/final-details' },
-    { label: 'Review', path: '/sell/create/review' },
-    { label: 'Publish', path: '/sell/create/publish' }
+    { label: 'Additional Fees', path: '/sell/create/costs-and-fees' },
+    { label: 'Review & Publish', path: '/sell/create/review' }
   ];
 
   // Load furthest step from localStorage when propertyId becomes available
@@ -103,22 +103,34 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
 
     const step = steps[stepIndex];
     let url = step.path;
+    const params = [];
+
     if (propertyId) {
-      url += `?property_id=${propertyId}`;
+      params.push(`property_id=${propertyId}`);
     }
+
+    if (mode) {
+      params.push(`mode=${mode}`);
+    }
+
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
+    }
+
     router.push(url);
   };
 
   const getStepClassName = (stepIndex: number) => {
     if (stepIndex === currentStep) {
-      return 'bg-blue-600 cursor-pointer';
+      // Current step: diamond/rhombus shape with blue background
+      return 'bg-blue-600 cursor-pointer transform rotate-45';
     }
     if (allowedSteps[stepIndex]) {
       return completedSteps[stepIndex] 
-        ? 'bg-green-500 hover:bg-green-600 transition-colors cursor-pointer'
-        : 'bg-gray-400 hover:bg-gray-500 transition-colors cursor-pointer';
+        ? 'bg-blue-600 hover:bg-blue-700 transition-colors cursor-pointer' // Completed: solid blue circle
+        : 'bg-white border-2 border-gray-300 hover:border-gray-400 transition-colors cursor-pointer'; // Incomplete: empty white circle
     }
-    return 'bg-gray-300 cursor-not-allowed';
+    return 'bg-white border-2 border-gray-200 cursor-not-allowed'; // Disabled: empty white circle
   };
 
   const getStepTextClassName = (stepIndex: number) => {
@@ -158,14 +170,14 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
           <div key={step.label} className="flex-1 relative flex flex-col items-center">
             <button
               onClick={() => handleStepClick(index)}
-              className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-all duration-300 ${getStepClassName(index)} relative z-10 shadow-sm`}
+              className={`w-5 h-5 sm:w-6 sm:h-6 transition-all duration-300 ${getStepClassName(index)} relative z-10 shadow-sm ${index === currentStep ? '' : 'rounded-full'}`}
               title={allowedSteps[index] ? `Go to ${step.label}` : `Complete previous steps to unlock ${step.label}`}
               disabled={!allowedSteps[index]}
             >
-              {/* Add checkmark for completed steps */}
+              {/* Add checkmark for completed steps (but not current step) */}
               {completedSteps[index] && index !== currentStep && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-2 h-2 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </div>

@@ -16,12 +16,17 @@ interface PropertyFeature {
 
 interface PropertyImage {
   id: string;
-  s3_key: string;
-  image_order: number;
+  s3_key?: string;
+  file_url?: string;
+  image_order?: number;
+  display_order?: number;
   alt_text?: string;
-  is_primary: boolean;
+  is_primary?: boolean;
   image_type?: string;
   room_type?: string;
+  file_type?: string;
+  file_size?: number;
+  file_name?: string;
 }
 
 interface PropertyData {
@@ -67,6 +72,15 @@ export default function PublishPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const propertyId = searchParams.get('property_id');
+  const mode = searchParams.get('mode'); // Check for sublet mode
+
+  // Check both URL parameter and session storage for sublet mode
+  const isSubletMode = mode === 'sublet' ||
+    (typeof window !== 'undefined' && sessionStorage.getItem('subletting_mode') === 'true');
+
+  const sublistingId = searchParams.get('sublisting_id');
+  const entityId = isSubletMode ? sublistingId : propertyId;
+
   const [propertyData, setPropertyData] = useState<PropertyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -78,65 +92,174 @@ export default function PublishPage() {
 
   useEffect(() => {
     const fetchPropertyData = async () => {
-      if (!propertyId) {
-        router.push('/sell/create');
+      if (!entityId) {
+        const redirectPath = isSubletMode ? '/sell/create?mode=sublet' : '/sell/create';
+        router.push(redirectPath);
         return;
       }
 
       try {
         const supabase = createClient();
-        
-        // Fetch comprehensive property data
-        const { data, error } = await supabase
-          .from('properties')
-          .select(`
-            *,
-            property_listings (
-              id,
-              monthly_rent,
-              listing_title,
-              listing_description,
-              available_date,
-              listing_status
-            ),
-            property_features (
-              id,
-              feature_name,
-              feature_category,
-              feature_value
-            ),
-            property_images (
-              id,
-              s3_key,
-              image_order,
-              alt_text,
-              is_primary,
-              image_type,
-              room_type
-            ),
-            landlords (
-              id,
-              business_name,
-              business_phone,
-              business_email,
-              identity_verified,
-              customers (
-                first_name,
-                last_name,
-                phone_number,
-                profile_image_s3_key
+
+        if (isSubletMode) {
+          // Fetch comprehensive sublisting data
+          const { data, error } = await supabase
+            .from('sublistings')
+            .select(`
+              *,
+              sublisting_listings (
+                id,
+                monthly_rent,
+                listing_title,
+                listing_description,
+                available_date,
+                listing_status
+              ),
+              sublisting_features (
+                id,
+                feature_name,
+                feature_category,
+                feature_value
+              ),
+              sublisting_media (
+                id,
+                file_url,
+                display_order,
+                file_type,
+                file_size,
+                file_name
               )
-            )
-          `)
-          .eq('id', propertyId)
-          .single();
+            `)
+            .eq('id', entityId)
+            .single();
 
-        if (error) {
-          console.error('Error fetching property data:', error);
-          return;
+          if (error) {
+            console.error('Error fetching sublisting data:', error);
+            return;
+          }
+
+          // Fetch landlord data separately if landlord_id exists
+          let landlordData = null;
+          if (data.landlord_id) {
+            try {
+              // Try to get user data from auth instead of landlords table
+              const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+              if (!userError && user) {
+                // Use user data for sublease owner
+                landlordData = {
+                  id: data.landlord_id,
+                  business_name: `Sublease Owner (${user.email?.split('@')[0] || 'User'})`,
+                  business_phone: '',
+                  business_email: user.email || '',
+                  identity_verified: false,
+                  customers: {
+                    first_name: user.user_metadata?.first_name || user.email?.split('@')[0] || 'User',
+                    last_name: user.user_metadata?.last_name || '',
+                    phone_number: user.phone || '',
+                    profile_image_s3_key: user.user_metadata?.avatar_url || null
+                  }
+                };
+              } else {
+                console.warn('Could not fetch user data:', userError);
+                // Create a placeholder landlord data structure
+                landlordData = {
+                  id: data.landlord_id,
+                  business_name: 'Sublease Owner',
+                  business_phone: '',
+                  business_email: '',
+                  identity_verified: false,
+                  customers: undefined
+                };
+              }
+            } catch (error) {
+              console.warn('Error fetching landlord data:', error);
+              landlordData = {
+                id: data.landlord_id,
+                business_name: 'Sublease Owner',
+                business_phone: '',
+                business_email: '',
+                identity_verified: false,
+                customers: undefined
+              };
+            }
+          }
+
+          // Transform sublisting data to match PropertyData interface
+          const transformedData = {
+            id: data.id,
+            address_line_1: data.address_line_1,
+            address_line_2: data.address_line_2,
+            city: data.city,
+            state: data.state,
+            zip_code: data.zip_code,
+            bedrooms: data.bedrooms,
+            bathrooms: data.bathrooms,
+            square_footage: data.square_footage,
+            property_type: data.property_type || 'apartment',
+            year_built: data.year_built,
+            description: data.description,
+            available_date: data.available_date,
+            property_listings: data.sublisting_listings || [],
+            property_features: data.sublisting_features || [],
+            property_images: data.sublisting_media || [],
+            landlords: landlordData || undefined
+          };
+
+          setPropertyData(transformedData);
+        } else {
+          // Fetch comprehensive property data
+          const { data, error } = await supabase
+            .from('properties')
+            .select(`
+              *,
+              property_listings (
+                id,
+                monthly_rent,
+                listing_title,
+                listing_description,
+                available_date,
+                listing_status
+              ),
+              property_features (
+                id,
+                feature_name,
+                feature_category,
+                feature_value
+              ),
+              property_images (
+                id,
+                s3_key,
+                image_order,
+                alt_text,
+                is_primary,
+                image_type,
+                room_type
+              ),
+              landlords (
+                id,
+                business_name,
+                business_phone,
+                business_email,
+                identity_verified,
+                customers (
+                  first_name,
+                  last_name,
+                  phone_number,
+                  profile_image_s3_key
+                )
+              )
+            `)
+            .eq('id', entityId)
+            .single();
+
+          if (error) {
+            console.error('Error fetching property data:', error);
+            return;
+          }
+
+          setPropertyData(data);
         }
-
-        setPropertyData(data);
       } catch (error) {
         console.error('Unexpected error:', error);
       } finally {
@@ -145,7 +268,7 @@ export default function PublishPage() {
     };
 
     fetchPropertyData();
-  }, [propertyId, router]);
+  }, [entityId, router, isSubletMode]);
 
   // Check if description needs "See more" button
   useEffect(() => {
@@ -165,7 +288,7 @@ export default function PublishPage() {
     }
 
     const listing = propertyData.property_listings[0];
-    
+
     // Check if listing is already active
     if (listing.listing_status === 'active') {
       alert('This listing is already published and active!');
@@ -178,11 +301,12 @@ export default function PublishPage() {
       const supabase = createClient();
 
       // Update the listing status to 'active'
+      const tableName = isSubletMode ? 'sublisting_listings' : 'property_listings';
       const { error } = await supabase
-        .from('property_listings')
-        .update({ 
+        .from(tableName)
+        .update({
           listing_status: 'active',
-          list_date: new Date().toISOString().split('T')[0] // Set today as list date
+          updated_at: new Date().toISOString() // Set current timestamp
         })
         .eq('id', listing.id);
 
@@ -193,10 +317,10 @@ export default function PublishPage() {
         return;
       }
 
-      // Success! Redirect to dashboard
+      // Success! Redirect to appropriate dashboard
       alert('🎉 Listing published successfully!');
-      router.push('/sell/dashboard');
-      
+      router.push(isSubletMode ? '/sublist/dashboard' : '/sell/dashboard');
+
     } catch (error) {
       console.error('Unexpected error:', error);
       alert('An unexpected error occurred. Please try again.');
@@ -402,13 +526,26 @@ export default function PublishPage() {
 
   // Prepare images for lightbox
   const galleryImages = (propertyData.property_images || [])
-    .sort((a, b) => a.image_order - b.image_order)
+    .sort((a, b) => (a.image_order || a.display_order || 0) - (b.image_order || b.display_order || 0))
     .map((image) => {
-      const supabase = createClient();
-      const { data: { publicUrl } } = supabase.storage
-        .from('property-images')
-        .getPublicUrl(image.s3_key);
-      return { src: publicUrl, alt: image.alt_text };
+      let src;
+
+      if (image.file_url && image.file_url.startsWith('https://')) {
+        // For subletting images, file_url is already a complete URL
+        src = image.file_url;
+      } else if (image.s3_key) {
+        // For regular property images, s3_key needs to be converted to public URL
+        const supabase = createClient();
+        const { data: { publicUrl } } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(image.s3_key);
+        src = publicUrl;
+      } else {
+        // Fallback
+        src = '';
+      }
+
+      return { src, alt: image.alt_text || `Property photo` };
     });
 
   return (
@@ -433,8 +570,8 @@ export default function PublishPage() {
               </div>
             )}
           </div>
-          <button 
-            onClick={() => router.push('/sell/dashboard')}
+          <button
+            onClick={() => router.push(isSubletMode ? '/sublist/dashboard' : '/sell/dashboard')}
             className="px-6 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
           >
             Save and Exit
@@ -442,7 +579,7 @@ export default function PublishPage() {
         </div>
 
         {/* Progress Bar */}
-        <InteractiveProgressBar currentStep={8} propertyId={propertyId} />
+        <InteractiveProgressBar currentStep={8} propertyId={entityId} mode={mode} />
 
         {/* Main Content */}
         <div className="max-w-4xl mx-auto">
@@ -482,44 +619,35 @@ export default function PublishPage() {
           </section>
 
           {/* Property Images Gallery */}
-          {propertyData.property_images && propertyData.property_images.length > 0 && (
+          {galleryImages && galleryImages.length > 0 && (
             <section className="mb-12">
               <h2 className="text-2xl font-semibold text-blue-700 mb-4">Property Photos</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {propertyData.property_images
-                  .sort((a, b) => a.image_order - b.image_order)
-                  .map((image, index) => {
-                    const supabase = createClient();
-                    const { data: { publicUrl } } = supabase.storage
-                      .from('property-images')
-                      .getPublicUrl(image.s3_key);
-                    
-                    return (
-                      <div key={image.id} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden cursor-pointer" onClick={() => { setLightboxIndex(index); setLightboxOpen(true); }}>
-                        <Image
-                          src={publicUrl}
-                          alt={image.alt_text || `Property photo ${index + 1}`}
-                          fill
-                          className="object-cover hover:scale-105 transition-transform duration-300"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        />
-                        {image.is_primary && (
-                          <div className="absolute top-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-sm font-medium">
-                            Primary
-                          </div>
-                        )}
-                        {image.room_type && (
-                          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                            {image.room_type.charAt(0).toUpperCase() + image.room_type.slice(1).replace('_', ' ')}
-                          </div>
-                        )}
-                        {/* View Hint Icon */}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 md:hover:bg-black/20 transition bg-opacity-0">
-                          <Eye className="w-6 h-6 text-white opacity-0 hover:opacity-100 md:group-hover:opacity-100 transition-opacity" />
+                {galleryImages.map((image, index) => {
+                  return (
+                    <div key={`image-${index}`} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden cursor-pointer" onClick={() => { setLightboxIndex(index); setLightboxOpen(true); }}>
+                      <img
+                        src={image.src}
+                        alt={image.alt || `Property photo ${index + 1}`}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                      {propertyData.property_images?.[index]?.is_primary && (
+                        <div className="absolute top-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-sm font-medium">
+                          Primary
                         </div>
+                      )}
+                      {propertyData.property_images?.[index]?.room_type && (
+                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                          {propertyData.property_images[index].room_type.charAt(0).toUpperCase() + propertyData.property_images[index].room_type.slice(1).replace('_', ' ')}
+                        </div>
+                      )}
+                      {/* View Hint Icon */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 md:hover:bg-black/20 transition bg-opacity-0">
+                        <Eye className="w-6 h-6 text-white opacity-0 hover:opacity-100 md:group-hover:opacity-100 transition-opacity" />
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}
@@ -635,8 +763,14 @@ export default function PublishPage() {
 
           {/* Navigation Buttons */}
           <div className="flex justify-end items-center gap-4 mt-12">
-            <button 
-              onClick={() => router.push(`/sell/create/review?property_id=${propertyId}`)}
+            <button
+              onClick={() => {
+                const paramName = isSubletMode ? 'sublisting_id' : 'property_id';
+                const backPath = entityId
+                  ? `/sell/create/review?${paramName}=${entityId}${isSubletMode ? '&mode=sublet' : ''}`
+                  : `/sell/create/review${isSubletMode ? '?mode=sublet' : ''}`;
+                router.push(backPath);
+              }}
               className="px-8 py-3 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
             >
               Go Back

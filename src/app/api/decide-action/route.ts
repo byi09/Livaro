@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
 
 Respond with exactly ONE word: either "search" or "chat"
 
+GENERAL PRINCIPLE: Be more permissive with searches. It's better to search and find some results than to over-chat. Users want to see properties quickly.
+
 ${
   hasFoundProperties
     ? `CONTEXT: Properties have already been found in this conversation. 
@@ -69,37 +71,43 @@ ${
   - User wants to refine their search with new/different criteria
   - User asks to "find more", "search again", "show me different" properties
   - User provides significantly different requirements (new location, budget, etc.)
+  - User asks for specific filters or changes to previous search
+  - User seems dissatisfied with current results and wants alternatives
   
   Use "chat" when:
   - User asks questions about the found properties
-  - User wants help choosing between options
+  - User wants help choosing between specific options
   - User asks about neighborhoods, amenities, or general advice
   - User wants clarification about the search results`
     : `CONTEXT: This is an initial or early conversation about finding properties.
   
   Use "search" when:
-  - User provides specific location (city/state)
-  - User mentions specific budget or price range  
-  - User has clear preferences for bedrooms, property type, etc.
+  - User mentions ANY location (even vague like "downtown", "near campus", "Bay Area")
+  - User mentions ANY budget or price range (even rough estimates)
+  - User has ANY preferences for bedrooms, property type, amenities
   - User asks to "find", "search", "show me" properties
-  - The conversation has gathered enough details to perform a meaningful search
+  - User provides any specific housing criteria (even just one)
+  - User seems ready to see actual properties
+  - The conversation has gathered at least ONE useful search criteria
   
   Use "chat" when:
-  - User's query is vague or general ("I need help finding a place")
-  - User asks questions about neighborhoods, amenities, or general housing advice
-  - More information is needed to perform a good search
-  - User wants to refine their criteria further
-  - User is just starting the conversation and hasn't provided specific details yet`
+  - User's first message is purely greeting or introduction
+  - User asks completely general questions without any specific criteria
+  - User asks questions about the rental process, neighborhoods, or general advice without specifics
+  - User is clearly not ready for a search yet (asking "how does this work?")
+  - User query is completely unrelated to housing`
 }
 
-Consider the entire conversation context when making this decision. Respond with only "search" or "chat".`,
+IMPORTANT: Default to "search" when in doubt. Users prefer seeing properties over extended conversations. Respond with only "search" or "chat".`,
       },
     });
 
     const modelOutput = modelResponse.text?.trim().toLowerCase();
+    console.log("Decide-action AI response:", modelOutput, "for prompt:", prompt);
 
     // Parse the response to determine action
     const action = modelOutput === "search" ? "search" : "chat";
+    console.log("Final action decided:", action);
 
     return NextResponse.json(
       {

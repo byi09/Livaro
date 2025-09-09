@@ -5,7 +5,7 @@ import * as schema from './schema';
 
 
 // Use the direct connection string
-const DATABASE_URL = 'postgresql://postgres.nupscwvvnvqarggymojg:rentoraindia@aws-0-ap-south-1.pooler.supabase.com:6543/postgres';
+const DATABASE_URL = 'postgresql://postgres:Home135!a38xQ6@db.fzkkrztvbflpbnayrfne.supabase.co:5432/postgres';
 
 // For migrations
 const migrationClient = postgres(DATABASE_URL, { max: 1 });

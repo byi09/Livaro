@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
 import ListingCard from './listing-card'
-import BuildingCard from './building-card'
 import OneTapApplicationBanner from '@/src/components/OneTapApplicationBanner'
 import OneTapApplicationForm from '@/src/components/OneTapApplicationForm'
 import OneTapSuccessToast from '@/src/components/OneTapSuccessToast'
@@ -23,6 +22,26 @@ interface PropertyListing {
   listing_status?: string
   listing_created?: string
   square_footage?: number
+  type?: 'property' | 'sublisting' // Add type indicator
+}
+
+interface SublistingData {
+  id: string
+  address_line_1: string
+  address_line_2?: string
+  city: string
+  state: string
+  property_type: string
+  bedrooms: number
+  bathrooms: number
+  listing_title?: string
+  sublease_monthly_rent: number
+  status: string
+  created_at: string
+  square_footage?: number
+  sublease_start_date?: string
+  sublease_end_date?: string
+  type: 'sublisting'
 }
 
 interface ApartmentBuilding {
@@ -37,7 +56,7 @@ interface ApartmentBuilding {
 }
 
 type ViewMode = 'list' | 'grid'
-type ContentType = 'properties' | 'apartments'
+type ContentType = 'properties' | 'sublistings'
 
 export default function PropertyDashboard() {
   const router = useRouter()
@@ -134,33 +153,60 @@ export default function PropertyDashboard() {
         return
       }
 
-      if (contentType === 'apartments') {
-        // Fetch apartment buildings
-        const { data: buildingsData, error: buildingsError } = await supabase
-          .from('apartment_buildings')
+      if (contentType === 'sublistings') {
+        // Fetch only sublistings
+        const { data: sublistings, error: sublistingsError } = await supabase
+          .from('sublistings')
           .select(
             `
             id,
-            building_name,
-            building_number,
             address_line_1,
             address_line_2,
             city,
             state,
-            total_units
+            property_type,
+            bedrooms,
+            bathrooms,
+            square_footage,
+            created_at,
+            sublisting_listings(
+              listing_title,
+              monthly_rent,
+              listing_status,
+              created_at
+            )
           `
           )
           .eq('landlord_id', landlordId)
           .order('created_at', { ascending: false })
 
-        if (buildingsError) {
-          setError('Failed to fetch apartment buildings')
-          console.error('Error fetching apartment buildings:', buildingsError)
+        if (sublistingsError) {
+          setError('Failed to fetch sublistings')
+          console.error('Error fetching sublistings:', sublistingsError)
           return
         }
 
-        setBuildings(buildingsData || [])
-        setProperties([]) // Clear properties when viewing buildings
+        // Transform sublistings data to match property structure
+        const formattedSublistings: PropertyListing[] =
+          sublistings?.map(sublisting => ({
+            id: sublisting.id,
+            address_line_1: sublisting.address_line_1,
+            address_line_2: sublisting.address_line_2,
+            city: sublisting.city,
+            state: sublisting.state,
+            property_type: sublisting.property_type,
+            bedrooms: sublisting.bedrooms,
+            bathrooms: sublisting.bathrooms,
+            square_footage: sublisting.square_footage,
+            listing_title: sublisting.sublisting_listings?.[0]?.listing_title,
+            monthly_rent: sublisting.sublisting_listings?.[0]?.monthly_rent,
+            listing_status: sublisting.sublisting_listings?.[0]?.listing_status,
+            listing_created: sublisting.sublisting_listings?.[0]?.created_at,
+            type: 'sublisting' as const,
+          })) || []
+
+        setProperties(formattedSublistings)
+        setBuildings([]) // Clear buildings when viewing sublistings
       } else {
         // Fetch properties (existing logic)
         const { error } = await supabase
@@ -225,7 +271,9 @@ export default function PropertyDashboard() {
           return
         }
 
-        // Transform data to flat structure
+        // Note: Sublistings are now handled separately in the 'sublistings' content type
+
+        // Transform properties data to flat structure
         const formattedProperties =
           allProperties?.map(property => ({
             id: property.id,
@@ -241,8 +289,10 @@ export default function PropertyDashboard() {
             monthly_rent: property.property_listings?.[0]?.monthly_rent,
             listing_status: property.property_listings?.[0]?.listing_status,
             listing_created: property.property_listings?.[0]?.created_at,
+            type: 'property' as const,
           })) || []
 
+        // Set only properties (sublistings are handled separately)
         setProperties(formattedProperties)
         setBuildings([]) // Clear buildings when viewing properties
       }
@@ -599,13 +649,13 @@ export default function PropertyDashboard() {
                 My{' '}
                 {contentType === 'properties'
                   ? 'Properties'
-                  : 'Apartment Buildings'}
+                  : 'Sublistings'}
               </h1>
               <p className="mt-2 text-gray-600">
                 Manage your rental{' '}
                 {contentType === 'properties'
                   ? 'properties'
-                  : 'apartment buildings'}{' '}
+                  : 'sublistings'}{' '}
                 and listings
               </p>
             </div>
@@ -623,14 +673,14 @@ export default function PropertyDashboard() {
                 Properties
               </button>
               <button
-                onClick={() => setContentType('apartments')}
+                onClick={() => setContentType('sublistings')}
                 className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  contentType === 'apartments'
+                  contentType === 'sublistings'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Apartment Buildings
+                Sublistings
               </button>
             </div>
           </div>
@@ -678,7 +728,7 @@ export default function PropertyDashboard() {
                     <span className="text-white text-sm font-semibold">
                       {contentType === 'properties'
                         ? properties.length
-                        : buildings.length}
+                        : properties.length}
                     </span>
                   </div>
                 </div>
@@ -688,12 +738,12 @@ export default function PropertyDashboard() {
                       Total{' '}
                       {contentType === 'properties'
                         ? 'Properties'
-                        : 'Buildings'}
+                        : 'Sublistings'}
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {contentType === 'properties'
                         ? properties.length
-                        : buildings.length}
+                        : properties.length}
                     </dd>
                   </dl>
                 </div>
@@ -712,7 +762,9 @@ export default function PropertyDashboard() {
                           ? properties.filter(
                               p => p.listing_status === 'active'
                             ).length
-                          : buildings.length // All buildings are considered "active" for now
+                          : properties.filter(
+                              p => p.listing_status === 'active'
+                            ).length
                       }
                     </span>
                   </div>
@@ -722,7 +774,7 @@ export default function PropertyDashboard() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       {contentType === 'properties'
                         ? 'Active Listings'
-                        : 'Total Units'}
+                        : 'Active Listings'}
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {contentType === 'properties'
@@ -762,7 +814,7 @@ export default function PropertyDashboard() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       {contentType === 'properties'
                         ? 'In Progress'
-                        : 'Avg Units/Building'}
+                        : 'In Progress'}
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {contentType === 'properties'
@@ -770,14 +822,10 @@ export default function PropertyDashboard() {
                             p =>
                               !p.listing_status || p.listing_status !== 'active'
                           ).length
-                        : buildings.length > 0
-                        ? Math.round(
-                            buildings.reduce(
-                              (total, building) => total + building.total_units,
-                              0
-                            ) / buildings.length
-                          )
-                        : 0}
+                        : properties.filter(
+                            p =>
+                              !p.listing_status || p.listing_status !== 'active'
+                          ).length}
                     </dd>
                   </dl>
                 </div>
@@ -875,7 +923,7 @@ export default function PropertyDashboard() {
           {(
             contentType === 'properties'
               ? properties.length === 0
-              : buildings.length === 0
+              : properties.length === 0
           ) ? (
             <div className="text-center py-12">
               <svg
@@ -895,13 +943,13 @@ export default function PropertyDashboard() {
                 No{' '}
                 {contentType === 'properties'
                   ? 'properties'
-                  : 'apartment buildings'}{' '}
+                  : 'sublistings'}{' '}
                 yet
               </h3>
               <p className="mt-1 text-sm text-gray-500">
                 {contentType === 'properties'
                   ? 'Get started by creating your first property listing.'
-                  : 'Get started by creating your first apartment building listing.'}
+                  : 'Get started by creating your first sublisting.'}
               </p>
             </div>
           ) : contentType === 'properties' ? (
@@ -1060,51 +1108,100 @@ export default function PropertyDashboard() {
                 </div>
               </div>
             )
-          ) : // Apartment buildings content
-          buildings.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="h-6 w-6 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
-                </svg>
-              </div>
-              <h3 className="mt-4 text-sm font-medium text-gray-900">
-                No apartment buildings yet
-              </h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Get started by creating your first apartment building listing.
-              </p>
-            </div>
-          ) : viewMode === 'list' ? (
+          ) : // Sublistings content
+          viewMode === 'list' ? (
             <ul className="divide-y divide-gray-200">
-              {buildings.map(building => (
+              {properties.map(property => (
                 <li
-                  key={building.id}
+                  key={property.id}
                   className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                    clickingBuildingId === building.id ? 'bg-blue-50' : ''
+                    clickingPropertyId === property.id ? 'bg-blue-50' : ''
                   }`}
-                  onClick={() => handleBuildingClick(building)}
+                  onClick={() => handlePropertyClick(property)}
                 >
                   <div className="px-4 py-4 sm:px-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-                            <span className="text-green-600 font-semibold text-sm">
-                              {building.total_units}
+                          <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <span className="text-purple-600 font-semibold text-sm">
+                              {property.bedrooms}
                             </span>
                           </div>
                         </div>
+                        <div className="ml-4">
+                          <div className="flex items-center">
+                            <p className="text-sm font-medium text-gray-900">
+                              {property.listing_title || `${property.bedrooms} bed ${property.property_type}`}
+                            </p>
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              Sublisting
+                            </span>
+                          </div>
+                          <div className="mt-1 flex items-center text-sm text-gray-500">
+                            <svg
+                              className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                            </svg>
+                            {formatPropertyAddress(property)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          ${property.monthly_rent?.toLocaleString() || 'N/A'}
+                        </span>
+                        <button
+                          onClick={e => handlePropertyEdit(e, property)}
+                          className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={e => handlePropertyDelete(e, property)}
+                          className="text-red-600 hover:text-red-900 text-sm font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {properties.map(property => (
+                  <ListingCard
+                    key={property.id}
+                    property={property}
+                    onPropertyClick={handlePropertyClick}
+                    onEditClick={e => handlePropertyEdit(e, property)}
+                    onDeleteClick={e => handlePropertyDelete(e, property)}
+                    isLoading={clickingPropertyId === property.id}
+                    formatAddress={formatPropertyAddress}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
                         <div className="ml-4">
                           <div className="flex items-center">
                             <p className="text-sm font-medium text-gray-900">
@@ -1231,7 +1328,7 @@ export default function PropertyDashboard() {
               />
             </svg>
             Create New{' '}
-            {contentType === 'properties' ? 'Property' : 'Apartment Building'}{' '}
+            {contentType === 'properties' ? 'Property' : 'Sublisting'}{' '}
             Listing
           </button>
         </div>

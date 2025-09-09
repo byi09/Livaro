@@ -27,7 +27,7 @@ export default function PropertyCreatedSuccess() {
             Go to Dashboard
           </button>
           <button
-            onClick={() => router.push('/sell/create')}
+            onClick={() => router.push('/sell/start')}
             className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Add Another Property
