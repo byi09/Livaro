@@ -445,9 +445,10 @@ export default function CreateListingPage() {
         }
 
         console.log('Property updated successfully, navigating to rent-details')
-        await navigateWithTransition(
-          `/sell/create/rent-details?property_id=${propertyId}`
-        )
+        const rentDetailsUrl = isSubletMode
+          ? `/sell/create/rent-details?property_id=${propertyId}&mode=sublet`
+          : `/sell/create/rent-details?property_id=${propertyId}`
+        await navigateWithTransition(rentDetailsUrl)
       } else {
         // Create new property
         // Get the authenticated user
@@ -532,9 +533,10 @@ export default function CreateListingPage() {
         localStorage.removeItem(FORM_STORAGE_KEY)
 
         // Client-side redirect - much more reliable
-        await navigateWithTransition(
-          `/sell/create/rent-details?property_id=${data[0].id}`
-        )
+        const rentDetailsUrl = isSubletMode
+          ? `/sell/create/rent-details?property_id=${data[0].id}&mode=sublet`
+          : `/sell/create/rent-details?property_id=${data[0].id}`
+        await navigateWithTransition(rentDetailsUrl)
       }
     } catch (error) {
       console.error('Unexpected error:', error)
@@ -611,6 +613,7 @@ export default function CreateListingPage() {
           <InteractiveProgressBar
             currentStep={1}
             propertyId={propertyId}
+            mode={mode}
             beforeNavigate={saveImmediately}
           />
 

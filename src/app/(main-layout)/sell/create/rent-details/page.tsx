@@ -10,6 +10,20 @@ export default function RentDetailsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const propertyId = searchParams.get('property_id');
+  const mode = searchParams.get('mode'); // Check for sublet mode
+  
+  // Check both URL parameter and session storage for sublet mode
+  const isSubletMode = mode === 'sublet' || 
+    (typeof window !== 'undefined' && sessionStorage.getItem('subletting_mode') === 'true');
+  
+  // Auto-redirect to add mode parameter if missing but sublet mode detected
+  useEffect(() => {
+    if (isSubletMode && !mode && propertyId) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('mode', 'sublet');
+      router.replace(currentUrl.pathname + currentUrl.search);
+    }
+  }, [isSubletMode, mode, propertyId, router]);
   
   const [rent, setRent] = useState('');
   const [securityDeposit, setSecurityDeposit] = useState('');
@@ -66,11 +80,20 @@ export default function RentDetailsPage() {
         savePropertyData(),
         saveListingData()
       ]);
-      router.push(path);
+      
+      // Preserve mode parameter if in sublet mode
+      const finalPath = isSubletMode && !path.includes('mode=') 
+        ? `${path}${path.includes('?') ? '&' : '?'}mode=sublet`
+        : path;
+      
+      router.push(finalPath);
     } catch (error) {
       console.error('Error saving data before navigation:', error);
       // Navigate anyway to prevent user from being stuck
-      router.push(path);
+      const finalPath = isSubletMode && !path.includes('mode=') 
+        ? `${path}${path.includes('?') ? '&' : '?'}mode=sublet`
+        : path;
+      router.push(finalPath);
     }
   };
 
@@ -178,91 +201,276 @@ export default function RentDetailsPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       const formData = new FormData(e.currentTarget);
-      const supabase = createClient();
-      
-      // First, update the properties table with bedroom and bathroom info
-      const { error: propertyError } = await supabase
-        .from('properties')
-        .update({
-          bedrooms: parseInt(formData.get('bedrooms') as string),
-          bathrooms: parseFloat(formData.get('bathrooms') as string),
-        })
-        .eq('id', propertyId);
 
-      if (propertyError) {
-        console.error('Error updating property details:', propertyError);
-        alert('Error updating property details. Please try again.');
-        setIsSubmitting(false);
-        return;
+      console.log('🔍 Form data received:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
       }
-      
-      // Extract form data for listing
-      const listingData = {
-        property_id: propertyId,
-        monthly_rent: parseFloat(formData.get('monthly_rent') as string),
-        security_deposit: formData.get('security_deposit') ? parseFloat(formData.get('security_deposit') as string) : null,
-        pet_deposit: formData.get('pet_deposit') ? parseFloat(formData.get('pet_deposit') as string) : null,
-        application_fee: formData.get('application_fee') ? parseFloat(formData.get('application_fee') as string) : null,
-        minimum_lease_term: (() => {
-          const minTerm = formData.get('minimum_lease_term') as string;
-          if (minTerm === 'other') {
-            const customMin = formData.get('custom_minimum_lease_term') as string;
-            return customMin ? parseInt(customMin) : null;
-          }
-          return minTerm ? parseInt(minTerm) : null;
-        })(),
-        maximum_lease_term: (() => {
-          const maxTerm = formData.get('maximum_lease_term') as string;
-          if (maxTerm === 'other') {
-            const customMax = formData.get('custom_maximum_lease_term') as string;
-            return customMax ? parseInt(customMax) : null;
-          }
-          return maxTerm ? parseInt(maxTerm) : null;
-        })(),
-        available_date: formData.get('available_date') as string || null,
-        listing_title: formData.get('listing_title') as string || null,
-        listing_description: formData.get('listing_description') as string || null,
-        listing_status: 'pending',
-      };
 
-      // Check if listing already exists
-      const { data: existingListing, error: checkError } = await supabase
-        .from('property_listings')
-        .select('id')
-        .eq('property_id', propertyId)
-        .maybeSingle();
+      if (isSubletMode) {
+        // Handle sublisting creation
+        console.log('Creating sublisting...');
 
-      let listingOperation;
-      if (existingListing && !checkError) {
-        // Update existing listing
-        listingOperation = await supabase
-          .from('property_listings')
-          .update(listingData)
-          .eq('property_id', propertyId)
-          .select();
+        // Collect all necessary data for sublisting API
+        const sublistingData = {
+          // Property Information
+          addressLine1: '', // We'll need to get this from localStorage or previous steps
+          addressLine2: '',
+          city: '',
+          state: '',
+          zipCode: '',
+          country: 'United States',
+
+          // Property Details
+          bedrooms: (() => {
+            const bedroomsValue = formData.get('bedrooms') as string;
+            return bedroomsValue && bedroomsValue.trim() !== '' ? parseInt(bedroomsValue) : 1;
+          })(),
+          bathrooms: (() => {
+            const bathroomsValue = formData.get('bathrooms') as string;
+            return bathroomsValue && bathroomsValue.trim() !== '' ? parseFloat(bathroomsValue) : 1;
+          })(),
+          propertyType: 'apartment', // Default, can be updated later
+          yearBuilt: undefined,
+          squareFootage: undefined,
+          lotSize: null,
+          halfBathrooms: 0,
+          parkingSpaces: 0,
+          garageSpaces: 0,
+          hasBasement: false,
+          hasAttic: false,
+          propertyStatus: 'available',
+          description: '',
+
+          // Listing Details
+          monthlyRent: parseFloat(formData.get('monthly_rent') as string),
+          securityDeposit: formData.get('security_deposit') ? parseFloat(formData.get('security_deposit') as string) : null,
+          petDeposit: formData.get('pet_deposit') ? parseFloat(formData.get('pet_deposit') as string) : null,
+          applicationFee: formData.get('application_fee') ? parseFloat(formData.get('application_fee') as string) : null,
+          minimumLeaseTerm: (() => {
+            const minTerm = formData.get('minimum_lease_term') as string;
+            if (minTerm === 'other') {
+              const customMin = formData.get('custom_minimum_lease_term') as string;
+              return customMin ? parseInt(customMin) : 12;
+            }
+            return minTerm ? parseInt(minTerm) : 12;
+          })(),
+          maximumLeaseTerm: (() => {
+            const maxTerm = formData.get('maximum_lease_term') as string;
+            if (maxTerm === 'other') {
+              const customMax = formData.get('custom_maximum_lease_term') as string;
+              return customMax ? parseInt(customMax) : 12;
+            }
+            return maxTerm ? parseInt(maxTerm) : 12;
+          })(),
+          availableDate: formData.get('available_date') as string || null,
+          listingTitle: '', // Will be set after collecting property data
+          listingDescription: '', // Will be set after collecting property data
+          listingStatus: 'draft',
+        };
+
+        // Try to collect additional data from localStorage
+        if (typeof window !== 'undefined') {
+          const propertyInfoData = localStorage.getItem('sell-create-form-data');
+          const extractedData = localStorage.getItem('extracted-data-new');
+
+          console.log('🔍 Checking localStorage for property data:');
+          console.log('propertyInfoData:', propertyInfoData);
+          console.log('extractedData:', extractedData);
+
+          if (propertyInfoData) {
+            const propertyInfo = JSON.parse(propertyInfoData);
+            console.log('📋 Property info from localStorage:', propertyInfo);
+            sublistingData.addressLine1 = propertyInfo.addressLine1 || '';
+            sublistingData.addressLine2 = propertyInfo.addressLine2 || '';
+            sublistingData.city = propertyInfo.city || '';
+            sublistingData.state = propertyInfo.state || '';
+            sublistingData.zipCode = propertyInfo.zipCode || '';
+            sublistingData.propertyType = propertyInfo.propertyType || 'apartment';
+            sublistingData.yearBuilt = propertyInfo.yearBuilt ? parseInt(propertyInfo.yearBuilt) : undefined as any;
+            sublistingData.squareFootage = propertyInfo.squareFootage ? parseInt(propertyInfo.squareFootage) : undefined as any;
+            sublistingData.description = propertyInfo.description || '';
+          }
+
+          if (extractedData) {
+            const extracted = JSON.parse(extractedData);
+            console.log('📋 Extracted data from localStorage:', extracted);
+            sublistingData.addressLine1 = extracted.address_line_1 || sublistingData.addressLine1;
+            sublistingData.addressLine2 = extracted.address_line_2 || sublistingData.addressLine2;
+            sublistingData.city = extracted.city || sublistingData.city;
+            sublistingData.state = extracted.state || sublistingData.state;
+            sublistingData.zipCode = extracted.zip_code || sublistingData.zipCode;
+            sublistingData.yearBuilt = extracted.year_built ? parseInt(extracted.year_built) : undefined as any;
+            sublistingData.squareFootage = extracted.square_footage ? parseInt(extracted.square_footage) : undefined as any;
+            sublistingData.description = extracted.description || sublistingData.description;
+          }
+
+          console.log('📋 Final sublisting data:', sublistingData);
+        }
+
+        // Now that we have the description, update the listing fields
+        sublistingData.listingTitle = formData.get('listing_title') as string ||
+          `Beautiful ${sublistingData.propertyType || 'property'} in ${sublistingData.city || 'great location'}`;
+        sublistingData.listingDescription = formData.get('listing_description') as string || sublistingData.description;
+
+        // If we don't have the required address data, try to fetch it from the database
+        if ((!sublistingData.addressLine1 || !sublistingData.city || !sublistingData.state || !sublistingData.zipCode) && propertyId) {
+          console.log('🔄 Missing address data, fetching from database...');
+          const supabase = await createClient();
+
+          const { data: propertyData, error: fetchError } = await supabase
+            .from('properties')
+            .select('address_line_1, address_line_2, city, state, zip_code, property_type, year_built, square_footage, description')
+            .eq('id', propertyId)
+            .single();
+
+          if (!fetchError && propertyData) {
+            console.log('📋 Fetched property data from database:', propertyData);
+            sublistingData.addressLine1 = propertyData.address_line_1 || '';
+            sublistingData.addressLine2 = propertyData.address_line_2 || '';
+            sublistingData.city = propertyData.city || '';
+            sublistingData.state = propertyData.state || '';
+            sublistingData.zipCode = propertyData.zip_code || '';
+            sublistingData.propertyType = propertyData.property_type || 'apartment';
+            sublistingData.yearBuilt = propertyData.year_built ? parseInt(propertyData.year_built.toString()) : undefined as any;
+            sublistingData.squareFootage = propertyData.square_footage ? parseInt(propertyData.square_footage.toString()) : undefined as any;
+            sublistingData.description = propertyData.description || '';
+          }
+        }
+
+        // Final validation
+        if (!sublistingData.addressLine1 || !sublistingData.city || !sublistingData.state || !sublistingData.zipCode) {
+          console.error('❌ Missing required address information');
+          console.error('Current sublistingData:', sublistingData);
+          alert('Missing required address information. Please go back to the property info step and fill in the address details.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Submit to sublistings API
+        const response = await fetch('/api/sublistings/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(sublistingData),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          console.error('Error creating sublisting:', result);
+          alert(result.error || 'Error creating sublisting. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        console.log('Sublisting created successfully:', result);
+
+        // Clean up localStorage after successful sublisting creation
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('sell-create-form-data');
+          localStorage.removeItem('extracted-data-new');
+        }
+
+        // Redirect to next step with sublisting ID
+        const nextPath = `/sell/create/media?sublisting_id=${result.sublisting.id}&mode=sublet`;
+        router.push(nextPath);
+
       } else {
-        // Create new listing
-        listingOperation = await supabase
+        // Handle regular property listing creation
+        const supabase = await createClient();
+
+        // First, update the properties table with bedroom and bathroom info
+        const { error: propertyError } = await supabase
+          .from('properties')
+          .update({
+            bedrooms: parseInt(formData.get('bedrooms') as string),
+            bathrooms: parseFloat(formData.get('bathrooms') as string),
+          })
+          .eq('id', propertyId);
+
+        if (propertyError) {
+          console.error('Error updating property details:', propertyError);
+          alert('Error updating property details. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Extract form data for listing
+        const listingData = {
+          property_id: propertyId,
+          monthly_rent: parseFloat(formData.get('monthly_rent') as string),
+          security_deposit: formData.get('security_deposit') ? parseFloat(formData.get('security_deposit') as string) : null,
+          pet_deposit: formData.get('pet_deposit') ? parseFloat(formData.get('pet_deposit') as string) : null,
+          application_fee: formData.get('application_fee') ? parseFloat(formData.get('application_fee') as string) : null,
+          minimum_lease_term: (() => {
+            const minTerm = formData.get('minimum_lease_term') as string;
+            if (minTerm === 'other') {
+              const customMin = formData.get('custom_minimum_lease_term') as string;
+              return customMin ? parseInt(customMin) : null;
+            }
+            return minTerm ? parseInt(minTerm) : null;
+          })(),
+          maximum_lease_term: (() => {
+            const maxTerm = formData.get('maximum_lease_term') as string;
+            if (maxTerm === 'other') {
+              const customMax = formData.get('custom_maximum_lease_term') as string;
+              return customMax ? parseInt(customMax) : null;
+            }
+            return maxTerm ? parseInt(maxTerm) : null;
+          })(),
+          available_date: formData.get('available_date') as string || null,
+          listing_title: formData.get('listing_title') as string || null,
+          listing_description: formData.get('listing_description') as string || null,
+          listing_status: 'pending',
+        };
+
+        // Check if listing already exists
+        const { data: existingListing, error: checkError } = await supabase
           .from('property_listings')
-          .insert([listingData])
-          .select();
+          .select('id')
+          .eq('property_id', propertyId)
+          .maybeSingle();
+
+        let listingOperation;
+        if (existingListing && !checkError) {
+          // Update existing listing
+          listingOperation = await supabase
+            .from('property_listings')
+            .update(listingData)
+            .eq('property_id', propertyId)
+            .select();
+        } else {
+          // Create new listing
+          listingOperation = await supabase
+            .from('property_listings')
+            .insert([listingData])
+            .select();
+        }
+
+        if (listingOperation.error) {
+          console.error('Error saving property listing:', listingOperation.error);
+          alert('Error saving property listing. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        console.log('Property listing saved successfully:', listingOperation.data);
+
+        // Clean up localStorage after successful property creation
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('sell-create-form-data');
+          localStorage.removeItem('extracted-data-new');
+        }
+
+        // Client-side redirect
+        router.push(`/sell/create/media?property_id=${propertyId}`);
       }
 
-      if (listingOperation.error) {
-        console.error('Error saving property listing:', listingOperation.error);
-        alert('Error saving property listing. Please try again.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      console.log('Property listing saved successfully:', listingOperation.data);
-      
-      // Client-side redirect
-      router.push(`/sell/create/media?property_id=${propertyId}`);
-      
     } catch (error) {
       console.error('Unexpected error:', error);
       alert('An unexpected error occurred. Please try again.');
@@ -281,7 +489,7 @@ export default function RentDetailsPage() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Step 2: Rent Details</h1>
           <button 
-            onClick={() => router.push('/sell/dashboard')}
+            onClick={() => router.push(isSubletMode ? '/sublist/dashboard' : '/sell/dashboard')}
             className="px-6 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
           >
             Save & Exit
@@ -289,7 +497,7 @@ export default function RentDetailsPage() {
         </div>
 
         {/* Progress Bar */}
-        <InteractiveProgressBar currentStep={2} propertyId={propertyId} beforeNavigate={saveAllData} />
+        <InteractiveProgressBar currentStep={2} propertyId={propertyId} beforeNavigate={saveAllData} mode={mode} />
 
         {/* Auto-fill Notice */}
         {uploadedFiles.length > 0 && (
@@ -338,6 +546,43 @@ export default function RentDetailsPage() {
                     onChange={(e) => setRent(e.target.value)}
                     className="block w-full pl-8 pr-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50 placeholder-gray-400"
                     placeholder="Enter monthly rent"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Bedrooms and Bathrooms Row */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-base font-semibold text-gray-900">
+                    Bedrooms *
+                  </label>
+                  <input
+                    type="number"
+                    name="bedrooms"
+                    value={bedrooms}
+                    onChange={(e) => setBedrooms(e.target.value)}
+                    className="block w-full px-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50 placeholder-gray-400"
+                    placeholder="Number of bedrooms"
+                    min="0"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-base font-semibold text-gray-900">
+                    Bathrooms *
+                  </label>
+                  <input
+                    type="number"
+                    name="bathrooms"
+                    value={bathrooms}
+                    onChange={(e) => setBathrooms(e.target.value)}
+                    step="0.5"
+                    className="block w-full px-4 py-3.5 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-gray-50 placeholder-gray-400"
+                    placeholder="Number of bathrooms"
+                    min="0"
                     required
                     disabled={isSubmitting}
                   />

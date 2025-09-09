@@ -5,13 +5,15 @@ import { useEffect, useState } from 'react';
 interface InteractiveProgressBarProps {
   currentStep: number;
   propertyId?: string | null;
+  mode?: string | null;
   /** optional callback before we change page – parent can save form */
   beforeNavigate?: () => Promise<void> | void;
 }
 
-const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({ 
-  currentStep, 
+const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
+  currentStep,
   propertyId,
+  mode,
   beforeNavigate
 }) => {
   const router = useRouter();
@@ -25,6 +27,7 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
     { label: 'Rent Details', path: '/sell/create/rent-details' },
     { label: 'Media', path: '/sell/create/media' },
     { label: 'Amenities', path: '/sell/create/amenities' },
+    { label: 'Additional Fees', path: '/sell/create/costs-and-fees' },
     { label: 'Review & Publish', path: '/sell/create/review' }
   ];
 
@@ -100,9 +103,20 @@ const InteractiveProgressBar: React.FC<InteractiveProgressBarProps> = ({
 
     const step = steps[stepIndex];
     let url = step.path;
+    const params = [];
+
     if (propertyId) {
-      url += `?property_id=${propertyId}`;
+      params.push(`property_id=${propertyId}`);
     }
+
+    if (mode) {
+      params.push(`mode=${mode}`);
+    }
+
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
+    }
+
     router.push(url);
   };
 

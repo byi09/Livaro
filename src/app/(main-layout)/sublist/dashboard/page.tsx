@@ -9,13 +9,35 @@ import { toast } from 'sonner'
 
 interface SubleaseDocument {
   id: string
-  fileName: string
-  fileSize: number
-  uploadedAt: string
+  address_line_1: string
+  address_line_2?: string
+  city: string
+  state: string
+  zip_code: string
+  property_type: string
+  bedrooms: number
+  bathrooms: number
+  square_footage?: number
+  description?: string
+  created_at: string
+  updated_at: string
+  listing_title?: string
+  monthly_rent: number
+  listing_status: 'active' | 'pending' | 'expired'
+  security_deposit?: number
+  available_date?: string
+  // Computed fields for display
+  propertyAddress: string
+  monthlyRent: number
   status: 'active' | 'pending' | 'expired'
-  propertyAddress?: string
-  leaseEndDate?: string
-  monthlyRent?: number
+  uploadedAt: string
+  // Media data
+  sublisting_media?: {
+    id: string
+    file_url: string
+    display_order: number
+    file_name: string
+  }[]
 }
 
 export default function SublistDashboard() {
@@ -30,33 +52,92 @@ export default function SublistDashboard() {
   const fetchSubleases = async () => {
     try {
       setIsLoading(true)
-      // TODO: Replace with actual API call to fetch user's subleases
-      // For now, using mock data
-      setTimeout(() => {
-        setSubleases([
-          {
-            id: '1',
-            fileName: 'Apartment_Sublease_Agreement.pdf',
-            fileSize: 2485760, // 2.4MB
-            uploadedAt: '2024-01-15T10:30:00Z',
-            status: 'active',
-            propertyAddress: '123 College Ave, University City',
-            leaseEndDate: '2024-08-31',
-            monthlyRent: 1200
-          },
-          {
-            id: '2',
-            fileName: 'Summer_Sublet_Contract.pdf',
-            fileSize: 1847520, // 1.8MB
-            uploadedAt: '2024-01-10T14:20:00Z',
-            status: 'pending',
-            propertyAddress: '456 Student Dr, Campus Town',
-            leaseEndDate: '2024-07-31',
-            monthlyRent: 950
-          }
-        ])
+      const supabase = createClient()
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        console.error('Error getting user:', userError)
         setIsLoading(false)
-      }, 1000)
+        return
+      }
+
+      // Fetch sublistings for the current user
+      const { data: sublistings, error: sublistingsError } = await supabase
+        .from('sublistings')
+        .select(`
+          id,
+          address_line_1,
+          address_line_2,
+          city,
+          state,
+          zip_code,
+          property_type,
+          bedrooms,
+          bathrooms,
+          square_footage,
+          description,
+          created_at,
+          updated_at,
+          sublisting_listings(
+            listing_title,
+            monthly_rent,
+            listing_status,
+            security_deposit,
+            available_date
+          ),
+          sublisting_media(
+            id,
+            file_url,
+            display_order,
+            file_name
+          )
+        `)
+        .eq('landlord_id', user.id) // Assuming landlord_id is the user's ID for subleases
+        .order('created_at', { ascending: false })
+
+      if (sublistingsError) {
+        console.error('Error fetching sublistings:', sublistingsError)
+        setIsLoading(false)
+        return
+      }
+
+      // Transform the data to match our interface
+      const transformedSublistings: SubleaseDocument[] = sublistings?.map(sublisting => {
+        const listing = sublisting.sublisting_listings?.[0]
+        const propertyAddress = `${sublisting.address_line_1}${sublisting.address_line_2 ? ', ' + sublisting.address_line_2 : ''}, ${sublisting.city}, ${sublisting.state} ${sublisting.zip_code}`
+        
+        return {
+          id: sublisting.id,
+          address_line_1: sublisting.address_line_1,
+          address_line_2: sublisting.address_line_2,
+          city: sublisting.city,
+          state: sublisting.state,
+          zip_code: sublisting.zip_code,
+          property_type: sublisting.property_type,
+          bedrooms: sublisting.bedrooms,
+          bathrooms: sublisting.bathrooms,
+          square_footage: sublisting.square_footage,
+          description: sublisting.description,
+          created_at: sublisting.created_at,
+          updated_at: sublisting.updated_at,
+          listing_title: listing?.listing_title,
+          monthly_rent: listing?.monthly_rent || 0,
+          listing_status: listing?.listing_status || 'pending',
+          security_deposit: listing?.security_deposit,
+          available_date: listing?.available_date,
+          // Computed fields for display
+          propertyAddress,
+          monthlyRent: listing?.monthly_rent || 0,
+          status: listing?.listing_status || 'pending',
+          uploadedAt: sublisting.created_at,
+          // Media data
+          sublisting_media: sublisting.sublisting_media || []
+        }
+      }) || []
+
+      setSubleases(transformedSublistings)
+      setIsLoading(false)
     } catch (error) {
       console.error('Error fetching subleases:', error)
       setIsLoading(false)
@@ -67,7 +148,21 @@ export default function SublistDashboard() {
 
   const deleteSublease = async (id: string) => {
     try {
-      // TODO: Implement actual deletion API call
+      const supabase = createClient()
+      
+      // Delete the sublisting (this will cascade to sublisting_listings, sublisting_media, etc.)
+      const { error } = await supabase
+        .from('sublistings')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.error('Delete error:', error)
+        toast.error('Failed to delete sublease')
+        return
+      }
+
+      // Update local state
       setSubleases(prev => prev.filter(sublease => sublease.id !== id))
       toast.success('Sublease deleted successfully')
     } catch (error) {
@@ -76,13 +171,6 @@ export default function SublistDashboard() {
     }
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -175,7 +263,7 @@ export default function SublistDashboard() {
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No subleases yet</h3>
                 <p className="text-gray-600 mb-4">
-                  Upload your first sublease agreement to get started
+                  Create your first sublease listing to get started
                 </p>
                 <Button 
                   onClick={() => router.push('/sell/start?mode=sublet')}
@@ -196,6 +284,7 @@ export default function SublistDashboard() {
                       {getStatusBadge(sublease.status)}
                       <div className="flex space-x-1">
                         <Button
+                          onClick={() => router.push(`/sell/create/publish?sublisting_id=${sublease.id}&mode=sublet`)}
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
@@ -215,42 +304,64 @@ export default function SublistDashboard() {
                       </div>
                     </div>
 
-                    {/* File Info */}
+                    {/* Property Info */}
                     <div className="flex items-start space-x-3 mb-3">
-                      <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <HiDocument className="w-5 h-5 text-red-600" />
+                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {sublease.sublisting_media && sublease.sublisting_media.length > 0 ? (
+                          <img
+                            src={sublease.sublisting_media[0].file_url}
+                            alt={sublease.sublisting_media[0].file_name || 'Property image'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <HiDocument className="w-6 h-6 text-gray-400" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="text-sm font-medium text-gray-900 truncate">
-                          {sublease.fileName}
+                          {sublease.listing_title || `${sublease.bedrooms} bed ${sublease.bathrooms} bath ${sublease.property_type}`}
                         </h3>
                         <p className="text-xs text-gray-500">
-                          {formatFileSize(sublease.fileSize)} • Uploaded {formatDate(sublease.uploadedAt)}
+                          Created {formatDate(sublease.uploadedAt)}
                         </p>
                       </div>
                     </div>
 
                     {/* Property Details */}
-                    {sublease.propertyAddress && (
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="text-gray-500">Property:</span>
-                          <p className="text-gray-900">{sublease.propertyAddress}</p>
-                        </div>
-                        {sublease.monthlyRent && (
-                          <div>
-                            <span className="text-gray-500">Rent:</span>
-                            <span className="text-gray-900 font-medium"> ${sublease.monthlyRent}/month</span>
-                          </div>
-                        )}
-                        {sublease.leaseEndDate && (
-                          <div>
-                            <span className="text-gray-500">Lease ends:</span>
-                            <span className="text-gray-900"> {formatDate(sublease.leaseEndDate)}</span>
-                          </div>
-                        )}
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Property:</span>
+                        <p className="text-gray-900">{sublease.propertyAddress}</p>
                       </div>
-                    )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-gray-500">Bedrooms:</span>
+                          <span className="text-gray-900 font-medium"> {sublease.bedrooms}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Bathrooms:</span>
+                          <span className="text-gray-900 font-medium"> {sublease.bathrooms}</span>
+                        </div>
+                      </div>
+                      {sublease.monthlyRent > 0 && (
+                        <div>
+                          <span className="text-gray-500">Rent:</span>
+                          <span className="text-gray-900 font-medium"> ${sublease.monthlyRent}/month</span>
+                        </div>
+                      )}
+                      {sublease.available_date && (
+                        <div>
+                          <span className="text-gray-500">Available:</span>
+                          <span className="text-gray-900"> {formatDate(sublease.available_date)}</span>
+                        </div>
+                      )}
+                      {sublease.security_deposit && (
+                        <div>
+                          <span className="text-gray-500">Security Deposit:</span>
+                          <span className="text-gray-900"> ${sublease.security_deposit}</span>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}

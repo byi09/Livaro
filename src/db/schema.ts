@@ -754,6 +754,117 @@ export const notifications = pgTable('notifications', {
     readAt: timestamp('read_at'),
 });
 
+// ==================== SUBLISTINGS TABLES ====================
+
+export const sublistings = pgTable('sublistings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  landlordId: uuid('landlord_id').references(() => landlords.id),
+
+  // Address
+  addressLine1: varchar('address_line_1', { length: 255 }).notNull(),
+  addressLine2: varchar('address_line_2', { length: 255 }),
+  city: varchar('city', { length: 100 }).notNull(),
+  state: varchar('state', { length: 50 }).notNull(),
+  zipCode: varchar('zip_code', { length: 10 }).notNull(),
+  country: varchar('country', { length: 100 }).default('United States'),
+
+  // Coordinates for mapping
+  latitude: decimal('latitude', { precision: 10, scale: 8 }),
+  longitude: decimal('longitude', { precision: 11, scale: 8 }),
+
+  // Property details
+  propertyType: propertyTypeEnum('property_type').notNull(),
+  yearBuilt: integer('year_built'),
+  squareFootage: integer('square_footage'),
+  lotSize: decimal('lot_size', { precision: 10, scale: 2 }), // in sq ft
+  bedrooms: integer('bedrooms').notNull(),
+  bathrooms: decimal('bathrooms', { precision: 3, scale: 1 }).notNull(),
+  halfBathrooms: integer('half_bathrooms').default(0),
+
+  // Parking and storage
+  parkingSpaces: integer('parking_spaces').default(0),
+  garageSpaces: integer('garage_spaces').default(0),
+  hasBasement: boolean('has_basement').default(false),
+  hasAttic: boolean('has_attic').default(false),
+
+  // Property status
+  propertyStatus: propertyStatusEnum('property_status').default('available'),
+  description: text('description'),
+
+  // Metadata
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const sublistingListings = pgTable('sublisting_listings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sublistingId: uuid('sublisting_id')
+    .notNull()
+    .references(() => sublistings.id, { onDelete: 'cascade' }),
+
+  // Rental details
+  monthlyRent: decimal('monthly_rent', { precision: 8, scale: 2 }).notNull(),
+  securityDeposit: decimal('security_deposit', { precision: 8, scale: 2 }),
+  petDeposit: decimal('pet_deposit', { precision: 8, scale: 2 }),
+  applicationFee: decimal('application_fee', { precision: 6, scale: 2 }),
+
+  // Lease terms
+  minimumLeaseTerm: integer('minimum_lease_term'), // months
+  maximumLeaseTerm: integer('maximum_lease_term'), // months
+  availableDate: date('available_date'),
+
+  // Listing management
+  listingStatus: listingStatusEnum('listing_status').default('active'),
+  // listDate: date('list_date').defaultNow(), // Commented out - not in current DB
+  // expirationDate: date('expiration_date'), // Commented out - not in current DB
+  // viewCount: integer('view_count').default(0), // Commented out - not in current DB
+
+  // SEO and marketing
+  listingTitle: varchar('listing_title', { length: 255 }),
+  listingDescription: text('listing_description'),
+  // virtualTourUrl: varchar('virtual_tour_url', { length: 500 }), // Commented out - not in current DB
+
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const sublistingMedia = pgTable('sublisting_media', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sublistingId: uuid('sublisting_id').notNull().references(() => sublistings.id, { onDelete: 'cascade' }),
+
+  // Media details
+  fileName: varchar('file_name', { length: 500 }).notNull(),
+  fileUrl: varchar('file_url', { length: 500 }).notNull(),
+  fileType: varchar('file_type', { length: 50 }).notNull(),
+  fileSize: integer('file_size'),
+
+  // Categorization
+  displayOrder: integer('display_order').default(0),
+
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const sublistingFeatures = pgTable('sublisting_features', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sublistingId: uuid('sublisting_id')
+    .notNull()
+    .references(() => sublistings.id, { onDelete: 'cascade' }),
+
+  featureName: varchar('feature_name', { length: 255 }).notNull(),
+  featureCategory: featureCategoryEnum('feature_category').notNull(),
+  featureValue: varchar('feature_value', { length: 255 }), // for features with values like "2-car garage"
+
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const subleaseOwners = pgTable('sublease_owners', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // ==================== RELATIONS ====================
 
 // User relations
@@ -800,6 +911,7 @@ export const landlordsRelations = relations(landlords, ({ one, many }) => ({
         references: [customers.id],
     }),
     properties: many(properties),
+    sublistings: many(sublistings),
     applications: many(rentalApplications),
     tours: many(propertyTours),
     oneTapPreferences: many(oneTapApplicationPreferences),
@@ -830,6 +942,49 @@ export const propertiesRelations = relations(properties, ({ one, many }) => ({
     tours: many(propertyTours),
     views: many(propertyViews),
     savedBy: many(savedProperties),
+}));
+
+// Sublisting relations
+export const sublistingsRelations = relations(sublistings, ({ one, many }) => ({
+    landlord: one(landlords, {
+        fields: [sublistings.landlordId],
+        references: [landlords.id],
+    }),
+    currentListing: one(sublistingListings, {
+        fields: [sublistings.id],
+        references: [sublistingListings.sublistingId],
+    }),
+    listings: many(sublistingListings),
+    media: many(sublistingMedia),
+    features: many(sublistingFeatures),
+    subleaseOwner: one(subleaseOwners, {
+        fields: [sublistings.landlordId],
+        references: [subleaseOwners.userId],
+    }),
+}));
+
+// Sublisting listing relations
+export const sublistingListingsRelations = relations(sublistingListings, ({ one }) => ({
+    sublisting: one(sublistings, {
+        fields: [sublistingListings.sublistingId],
+        references: [sublistings.id],
+    }),
+}));
+
+// Sublisting media relations
+export const sublistingMediaRelations = relations(sublistingMedia, ({ one }) => ({
+    sublisting: one(sublistings, {
+        fields: [sublistingMedia.sublistingId],
+        references: [sublistings.id],
+    }),
+}));
+
+// Sublisting features relations
+export const sublistingFeaturesRelations = relations(sublistingFeatures, ({ one }) => ({
+    sublisting: one(sublistings, {
+        fields: [sublistingFeatures.sublistingId],
+        references: [sublistings.id],
+    }),
 }));
 
 // Property listing relations
