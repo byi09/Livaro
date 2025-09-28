@@ -63,7 +63,7 @@ export const messageTagEnum = pgEnum('message_tag', [
 ]);
 
 // ==================== NOTIFICATION ENUMS ====================
-export const notificationTypeEnum = pgEnum('notification_type', ['notification', 'phone', 'email']);
+export const notificationTypeEnum = pgEnum('notification_type', ['notification', 'phone', 'email', 'subletting']);
 
 // ==================== USER & CUSTOMER TABLES ====================
 
@@ -736,6 +736,10 @@ export const userPreferences = pgTable('user_preferences', {
     newsEmail: boolean('news_email').default(true).notNull(),
     newsPush: boolean('news_push').default(true).notNull(),
 
+    // Subletting notifications
+    sublettingNotificationsEmail: boolean('subletting_notifications_email').default(true).notNull(),
+    sublettingNotificationsPush: boolean('subletting_notifications_push').default(true).notNull(),
+
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -759,6 +763,7 @@ export const notifications = pgTable('notifications', {
 export const sublistings = pgTable('sublistings', {
   id: uuid('id').defaultRandom().primaryKey(),
   landlordId: uuid('landlord_id').references(() => landlords.id),
+  originalPropertyId: uuid('original_property_id').references(() => properties.id, { onDelete: 'cascade' }),
 
   // Address
   addressLine1: varchar('address_line_1', { length: 255 }).notNull(),

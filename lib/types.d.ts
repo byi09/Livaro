@@ -92,4 +92,6 @@ interface NotificationPreferences {
   newPropertiesPush: boolean;
   newsEmail: boolean;
   newsPush: boolean;
+  sublettingNotificationsEmail: boolean;
+  sublettingNotificationsPush: boolean;
 }

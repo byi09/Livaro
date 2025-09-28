@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { db } from '@/src/db';
 import { sublistings, sublistingListings } from '@/src/db/schema';
+import { notifyLandlordOfSubletting } from '@/src/lib/notification-service';
 
 export async function POST(request: NextRequest) {
   console.log('🎯 /api/sublistings/create called');
@@ -32,6 +33,9 @@ export async function POST(request: NextRequest) {
     
     // Extract sublisting data from request (same structure as properties)
     const {
+      // Original property reference for notifications
+      originalPropertyId,
+      
       // Property Information (same as properties)
       addressLine1,
       addressLine2,
@@ -85,6 +89,7 @@ export async function POST(request: NextRequest) {
     // Create the sublisting (same structure as properties)
     const [sublisting] = await db.insert(sublistings).values({
       landlordId: user.id,
+      originalPropertyId: originalPropertyId || null,
       addressLine1,
       addressLine2,
       city,
@@ -130,10 +135,38 @@ export async function POST(request: NextRequest) {
     console.log('✅ Sublisting listing created:', sublistingListing);
     console.log('🎉 Both records created successfully!');
 
+    // Send notification to original property landlord if originalPropertyId is provided
+    let notificationResult = null;
+    if (originalPropertyId) {
+      console.log('📬 Sending landlord notification for original property:', originalPropertyId);
+      
+      const propertyAddress = `${addressLine1}${addressLine2 ? ', ' + addressLine2 : ''}, ${city}, ${state} ${zipCode}`;
+      
+      try {
+        notificationResult = await notifyLandlordOfSubletting({
+          sublistingId: sublisting.id,
+          originalPropertyId,
+          sublettingUserId: user.id,
+          propertyAddress,
+          monthlyRent: parseFloat(monthlyRent),
+          availableDate,
+        });
+
+        console.log('📬 Notification result:', notificationResult);
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send landlord notification (non-blocking):', notificationError);
+        // Don't fail the sublisting creation if notification fails
+        notificationResult = { success: false, error: notificationError.message };
+      }
+    } else {
+      console.log('📭 No original property ID provided - skipping landlord notification');
+    }
+
     return NextResponse.json({
       success: true,
       sublisting: sublisting,
       sublistingListing: sublistingListing,
+      notificationResult,
       message: 'Sublisting created successfully'
     });
 

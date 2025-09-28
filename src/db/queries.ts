@@ -516,7 +516,9 @@ export const getNotificationPreferences = async () => {
         newPropertiesEmail: true,
         newPropertiesPush: true,
         newsEmail: true,
-        newsPush: true
+        newsPush: true,
+        sublettingNotificationsEmail: true,
+        sublettingNotificationsPush: true
       }
     });
 
@@ -528,7 +530,9 @@ export const getNotificationPreferences = async () => {
         newPropertiesEmail: true,
         newPropertiesPush: false,
         newsEmail: true,
-        newsPush: false
+        newsPush: false,
+        sublettingNotificationsEmail: true,
+        sublettingNotificationsPush: false
       };
 
       await db.insert(userPreferences).values({

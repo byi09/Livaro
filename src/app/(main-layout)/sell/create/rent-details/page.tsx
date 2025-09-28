@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import InteractiveProgressBar from '@/src/components/ui/InteractiveProgressBar';
 import { useAutoSave } from '@/src/hooks/useAutoSave';
 import { useUploadedMedia } from '@/src/hooks/useUploadedMedia';
+import PropertySelector from '@/src/components/PropertySelector';
 
 export default function RentDetailsPage() {
   const router = useRouter();
@@ -39,6 +40,9 @@ export default function RentDetailsPage() {
   const [bedrooms, setBedrooms] = useState('1');
   const [bathrooms, setBathrooms] = useState('1');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Property selection for subletting
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
 
   // Uploaded media management hook - auto-fill from previously uploaded files
   const { getAllExtractedData, uploadedFiles } = useUploadedMedia({
@@ -216,6 +220,9 @@ export default function RentDetailsPage() {
 
         // Collect all necessary data for sublisting API
         const sublistingData = {
+          // Original property reference for landlord notifications
+          originalPropertyId: selectedProperty?.id || null,
+          
           // Property Information
           addressLine1: '', // We'll need to get this from localStorage or previous steps
           addressLine2: '',
@@ -532,6 +539,26 @@ export default function RentDetailsPage() {
 
             {/* Form */}
             <form id="rent-details-form" onSubmit={handleSubmit} className="space-y-8">{/* Form content will continue below */}
+              
+              {/* Property Selection for Subletting */}
+              {isSubletMode && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <PropertySelector
+                    onPropertySelected={setSelectedProperty}
+                    selectedProperty={selectedProperty}
+                    autoMatchData={{
+                      addressLine1: '', // Will be populated from form data
+                      city: '',
+                      state: '',
+                      zipCode: '',
+                      bedrooms: parseInt(bedrooms) || undefined,
+                      bathrooms: parseFloat(bathrooms) || undefined,
+                      propertyType: 'apartment',
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Monthly Rent */}
               <div className="space-y-2">
                 <label className="block text-base font-semibold text-gray-900">

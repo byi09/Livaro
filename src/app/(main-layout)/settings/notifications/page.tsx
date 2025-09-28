@@ -52,6 +52,23 @@ export default function NotificationsPage() {
           </section>
 
           <section className="space-y-4">
+            <h3 className="text-xl font-semibold">Property Subletting Alerts</h3>
+            <p className="text-sm text-gray-600">
+              Get notified when someone lists your property for subletting
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span>Email</span>
+                <PreferenceToggle preference="sublettingNotificationsEmail" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Phone</span>
+                <PreferenceToggle preference="sublettingNotificationsPush" />
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <h3 className="text-xl font-semibold">News from Livaro</h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
